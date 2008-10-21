@@ -7,6 +7,13 @@ PathPath = bam_path_path
 ScriptArgs = _bam_scriptargs
 Execute = os.execute
 
+function CheckVersion(version)
+	if version == "0.1" then
+	else
+		error("this file for version "..version..".x of bam. you are running 0.1.x.")
+	end
+end
+
 -- returns the raw filename without any extension.
 -- [TODO: Should be in C]
 function PathBase(s)
@@ -735,7 +742,7 @@ end
 
 -- Helper functions --------------------------------------
 function DefaultOptionDisplay(option)
-	if option.value == 0 then return "no" end
+	if not option.value then return "no" end
 	if option.value == 1 then return "yes" end
 	return option.value
 end
@@ -756,7 +763,7 @@ end
 -- Test Compile C --------------------------------------
 function OptTestCompileC(name, source)
 	local check = function(option)
-		option.value = 0
+		option.value = nil
 		if compile_c_test("int main(){return 0;}", "-fstack-protector -fstack-protector-all") then
 			option.value = 1
 		end
@@ -795,7 +802,7 @@ end
 -- Find Library --------------------------------------
 function OptFindLibrary(name, header, library, required)
 	local check = function(option)
-		option.value = 0
+		option.value = nil
 		
 		local function check_compile_include(filename, paths)
 			if compile_c_test("#include <" .. filename .. ">\nint main(){return 0;}", "") then
@@ -831,7 +838,7 @@ function OptFindLibrary(name, header, library, required)
 	end
 	
 	local display = function(option)
-		if option.value == 1 then
+		if option.value then
 			if option.include_path then
 				return option.include_path
 			else
