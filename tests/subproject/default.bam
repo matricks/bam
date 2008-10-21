@@ -1,0 +1,14 @@
+mod = Import("mod/mod.bam")
+
+test = "ERROR: wrong variable"
+function get_test()
+	return "ERROR: wrong function"
+end
+
+s = NewSettings()
+mod.use(s)
+
+objs = Compile(s, Collect("*.c"))
+print("Error test:", mod.get_test())
+exe = Link(s, "subproj", objs, mod.output)
+Target(exe)

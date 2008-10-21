@@ -1,0 +1,3 @@
+s = NewSettings()
+s.cc.includes:add("dir")
+Target(Link(s, "include_paths", Compile(s, Collect("*.c"))))

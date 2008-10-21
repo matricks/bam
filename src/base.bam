@@ -1,0 +1,854 @@
+
+-- just install a better name for the functions and tables
+Path = bam_path_fix
+PathFilename = bam_path_filename
+PathFileExt = bam_path_ext
+PathPath = bam_path_path
+ScriptArgs = _bam_scriptargs
+Execute = os.execute
+
+-- returns the raw filename without any extension.
+-- [TODO: Should be in C]
+function PathBase(s)
+	local e = PathFileExt(s)
+	if e == "" then
+		return s
+	end
+	
+	return string.sub(s,1,string.len(s)-string.len(PathFileExt(s))-1)
+end
+
+-- [TODO: Should be in C?]
+function str_replace(s, pattern, what)
+	return string.gsub(s, pattern, function(v) return what end)
+end
+
+function flattern_table(collection, t)
+	for i,v in pairs(t) do
+		if type(v) == type({}) then
+			flattern_table(collection, v)
+		elseif type(v) == type("") then
+			table.insert(collection, v)
+		end		
+	end
+end
+
+-- [TODO: should be in C]
+function collect_input(a)
+	local inputs = {}
+	flattern_table(inputs, a)
+	return inputs
+end
+
+-- make a table into a string
+-- [TODO: Should be in C?]
+-- [TODO: Should be removed?]
+function tbl_to_str(tbl, prefix, postfix)
+	local s = ""
+	for index,value in ipairs(tbl) do
+		if type(value) == type("") then
+			s = s .. prefix .. value .. postfix
+		end
+	end
+	return s
+end
+
+-- [TODO: Improve]
+-- [TODO: Should be in C]
+function PathRelative(base, s)
+	local l = string.len(base)
+	if string.sub(s, 0, l) == base then
+		return string.sub(s, l+2)
+	end
+	return s
+end
+
+function PathScriptRelative(s)
+	return PathRelative(_bam_path, s)
+end
+
+
+function NewTable()
+	local t = {}
+	t.add = function(self, ...)
+		for i,what in ipairs(arg) do
+			table.insert(self, what)
+		end
+	end
+	return t
+end
+
+function NewPathTable()
+	local t = {}
+	t.add = function(self, value)
+		table.insert(self, Path(value))
+	end
+	return t
+end
+
+function NewAntiPathTable()
+	local t = {}
+	t.add = function(self, value)
+		print(value)
+		table.insert(self, PathFilename(value))
+	end
+	return t
+end
+
+
+function default_intermediate_output_func(dir, input, settings)
+	if not (dir == "") then
+		return Path(dir .. "/" .. PathBase(PathFilename(input)) .. settings.config_ext)
+	end
+	return PathBase(input) .. settings.config_ext
+end
+
+function default_link_output_func(dir, input, settings)
+	if not (dir == "") then
+		return Path(dir .. "/" .. PathFilename(input) .. settings.config_ext)
+	end
+	return Path(input) .. settings.config_ext
+end
+
+-- copied from the lua-users mailing-list and modified abit 
+function table.copy(self, ud_copy_fn)
+    ud_copy_fn = ud_copy_fn or function ( ud ) return ud end
+    
+    local new_table = {}
+    for key, value in self do
+        local new_key
+        if(type(key) == 'table') then
+            new_key = table.copy(key, ud_copy_fn)
+        elseif (type(key) == 'userdata') then
+            new_key = ud_copy_fn(key)
+        else
+            new_key = key
+        end
+
+        local new_value
+        if(type( value ) == 'table' ) then
+            new_value = table.copy(value, ud_copy_fn)
+        elseif(type(value) == 'userdata') then
+            new_value = ud_copy_fn(value)
+        else
+            new_value = value
+        end
+
+        new_table[new_key] = new_value
+    end
+
+     return new_table
+end
+
+function table.lock(t)
+	mt = getmetatable(t)
+	if not mt then mt = {} end
+	mt.__newindex = function(t, key, value)
+		error("trying to create key '" .. key .. "' on a locked table")
+	end
+	setmetatable(t,mt)
+end
+
+function NewSettings()
+	local s = {}
+	
+	s.copy = table.copy
+	
+	s.debug = 1
+	s.objdir = ""
+	s.libdir = ""
+	s.exedir = ""
+	s.config_name = ""
+	s.config_ext = ""
+	
+	s.cc = {}
+	s.cc.path = ""
+	s.cc.c_compiler = "gcc"
+	s.cc.cxx_compiler = "g++"
+	s.cc.flags = ""
+	s.cc.includes = NewPathTable()
+	s.cc.systemincludes = NewTable()
+	s.cc.defines = NewTable()
+	s.cc.frameworks = NewTable()
+	s.cc.output = default_intermediate_output_func
+	s.cc.optimize = 0
+	s.cc._propagate = function(cc, s) 
+		cc.debug = s.debug
+	end
+	s.cc._propagate(s.cc, s)
+	
+	s.linker = {}
+	s.linker.path = ""
+	s.linker.linker = "g++"
+	s.linker.inputflags = ""
+	s.linker.flags = ""
+	s.linker.libs = NewTable()
+	s.linker.frameworks = NewTable()
+	s.linker.frameworkpath = NewPathTable()
+	s.linker.libpath = NewPathTable()
+	s.linker.extrafiles = NewPathTable()
+	s.linker.output = default_intermediate_output_func
+	s.linker._propagate = function(linker, s) 
+		linker.debug = s.debug
+	end
+	s.linker._propagate(s.linker, s)
+	
+	s.lib = {}
+	s.lib.path = ""
+	s.lib.flags = ""
+	s.lib.output = default_intermediate_output_func
+	s.lib._propagate = function(lib, s) 
+		lib.debug = s.debug
+	end
+	s.lib._propagate(s.lib, s)
+
+	s.dll = {}
+	s.dll.path = ""
+	s.dll.linker = "g++"
+	s.dll.inputflags = ""
+	s.dll.flags = ""
+	s.dll.libs = NewTable()
+	s.dll.frameworks = NewTable()
+	s.dll.frameworkpath = NewPathTable()
+	s.dll.libpath = NewPathTable()
+	s.dll.extrafiles = NewPathTable()
+	s.dll.output = default_intermediate_output_func
+	s.dll._propagate = function(dll, s) 
+		dll.debug = s.debug
+	end
+	s.dll._propagate(s.dll, s)
+
+	if family == "windows" then
+		s.cc.extension = ".obj"
+		s.linker.extension = ".exe"
+		s.lib.extension = ".lib"
+		s.dll.extension = ".dll"
+	else
+		s.cc.extension = ".o"
+		s.linker.extension = ""
+		s.lib.extension = ".a"
+		if platform == "macosx" then
+			s.dll.extension = ".dylib"
+		else
+			s.dll.extension = ".so"	
+		end
+	end
+
+	-- lock the tables
+	table.lock(s)	
+	table.lock(s.cc)
+	table.lock(s.linker)
+	table.lock(s.lib)
+	table.lock(s.dll)
+
+	return s
+end
+
+
+--- SilentExecute
+function _execute_silent_win(command) return os.execute(command .. " >nul 2>&1") end
+function _execute_silent_unix(command) return os.execute(command .. " >/dev/null 2>/dev/null") end
+
+if family == "windows" then
+	ExecuteSilent = _execute_silent_win
+else
+	ExecuteSilent = _execute_silent_unix
+end
+
+-- Collects files in a directory.
+Collect = bam_collect
+
+-- CollectAdv, Collects files into a table using the pattern syntax of gfind
+-- TODO: Recursion
+-- [TODO: Should be in C?]
+function CollectAdv(directory, pattern)
+	local d = bam_listdir(directory)
+	local f = {}
+	for i,v in d do
+		if string.find(v,pattern) then
+			table.insert(f, v)
+		end
+	end
+	return f
+end
+
+-- Copy -
+function Copy(outputdir, ...)
+	local inputs = collect_input(arg)
+	local outputs = {}
+	
+	-- compile all the files
+	for index, inname in inputs do
+		output = Path(outputdir .. "/" .. PathFilename(inname))
+		input = Path(inname)
+
+		local copy_command = "cp"
+		local srcfile = input
+		local dstfile = output
+		if family == "windows" then
+			copy_command = "copy"
+			srcfile = str_replace(srcfile, "/", "\\")
+			dstfile = str_replace(dstfile, "/", "\\")
+		end
+
+		bam_add_job(output,
+			"copy " .. input .. " -> " .. output,
+			copy_command .. " " .. input .. " " .. output)
+
+		bam_add_dependency(output, input)
+		table.insert(outputs, output)
+	end
+	
+	return outputs
+end
+
+-- Compiles C and C++ files
+function Compile(settings, ...)
+	local inputs = collect_input(arg)
+	local outputs = {}
+	
+	settings.cc:_propagate(settings);
+	
+	-- compile all the files
+	for index, inname in inputs do
+
+		-- fetch correct compiler
+		local ext = PathFileExt(inname)
+		local compiler = nil
+		if ext == "cpp" then compiler = "cxx" end
+		if ext == "c++" then compiler = "cxx" end
+		if ext == "cxx" then compiler = "cxx" end
+		if ext == "cc" then compiler = "cxx" end
+		if ext == "c" then compiler = "c" end
+		if ext == "S" then compiler = "c" end
+		if ext == "m" then compiler = "c" end
+
+		if not compiler then
+			error("don't know how to compile a file with the ending '"..ext.."'")
+		end
+
+		local outname = settings.cc.output(settings.objdir, inname, settings) .. settings.cc.extension
+		
+		-- add job and run dependencies
+		bam_add_job(
+			outname,
+			compiler .. " " .. inname,
+			_G["compile_"..compiler](outname, inname, settings.cc)
+		)
+		
+		bam_add_dependency(outname, inname)
+		bam_dependency_cpp(inname, settings.cc.includes)
+		
+		table.insert(outputs, outname)
+	end
+
+	-- return the output
+	return outputs	
+end
+
+function Link(settings, output, ...)
+	local inputs = collect_input(arg)
+	
+	settings.linker:_propagate(settings);
+
+	output = settings.linker.output(settings.exedir, Path(output), settings) .. settings.linker.extension
+	
+	bam_add_job(output, "link " .. output, link(output, inputs, settings.linker))
+
+	-- all the files
+	for index, inname in inputs do
+		bam_add_dependency(output, inname)
+	end
+	
+	for index, inname in ipairs(settings.linker.extrafiles) do
+		bam_add_dependency(output, inname)
+	end
+
+	return output
+end
+
+function StaticLibrary(settings, output, ...)
+	local inputs = collect_input(arg)
+
+	settings.lib:_propagate(settings);
+
+	output = settings.lib.output(settings.libdir, Path(output), settings) .. settings.lib.extension
+
+	bam_add_job(output, "link " .. output, lib(output, inputs, settings.lib))
+
+	for index, inname in inputs do
+		bam_add_dependency(output, inname)
+	end
+
+	return output
+end
+
+function SharedLibrary(settings, output, ...)
+	local inputs = collect_input(arg)
+
+	settings.dll:_propagate(settings);
+
+	output = settings.dll.output(settings.libdir, Path(output), settings) .. settings.dll.extension
+	bam_add_job(output, "dll ".. output, dll(output, inputs, settings.dll))
+
+	for index, inname in inputs do
+		bam_add_dependency(output, inname)
+	end
+
+	return output
+end
+
+-- TODO: this functions knows alot about bams internals
+-- TODO: should be replaced with a C function that takes care of all this
+function Import(filename, options)
+	-- filename = Path(filename)
+
+	-- clone the bam base stuff
+	local module = {}
+	for i,v in _bam_clone do
+		module[i] = v
+	end
+	
+	local x = loadfile(Path(filename))
+	if not x then
+		error("Import: Could not open '" .. filename .. "'")
+	end
+	
+	setfenv(x, module)
+
+	-- set magic values
+	local mypath = _bam_path
+	module._bam_path = PathPath(Path(filename))
+	_bam_path = module._bam_path
+
+	-- pass the options
+	module.options = options
+	
+	-- call the module
+	x()
+	
+	-- restore magic values
+	_bam_path = mypath
+	return module
+end
+
+Target = bam_add_target
+DefaultTarget = bam_default_target
+
+function pseudo(output)
+end
+
+function PseudoTarget(name, ...)
+	local inputs = collect_input(arg)
+	local name = Path(name)
+	bam_add_job(name, "", "")
+
+	-- all the files
+	for index, inname in inputs do
+		bam_add_dependency(name, inname)
+	end
+
+	return name
+end
+
+-- some debugging things
+function Debug_DumpArguments()
+	print("-- Dumping arguments --")
+	for index, value in _cn_options do
+		print(index, value)
+		for i,v in value do
+			print("\t",i,v)
+		end
+	end
+	print("--")
+end
+
+----- gcc/g++ compiler ------
+function compile_c_cxx_gcc(label, type, output, input, settings)
+	local d = tbl_to_str(settings.defines, "-D", " ")
+	local i = tbl_to_str(settings.includes, '-I "', '" ')
+	local i = i .. tbl_to_str(settings.systemincludes, '-isystem "', '" ')
+	local i = i .. tbl_to_str(settings.frameworks, '-framework ', ' ')
+	local f = settings.flags .. ' '
+	local path = settings.path
+	if settings.debug > 0 then f = f .. "-g " end
+	if settings.optimize > 0 then f = f .. "-O2 " end
+	local e = path .. type .. ' ' .. f ..'-c ' .. input .. ' -o ' .. output .. ' ' .. d .. i
+	return e
+	-- return bam_execute(e)
+end
+
+function compile_cxx_gcc(output,input,settings)
+	--print("c++ " .. PathFilename(input))
+	return compile_c_cxx_gcc("c++ " .. PathFilename(input), settings.cxx_compiler,output,input,settings)
+end
+
+function compile_c_gcc(output,input,settings)
+	--print("c " .. PathFilename(input))
+	return compile_c_cxx_gcc("c " .. PathFilename(input), settings.c_compiler,output,input,settings)
+end
+
+
+function compile_c_test_gcc(code, options)
+	local f = io.open("_test.c", "w")
+	f:write(code)
+	f:write("\n")
+	f:close()
+	local ret = ExecuteSilent("gcc _test.c -o _test " .. options)
+	os.remove("_test.c")
+	os.remove("_test")
+	return ret==0
+end
+
+function lib_ar(output, inputs, settings)
+	-- print("lib " .. PathFilename(output))
+	local e = "ar qc " .. output
+	local e = e .. " " .. tbl_to_str(inputs, '', ' ') .. settings.flags
+	-- bam_execute("rm -f " .. output) -- TODO: remove this
+	ExecuteSilent("rm -f " .. output) -- TODO: remove this
+	return e
+end
+
+function dll_gcc(output, inputs, settings)
+	--print("dll " .. PathFilename(output))
+	local shared_flags = ""
+
+	if platform == "macosx" then
+		shared_flags = " -dynamiclib"
+	else
+		shared_flags = " -shared"
+	end
+
+	local e = settings.linker .. shared_flags .. " -o " .. output
+	local e = e .. " " .. settings.inputflags .. " " .. tbl_to_str(inputs, '', ' ') 
+	local e = e .. tbl_to_str(settings.extrafiles, '', ' ')
+	local e = e .. tbl_to_str(settings.libpath, '-L', ' ')
+	local e = e .. tbl_to_str(settings.libs, '-l', ' ')
+	local e = e .. tbl_to_str(settings.frameworkpath, '-F', ' ')
+	local e = e .. tbl_to_str(settings.frameworks, '-framework ', ' ')
+	local e = e .. settings.flags
+	return e
+end
+
+function link_gcc(output, inputs, settings)
+	--print("link " .. PathFilename(output))
+	local e = settings.linker .. " -o " .. output
+	local e = e .. " " .. settings.inputflags .. " " .. tbl_to_str(inputs, '', ' ') 
+	local e = e .. tbl_to_str(settings.extrafiles, '', ' ')
+	local e = e .. tbl_to_str(settings.libpath, '-L', ' ')
+	local e = e .. tbl_to_str(settings.libs, '-l', ' ')
+	local e = e .. tbl_to_str(settings.frameworkpath, '-F', ' ')
+	local e = e .. tbl_to_str(settings.frameworks, '-framework ', ' ')
+	local e = e .. settings.flags
+	return e
+end
+
+----- cl compiler ------
+function compile_c_cxx_cl(output, input, settings, label)
+	local defs = tbl_to_str(settings.defines, "-D", " ") .. " "
+	local incs = tbl_to_str(settings.includes, '-I"', '" ')
+	local incs = incs .. tbl_to_str(settings.systemincludes, '-I"', '" ')
+	local flags = settings.flags
+	local path = str_replace(settings.path, "/", "\\")
+	if platform =="win32" then
+		flags = flags .. " /D \"WIN32\" "
+	else
+		flags = flags .. " /D \"WIN64\" "
+	end
+	if settings.debug > 0 then flags = flags .. "/Od /MTd /Zi /D \"_DEBUG\" " end
+	if settings.optimize > 0 then flags = flags .. "/Ox /Ot /MT /D \"NDEBUG\" " end
+	local exec = path .. 'cl /nologo /D_CRT_SECURE_NO_DEPRECATE /c ' .. flags .. input .. " " .. incs .. defs .. " /Fo" .. output
+	return exec
+end
+
+function compile_cxx_cl(output,input,settings)
+	return compile_c_cxx_cl(output,input,settings,"c++ ")
+end
+
+function compile_c_cl(output,input,settings)
+	return compile_c_cxx_cl(output,input,settings,"c ")
+end
+
+function compile_c_test_cl(code, options)
+	local f = io.open("_test.c", "w")
+	f:write(code)
+	f:write("\n")
+	f:close()
+	local ret = ExecuteSilent("cl _test.c /Fe_test " .. options)
+	os.remove("_test.c")
+	os.remove("_test.exe")
+	os.remove("_test.obj")
+	return ret==0
+end
+
+function lib_cl(output, inputs, settings)
+	local input =  tbl_to_str(inputs, "", " ")
+	local path = str_replace(settings.path, "/", "\\")
+	local exec = path .. 'lib /nologo ' .. settings.flags .. " /OUT:" .. output .. " " .. input
+	return exec
+end
+
+function dll_cl(output, inputs, settings)
+	local input =  tbl_to_str(inputs, "", " ")
+	local flags = settings.flags .. " "
+	local libs  = tbl_to_str(settings.libs, "", " ")
+	local libpaths = tbl_to_str(settings.libpath, "/libpath:\"", "\" ")
+	local path = str_replace(settings.path, "/", "\\")
+	local exec = path .. 'link /nologo /DLL' .. flags .. libpaths .. libs .. " /OUT:" .. output .. " " .. input
+	return exec
+end
+
+function link_cl(output, inputs, settings)
+	local input =  tbl_to_str(inputs, "", " ")
+	local flags = settings.flags .. " "
+	local libs  = tbl_to_str(settings.libs, "", ".lib ")
+	local libpaths = tbl_to_str(settings.libpath, "/libpath:\"", "\" ")
+	local path = str_replace(settings.path, "/", "\\")
+	if settings.debug > 0 then flags = flags .. "/DEBUG " end
+	local exec = path .. 'link /nologo /incremental:no ' .. flags .. libpaths .. libs .. " /OUT:" .. output .. " " .. input
+	return exec
+end
+
+
+
+function setup_compiler(what_compiler)
+	if what_compiler == "gcc" then
+		compile_cxx = compile_cxx_gcc
+		compile_c = compile_c_gcc
+		compile_c_test = compile_c_test_gcc
+		link = link_gcc
+		lib = lib_ar
+		dll = dll_gcc
+	elseif what_compiler == "cl" then
+		compile_cxx = compile_cxx_cl
+		compile_c = compile_c_cl
+		compile_c_test = compile_c_test_cl
+		link = link_cl
+		lib = lib_cl
+		dll = dll_cl
+	end
+end
+
+-- set compilers and linkers --
+if family == "windows" then
+	setup_compiler("cl")
+else
+	setup_compiler("gcc")
+end
+
+
+
+-- New Config --------------------------------------
+function NewConfig()
+	local config = {}
+	config.options = {}
+
+	config.add = function(self, o)
+		table.insert(self.options, o)
+		self[o.name] = o
+	end
+	
+	config.print = function(self)
+		print("--- CONFIGURATION ---")
+		for k,v in self.options do
+			print(v.name..": "..v:display())
+		end
+		print("--- --- ---")	
+	end
+	
+	config.save = function(self, filename)
+		print("saving configuration to '"..filename.."'")
+		local file = io.open(filename, "w")
+		
+		-- Define a little helper function to save options
+		local saver = {}
+		saver.file = file
+		
+		saver.line = function(self, str)
+			self.file:write(str .. "\n")
+		end
+		
+		saver.option = function(self, option, name)
+			local valuestr = "nil"
+			if type(option[name]) == type(0) then
+				valuestr = option[name]
+			elseif type(option[name]) == type("") then
+				valuestr = "'"..option[name].."'"
+			elseif type(option[name]) == type(nil) then
+				valuestr = "nil"
+			else
+				error("don't know how to save a value with the type of ".. type(option[name]))
+			end
+			self.file:write(option.name.."."..name.." = ".. valuestr.."\n")
+		end
+
+		-- Save all the options		
+		for k,v in self.options do
+			v:save(saver)
+		end
+		file:close()
+	end
+	
+	config.load = function(self, filename)
+		local options_func = loadfile(filename)
+		local options_table = {}
+		
+		if options_func == nil then
+			return false
+		end
+
+		-- Setup the options tables
+		for k,v in self.options do
+			options_table[v.name] = {}
+		end
+		setfenv(options_func, options_table)
+		
+		-- Process the options
+		options_func()
+		
+		-- Copy the optionss
+		for k,v in self.options do
+			if options_table[v.name] then
+				for k2,v2 in options_table[v.name] do
+					v[k2] = v2
+				end
+			end
+		end
+		
+		if options_table['compiler'] then
+			setup_compiler(self.compiler.value)
+		end
+
+		return true
+	end
+
+	config.autodetect = function(self)
+		for k,v in self.options do
+			v:check()
+			print(v.name..": "..v:display())
+			self[v.name] = v
+		end
+	end
+	
+	return config
+end
+
+-- Helper functions --------------------------------------
+function DefaultOptionDisplay(option)
+	if option.value == 0 then return "no" end
+	if option.value == 1 then return "yes" end
+	return option.value
+end
+
+function MakeOption(name, value, check, save, display)
+	local o = {}
+	o.name = name
+	o.value = value
+	o.check = check
+	o.save = save
+	
+	o.display = display
+	if o.display == nil then o.display = DefaultOptionDisplay end
+	return o
+end
+
+
+-- Test Compile C --------------------------------------
+function OptTestCompileC(name, source)
+	local check = function(option)
+		option.value = 0
+		if compile_c_test("int main(){return 0;}", "-fstack-protector -fstack-protector-all") then
+			option.value = 1
+		end
+	end
+	
+	local save = function(option, output)
+		output:option(option, "value")
+	end
+	
+	local o = MakeOption(name, 0, check, save)
+	o.source = source
+	return o
+end
+
+-- Find Compiler --------------------------------------
+function OptFindCompiler()
+	local check = function(option)
+		if ExecuteSilent("g++ -v") == 0 then
+			option.value = "gcc"
+		elseif ExecuteSilent("cl") == 0 then
+			option.value = "cl"
+		else
+			error("no c/c++ compiler found")
+		end
+		
+		setup_compiler(option.value)
+	end
+	
+	local save = function(option, output)
+		output:option(option, "value")
+	end
+	
+	return MakeOption("compiler", "none", check, save)
+end
+
+-- Find Library --------------------------------------
+function OptFindLibrary(name, header, library, required)
+	local check = function(option)
+		option.value = 0
+		
+		local function check_compile_include(filename, paths)
+			if compile_c_test("#include <" .. filename .. ">\nint main(){return 0;}", "") then
+				return ""
+			end
+
+			for k,v in pairs(paths) do
+				if compile_c_test("#include <" .. filename .. ">\nint main(){return 0;}", "-I"..v) then
+					return v
+				end
+			end
+			
+			return nil
+		end
+		
+		option.include_path = check_compile_include(option.header, {})
+		if option.include_path == nil then
+			if option.required then
+				print(name.." library not found and is required")
+				error("required library not found")
+			end
+		else
+			option.value = 1
+			if option.include_path == "" then
+				option.include_path = nil
+			end
+		end
+	end
+	
+	local save = function(option, output)
+		output:option(option, "value")
+		output:option(option, "include_path")
+	end
+	
+	local display = function(option)
+		if option.value == 1 then
+			if option.include_path then
+				return option.include_path
+			else
+				return "(in system path)"
+			end
+		else
+			if option.required then
+				return "not found (required)"
+			else
+				return "not found (optional)"
+			end
+		end
+	end
+	
+	local o = MakeOption(name, 0, check, save, display)
+	o.include_path = nil
+	o.header = header
+	o.required = required
+	return o
+end

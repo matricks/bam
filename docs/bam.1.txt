@@ -1,0 +1,152 @@
+BAM(1)
+======
+Magnus Auvinen (magnus.auvinen@gmail.com)
+WARNING: This document is under construction and is full of holes.
+
+NAME
+----
+bam - A fast and flexible build system.
+
+SYNOPSIS
+--------
+bam [PARAMETERS]
+
+Bam excepts 3 different kind of parameters, options, script arguments
+and targets. Options starts with a '-' sign. Script arguments have a
+'=' assignment in them and rest is treated at targets.
+
+DESCRIPTION
+-----------
+The bam(1) command builds ...
+Looks for default.bam ...
+
+Options starts with a '-' sign. Targets are just names. Arguments as a = 
+in them.
+
+OPTIONS
+-------
+-c::
+	Clean. Removes all output files for the specified targets
+
+-f::
+	Force. Forces all files to be dirty and causes a complete rebuild.
+
+-b filename::
+	Base script. Specifices the base script to use instead of the builtin.
+	
+-s filename::
+	Script. Specifices the bam file to use.
+	
+-j X::
+	Use X threads when building. (EXPRIMENTAL!)
+	
+-v::
+	Verbose. Prints all commands that bam executes.
+	
+--dry::
+	Dry run. Does not do anything except load the scripts. Don't build any targets.
+
+ARGUMENTS
+---------
+Arguments
+
+FUNCTION REFERENCE
+------------------
+Collect(...)::
+	Collects files. Accepts several strings as paths including filtering
+	using standard wildcards. Returns a list with all the files.
+	Example:
+------------------------------------------------
+files = Collect("src/*.cpp", "src/lib/*.c")
+------------------------------------------------
+
+Compile(settings, ...)::
+	Compiles a bunch of files using diffrent compiler depending on their file extention.
+	It accept tables and strings as files.
+	
+Link(settings, filename, ...)::
+	Links the files into an executable. It accept tables and strings as files.
+	
+Path(path)::
+	...
+	
+NewSettings()::
+	Creates a new settings object. This object contains settings for all diffrent compilers and linkers.
+	
+StaticLibrary(settings, ...)::
+	...
+
+Target(file)::
+	Specifies a target.
+	
+
+C/C++ COMPILER SETTINGS (cc)
+----------------------------
+flags::
+	A string to pass unmodified to the compiler.
+
+includes::
+	A set of include paths to use. Use the add method to
+
+debug::
+	(Default 1). An integer that tells the compiler if it should generate
+	debug information.
+	
+optimize::
+	(Default 0). An integer that tells the compiler if it should optimize
+	the code. 1 turns on safe optimizations and 2 turns on full optimization.
+
+LINKER SETTINGS (linker)
+------------------------
+flags::
+	A string to pass unmodified to the linker.
+	
+extrafiles::
+	A set of files to pass to the linker. Useful when doing own libraries.
+	
+libs::
+	A set of system libraries that should be linked into.
+
+EXAMPLES
+--------
+
+A tiny default.bam that compiles all files in the directory can look like this.
+------------------------------------------------
+s = NewSettings()
+objs = Compile(s, Collect("*.cpp"))
+exe = Link(s, "my_app", objs)
+Target(exe)
+------------------------------------------------
+
+
+A script that sets som settings aswell.
+------------------------------------------------
+s = NewSettings()
+s.cc.includes:add("include")
+s.cc.optimize = 1
+s.cc.debug = 0
+objs = Compile(s, Collect("*.cpp"))
+exe = Link(s, "my_app", objs)
+Target(exe)
+------------------------------------------------
+
+KNOWN ISSUES
+------------
+A few.
+
+AUTHORS
+-------
+Contributions by
+	Magnus Auvinen (Lead), (mailto:magnus.auvinen@gmail.com[])
+	Joel de Vahl, (mailto:blarg[])
+	Markus Buretorp, (mailto:blarg[])
+	SERPEN!!! ZOMG!!, (mailto:blarg[])
+
+RESOURCES
+---------
+Homepage: http:www.teeworlds.com/bam
+
+COPYING
+-------
+Copyright \(C) 2006-2008 Magnus Auvinen. Distributed under BSD-license.
+Note. The Lua library has it's own license.

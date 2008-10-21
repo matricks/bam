@@ -1,0 +1,5 @@
+_bam_clone._bam_path = "My New Shiny Path" 
+print("Path:", _bam_path)
+print("Clone Path:", _bam_clone._bam_path)
+s = NewSettings()
+Target(Link(s, "clone", Compile(s, Collect("*.c"))))

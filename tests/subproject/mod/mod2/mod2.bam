@@ -1,0 +1,19 @@
+s = NewSettings()
+objs = Compile(s, Collect("*.c"))
+lib = StaticLibrary(s, "lib", objs)
+test = "OK: right variable!"
+
+print("LIB: ", lib)
+
+vpath = Path("")
+
+function use(settings)
+	settings.cc.includes:add(vpath)
+	settings.linker.extrafiles:add(lib)
+	print(include_path)
+end
+
+function get_test()
+	return test
+end
+
