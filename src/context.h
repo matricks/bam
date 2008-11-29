@@ -32,6 +32,7 @@ int context_add_target(struct CONTEXT *context, struct NODE *node);
 int context_default_target(struct CONTEXT *context, struct NODE *node);
 	
 extern const char *CONTEXT_LUA_SCRIPTARGS_TABLE;
+extern const char *CONTEXT_LUA_TARGETS_TABLE;
 extern const char *CONTEXT_LUA_CLONE_TABLE;
 extern const char *CONTEXT_LUA_CONTEXT_POINTER;
 extern const char *CONTEXT_LUA_PATH;

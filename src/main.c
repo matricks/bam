@@ -32,6 +32,9 @@
 #ifdef BAM_FAMILY_UNIX
 #include <unistd.h>
 #endif
+#ifdef BAM_FAMILY_BEOS
+#include <unistd.h>
+#endif
 #ifdef BAM_FAMILY_WINDOWS
 #include <direct.h>
 #define getcwd _getcwd /* stupid msvc is calling getcwd non-ISO-C++ conformant */
@@ -880,6 +883,16 @@ int register_lua_globals(struct CONTEXT *context)
 		lua_pushlstring(context->lua, option_scriptargs[i], separator-option_scriptargs[i]);
 		lua_pushstring(context->lua, separator+1);
 		lua_settable(context->lua, -3);
+	}
+	lua_settable(context->lua, LUA_GLOBALSINDEX);
+
+	/* create targets table */
+	lua_pushstring(context->lua, CONTEXT_LUA_TARGETS_TABLE);
+	lua_newtable(context->lua);
+	for(i = 0; i < option_num_targets; i++)
+	{
+		lua_pushstring(context->lua, option_targets[i]);
+		lua_rawseti(context->lua, -2, i);
 	}
 	lua_settable(context->lua, LUA_GLOBALSINDEX);
 	

@@ -20,6 +20,8 @@ static unsigned path_is_separator(char c)
 	return c == PATH_SEPARATOR || c == '\\';
 #elif defined(BAM_FAMILY_UNIX)
 	return c == PATH_SEPARATOR;
+	#elif defined(BAM_FAMILY_BEOS)
+	return c == PATH_SEPARATOR;
 #else
 	#error unsigned path_is_separator(char c) not implemented for this platform
 #endif
@@ -188,6 +190,9 @@ int path_isabs(const char *path)
 	if(strlen(path) > 2 && isalpha(path[0]) && path[1] == ':' && path_is_separator(path[2]))
 		return 1;
 #elif defined(BAM_FAMILY_UNIX)
+	if(path_is_separator(path[0]))
+		return 1;
+#elif defined(BAM_FAMILY_BEOS)
 	if(path_is_separator(path[0]))
 		return 1;
 #else

@@ -4,9 +4,14 @@
 #include <stdlib.h>
 #include <time.h>
 
+
 #include "platform.h"
 #include "path.h"
 #include "context.h"
+
+#ifdef BAM_FAMILY_BEOS
+    #include <sched.h>
+#endif
 
 #ifdef BAM_FAMILY_WINDOWS
 	#define WIN32_LEAN_AND_MEAN

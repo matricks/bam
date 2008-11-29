@@ -63,6 +63,13 @@
 	#define BAM_PLATFORM_STRING "beos"
 #endif
 
+#if defined(__HAIKU) || defined(__HAIKU__)
+	#define BAM_FAMILY_BEOS
+	#define BAM_FAMILY_STRING "beos"
+	#define BAM_PLATFORM_BEOS
+	#define BAM_PLATFORM_STRING "haiku"
+#endif
+
 
 /* architectures */
 #if defined(i386) || defined(__i386__) || defined(__x86__) || defined(BAM_PLATFORM_WIN32)

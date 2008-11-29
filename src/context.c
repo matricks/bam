@@ -5,6 +5,7 @@
 #include "context.h"
 
 const char *CONTEXT_LUA_SCRIPTARGS_TABLE = "_bam_scriptargs";
+const char *CONTEXT_LUA_TARGETS_TABLE = "_bam_targets";
 const char *CONTEXT_LUA_CLONE_TABLE = "_bam_clone";
 const char *CONTEXT_LUA_CONTEXT_POINTER = "_bam_context";
 const char *CONTEXT_LUA_PATH = "_bam_path";
