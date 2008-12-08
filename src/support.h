@@ -16,4 +16,7 @@ time_t file_timestamp(const char *filename);
 int file_exist(const char *filename);
 
 int lf_collect(struct lua_State *L);
+int lf_collectrecursive(struct lua_State *L);
+int lf_collectdirs(lua_State *L);
+int lf_collectdirsrecursive(lua_State *L);
 int lf_listdir(struct lua_State *L);

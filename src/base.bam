@@ -8,9 +8,9 @@ ScriptArgs = _bam_scriptargs
 Execute = os.execute
 
 function CheckVersion(version)
-	if version == "0.1" then
+	if version == _bam_version then
 	else
-		error("this file for version "..version..".x of bam. you are running 0.1.x.")
+		error("this file for version "..version..".x of bam. you are running ".._bam_version..".x.")
 	end
 end
 
@@ -77,7 +77,7 @@ end
 
 function NewTable()
 	local t = {}
-	t.add = function(self, ...)
+	t.Add = function(self, ...)
 		for i,what in ipairs(arg) do
 			table.insert(self, what)
 		end
@@ -85,9 +85,29 @@ function NewTable()
 	return t
 end
 
+function NewFlagTable()
+	local t = {}
+	t.Add = function(self, ...)
+		for i,what in ipairs(arg) do
+			self[what] = 1
+		end
+	end
+	
+	t.ToString = function(self)
+		local s = ""
+		for key,value in self do
+			if value == 1 then
+				s = s .. key .. " "
+			end
+		end
+		return s
+	end
+	return t
+end
+
 function NewPathTable()
 	local t = {}
-	t.add = function(self, value)
+	t.Add = function(self, value)
 		table.insert(self, Path(value))
 	end
 	return t
@@ -95,7 +115,7 @@ end
 
 function NewAntiPathTable()
 	local t = {}
-	t.add = function(self, value)
+	t.Add = function(self, value)
 		print(value)
 		table.insert(self, PathFilename(value))
 	end
@@ -159,7 +179,7 @@ end
 function NewSettings()
 	local s = {}
 	
-	s.copy = table.copy
+	s.Copy = table.copy
 	
 	s.debug = 1
 	s.objdir = ""
@@ -172,7 +192,7 @@ function NewSettings()
 	s.cc.path = ""
 	s.cc.c_compiler = "gcc"
 	s.cc.cxx_compiler = "g++"
-	s.cc.flags = ""
+	s.cc.flags = NewFlagTable()
 	s.cc.includes = NewPathTable()
 	s.cc.systemincludes = NewTable()
 	s.cc.defines = NewTable()
@@ -188,7 +208,7 @@ function NewSettings()
 	s.linker.path = ""
 	s.linker.linker = "g++"
 	s.linker.inputflags = ""
-	s.linker.flags = ""
+	s.linker.flags = NewFlagTable()
 	s.linker.libs = NewTable()
 	s.linker.frameworks = NewTable()
 	s.linker.frameworkpath = NewPathTable()
@@ -202,7 +222,7 @@ function NewSettings()
 	
 	s.lib = {}
 	s.lib.path = ""
-	s.lib.flags = ""
+	s.lib.flags = NewFlagTable()
 	s.lib.output = default_intermediate_output_func
 	s.lib._propagate = function(lib, s) 
 		lib.debug = s.debug
@@ -213,7 +233,7 @@ function NewSettings()
 	s.dll.path = ""
 	s.dll.linker = "g++"
 	s.dll.inputflags = ""
-	s.dll.flags = ""
+	s.dll.flags = NewFlagTable()
 	s.dll.libs = NewTable()
 	s.dll.frameworks = NewTable()
 	s.dll.frameworkpath = NewPathTable()
@@ -264,6 +284,9 @@ end
 
 -- Collects files in a directory.
 Collect = bam_collect
+CollectRecursive = bam_collectrecursive
+CollectDirs = bam_collectdirs
+CollectDirsRecursive = bam_collectdirsrecursive
 
 -- CollectAdv, Collects files into a table using the pattern syntax of gfind
 -- TODO: Recursion
@@ -476,7 +499,7 @@ function compile_c_cxx_gcc(label, type, output, input, settings)
 	local i = tbl_to_str(settings.includes, '-I "', '" ')
 	local i = i .. tbl_to_str(settings.systemincludes, '-isystem "', '" ')
 	local i = i .. tbl_to_str(settings.frameworks, '-framework ', ' ')
-	local f = settings.flags .. ' '
+	local f = settings.flags:ToString()
 	local path = settings.path
 	if settings.debug > 0 then f = f .. "-g " end
 	if settings.optimize > 0 then f = f .. "-O2 " end
@@ -510,7 +533,7 @@ end
 function lib_ar(output, inputs, settings)
 	-- print("lib " .. PathFilename(output))
 	local e = "ar qc " .. output
-	local e = e .. " " .. tbl_to_str(inputs, '', ' ') .. settings.flags
+	local e = e .. " " .. tbl_to_str(inputs, '', ' ') .. settings.flags:ToString()
 	-- bam_execute("rm -f " .. output) -- TODO: remove this
 	ExecuteSilent("rm -f " .. output) -- TODO: remove this
 	return e
@@ -533,7 +556,7 @@ function dll_gcc(output, inputs, settings)
 	local e = e .. tbl_to_str(settings.libs, '-l', ' ')
 	local e = e .. tbl_to_str(settings.frameworkpath, '-F', ' ')
 	local e = e .. tbl_to_str(settings.frameworks, '-framework ', ' ')
-	local e = e .. settings.flags
+	local e = e .. settings.flags:ToString()
 	return e
 end
 
@@ -546,7 +569,7 @@ function link_gcc(output, inputs, settings)
 	local e = e .. tbl_to_str(settings.libs, '-l', ' ')
 	local e = e .. tbl_to_str(settings.frameworkpath, '-F', ' ')
 	local e = e .. tbl_to_str(settings.frameworks, '-framework ', ' ')
-	local e = e .. settings.flags
+	local e = e .. settings.flags:ToString()
 	return e
 end
 
@@ -555,7 +578,7 @@ function compile_c_cxx_cl(output, input, settings, label)
 	local defs = tbl_to_str(settings.defines, "-D", " ") .. " "
 	local incs = tbl_to_str(settings.includes, '-I"', '" ')
 	local incs = incs .. tbl_to_str(settings.systemincludes, '-I"', '" ')
-	local flags = settings.flags
+	local flags = settings.flags:ToString()
 	local path = str_replace(settings.path, "/", "\\")
 	if platform =="win32" then
 		flags = flags .. " /D \"WIN32\" "
@@ -591,13 +614,13 @@ end
 function lib_cl(output, inputs, settings)
 	local input =  tbl_to_str(inputs, "", " ")
 	local path = str_replace(settings.path, "/", "\\")
-	local exec = path .. 'lib /nologo ' .. settings.flags .. " /OUT:" .. output .. " " .. input
+	local exec = path .. 'lib /nologo ' .. settings.flags:ToString() .. " /OUT:" .. output .. " " .. input
 	return exec
 end
 
 function dll_cl(output, inputs, settings)
 	local input =  tbl_to_str(inputs, "", " ")
-	local flags = settings.flags .. " "
+	local flags = settings.flags:ToString()
 	local libs  = tbl_to_str(settings.libs, "", " ")
 	local libpaths = tbl_to_str(settings.libpath, "/libpath:\"", "\" ")
 	local path = str_replace(settings.path, "/", "\\")
@@ -607,7 +630,7 @@ end
 
 function link_cl(output, inputs, settings)
 	local input =  tbl_to_str(inputs, "", " ")
-	local flags = settings.flags .. " "
+	local flags = settings.flags:ToString()
 	local libs  = tbl_to_str(settings.libs, "", ".lib ")
 	local libpaths = tbl_to_str(settings.libpath, "/libpath:\"", "\" ")
 	local path = str_replace(settings.path, "/", "\\")
@@ -650,20 +673,20 @@ function NewConfig()
 	local config = {}
 	config.options = {}
 
-	config.add = function(self, o)
+	config.Add = function(self, o)
 		table.insert(self.options, o)
 		self[o.name] = o
 	end
 	
-	config.print = function(self)
+	config.Print = function(self)
 		print("--- CONFIGURATION ---")
 		for k,v in self.options do
 			print(v.name..": "..v:display())
 		end
-		print("--- --- ---")	
+		print("--- --- ---")
 	end
 	
-	config.save = function(self, filename)
+	config.Save = function(self, filename)
 		print("saving configuration to '"..filename.."'")
 		local file = io.open(filename, "w")
 		
@@ -691,12 +714,12 @@ function NewConfig()
 
 		-- Save all the options		
 		for k,v in self.options do
-			v:save(saver)
+			v:Save(saver)
 		end
 		file:close()
 	end
 	
-	config.load = function(self, filename)
+	config.Load = function(self, filename)
 		local options_func = loadfile(filename)
 		local options_table = {}
 		
@@ -709,6 +732,16 @@ function NewConfig()
 			options_table[v.name] = {}
 		end
 		setfenv(options_func, options_table)
+		
+		-- this is to make sure that we get nice error messages when
+		-- someone sets an option that isn't valid.
+		local mt = {}
+		mt.__index = function(t, key)
+			local v = rawget(t, key)
+			if v ~= nil then return v end
+			error("there is no configuration option named '" .. key .. "'")
+		end
+		setmetatable(options_table, mt)		
 		
 		-- Process the options
 		options_func()
@@ -729,12 +762,29 @@ function NewConfig()
 		return true
 	end
 
-	config.autodetect = function(self)
+	config.Autodetect = function(self)
 		for k,v in self.options do
-			v:check()
-			print(v.name..": "..v:display())
+			v:Check()
+			print(v.name..": "..v:Display())
 			self[v.name] = v
 		end
+	end
+	
+	config.Finalize = function(self, filename)
+		if _bam_targets[0] == "config" then
+			self:Autodetect()
+			self:Save(filename)
+			os.exit(0)
+		end
+	
+		if not self:Load(filename) then
+			print("--- Auto Configuration ---")
+			self:Autodetect()
+			self:Save(filename)
+			print("--- ")
+		end
+		
+		bam_update_globalstamp(filename)
 	end
 	
 	return config
@@ -751,11 +801,11 @@ function MakeOption(name, value, check, save, display)
 	local o = {}
 	o.name = name
 	o.value = value
-	o.check = check
-	o.save = save
+	o.Check = check
+	o.Save = save
 	
-	o.display = display
-	if o.display == nil then o.display = DefaultOptionDisplay end
+	o.Display = display
+	if o.Display == nil then o.Display = DefaultOptionDisplay end
 	return o
 end
 

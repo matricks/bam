@@ -23,6 +23,7 @@
 #include "dep_cpp.h"
 #include "context.h"
 #include "platform.h"
+#include "version.h"
 
 /* internal base.bam file */
 #include "internal_base.h"
@@ -359,7 +360,7 @@ static int lf_update_globalstamp(lua_State *L)
 	int n = lua_gettop(L);
 	time_t file_stamp;
 	
-	if(n == 1)
+	if(n < 1)
 	{
 		lua_pushstring(L, "update_globalstamp: to few arguments");
 		lua_error(L);
@@ -863,6 +864,10 @@ int register_lua_globals(struct CONTEXT *context)
 
 	/* various support functions */
 	lua_register(context->lua, L_FUNCTION_PREFIX"collect", lf_collect);
+	lua_register(context->lua, L_FUNCTION_PREFIX"collectrecursive", lf_collectrecursive);
+	lua_register(context->lua, L_FUNCTION_PREFIX"collectdirs", lf_collectdirs);
+	lua_register(context->lua, L_FUNCTION_PREFIX"collectdirsrecursive", lf_collectdirsrecursive);
+	
 	lua_register(context->lua, L_FUNCTION_PREFIX"listdir", lf_listdir);
 	lua_register(context->lua, L_FUNCTION_PREFIX"update_globalstamp", lf_update_globalstamp);
 
@@ -915,6 +920,15 @@ int register_lua_globals(struct CONTEXT *context)
 	lua_pushlightuserdata(context->lua, context);
 	lua_settable(context->lua, LUA_GLOBALSINDEX);
 
+	/* set version */
+	lua_pushstring(context->lua, "_bam_version");
+	lua_pushstring(context->lua, BAM_VERSION_STRING);
+	lua_settable(context->lua, LUA_GLOBALSINDEX);
+
+	lua_pushstring(context->lua, "_bam_version_complete");
+	lua_pushstring(context->lua, BAM_VERSION_STRING_COMPLETE);
+	lua_settable(context->lua, LUA_GLOBALSINDEX);
+	
 	/* set family */
 	lua_pushstring(context->lua, "family");
 	lua_pushstring(context->lua, BAM_FAMILY_STRING);
@@ -1155,7 +1169,7 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 static void print_help()
 {
 	int j;
-	printf("bam version X. built "__DATE__" "__TIME__" using " LUA_VERSION "\n");
+	printf("bam version " BAM_VERSION_STRING_COMPLETE ". built "__DATE__" "__TIME__" using " LUA_VERSION "\n");
 	printf("mainly coded by Magnus 'matricks' Auvinen. direct anger to magnus.auvinen (at) gmail.com\n");
 	printf("\n");
 	printf("%s [OPTIONS] [TARGETS]\n", program_name);

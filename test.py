@@ -77,6 +77,7 @@ test("multi_target", "SHOULD_NOT_EXIST", 1)
 test("multi_target", "CORRECT_ONE")
 test("collect_wrong", "", 1)
 test("locked", "", 1)
+test("collect_recurse")
 
 if len(failed_tests):
 	print "FAILED TESTS:"

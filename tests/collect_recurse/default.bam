@@ -1,0 +1,7 @@
+settings = NewSettings() 
+ 
+src = CollectRecursive("*.cpp")
+objs = Compile(settings, src) 
+exe = Link(settings, "gc_app", objs) 
+ 
+Target(exe) 
