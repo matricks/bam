@@ -31,7 +31,7 @@ function str_replace(s, pattern, what)
 end
 
 function flattern_table(collection, t)
-	for i,v in pairs(t) do
+	for i,v in ipairs(t) do
 		if type(v) == type({}) then
 			flattern_table(collection, v)
 		elseif type(v) == type("") then
@@ -95,7 +95,7 @@ function NewFlagTable()
 	
 	t.ToString = function(self)
 		local s = ""
-		for key,value in self do
+		for key,value in pairs(self) do
 			if value == 1 then
 				s = s .. key .. " "
 			end
@@ -142,7 +142,7 @@ function table.copy(self, ud_copy_fn)
     ud_copy_fn = ud_copy_fn or function ( ud ) return ud end
     
     local new_table = {}
-    for key, value in self do
+    for key, value in pairs(self) do
         local new_key
         if(type(key) == 'table') then
             new_key = table.copy(key, ud_copy_fn)
@@ -294,7 +294,7 @@ CollectDirsRecursive = bam_collectdirsrecursive
 function CollectAdv(directory, pattern)
 	local d = bam_listdir(directory)
 	local f = {}
-	for i,v in d do
+	for i,v in ipairs(d) do
 		if string.find(v,pattern) then
 			table.insert(f, v)
 		end
@@ -308,7 +308,7 @@ function Copy(outputdir, ...)
 	local outputs = {}
 	
 	-- compile all the files
-	for index, inname in inputs do
+	for index, inname in ipairs(inputs) do
 		output = Path(outputdir .. "/" .. PathFilename(inname))
 		input = Path(inname)
 
@@ -334,13 +334,13 @@ end
 
 -- Compiles C and C++ files
 function Compile(settings, ...)
-	local inputs = collect_input(arg)
+	local inputs = collect_input(...)
 	local outputs = {}
 	
 	settings.cc:_propagate(settings);
 	
 	-- compile all the files
-	for index, inname in inputs do
+	for index, inname in ipairs(inputs) do
 
 		-- fetch correct compiler
 		local ext = PathFileExt(inname)
@@ -386,7 +386,7 @@ function Link(settings, output, ...)
 	bam_add_job(output, "link " .. output, link(output, inputs, settings.linker))
 
 	-- all the files
-	for index, inname in inputs do
+	for index, inname in ipairs(inputs) do
 		bam_add_dependency(output, inname)
 	end
 	
@@ -406,7 +406,7 @@ function StaticLibrary(settings, output, ...)
 
 	bam_add_job(output, "link " .. output, lib(output, inputs, settings.lib))
 
-	for index, inname in inputs do
+	for index, inname in ipairs(inputs) do
 		bam_add_dependency(output, inname)
 	end
 
@@ -421,52 +421,15 @@ function SharedLibrary(settings, output, ...)
 	output = settings.dll.output(settings.libdir, Path(output), settings) .. settings.dll.extension
 	bam_add_job(output, "dll ".. output, dll(output, inputs, settings.dll))
 
-	for index, inname in inputs do
+	for index, inname in ipairs(inputs) do
 		bam_add_dependency(output, inname)
 	end
 
 	return output
 end
 
--- TODO: this functions knows alot about bams internals
--- TODO: should be replaced with a C function that takes care of all this
-function Import(filename, options)
-	-- filename = Path(filename)
-
-	-- clone the bam base stuff
-	local module = {}
-	for i,v in _bam_clone do
-		module[i] = v
-	end
-	
-	local x = loadfile(Path(filename))
-	if not x then
-		error("Import: Could not open '" .. filename .. "'")
-	end
-	
-	setfenv(x, module)
-
-	-- set magic values
-	local mypath = _bam_path
-	module._bam_path = PathPath(Path(filename))
-	_bam_path = module._bam_path
-
-	-- pass the options
-	module.options = options
-	
-	-- call the module
-	x()
-	
-	-- restore magic values
-	_bam_path = mypath
-	return module
-end
-
 Target = bam_add_target
 DefaultTarget = bam_default_target
-
-function pseudo(output)
-end
 
 function PseudoTarget(name, ...)
 	local inputs = collect_input(arg)
@@ -474,23 +437,11 @@ function PseudoTarget(name, ...)
 	bam_add_job(name, "", "")
 
 	-- all the files
-	for index, inname in inputs do
+	for index, inname in ipairs(inputs) do
 		bam_add_dependency(name, inname)
 	end
 
 	return name
-end
-
--- some debugging things
-function Debug_DumpArguments()
-	print("-- Dumping arguments --")
-	for index, value in _cn_options do
-		print(index, value)
-		for i,v in value do
-			print("\t",i,v)
-		end
-	end
-	print("--")
 end
 
 ----- gcc/g++ compiler ------
@@ -680,7 +631,7 @@ function NewConfig()
 	
 	config.Print = function(self)
 		print("--- CONFIGURATION ---")
-		for k,v in self.options do
+		for k,v in pairs(self.options) do
 			print(v.name..": "..v:display())
 		end
 		print("--- --- ---")
@@ -713,7 +664,7 @@ function NewConfig()
 		end
 
 		-- Save all the options		
-		for k,v in self.options do
+		for k,v in pairs(self.options) do
 			v:Save(saver)
 		end
 		file:close()
@@ -728,7 +679,7 @@ function NewConfig()
 		end
 
 		-- Setup the options tables
-		for k,v in self.options do
+		for k,v in pairs(self.options) do
 			options_table[v.name] = {}
 		end
 		setfenv(options_func, options_table)
@@ -747,9 +698,9 @@ function NewConfig()
 		options_func()
 		
 		-- Copy the optionss
-		for k,v in self.options do
+		for k,v in pairs(self.options) do
 			if options_table[v.name] then
-				for k2,v2 in options_table[v.name] do
+				for k2,v2 in pairs(options_table[v.name]) do
 					v[k2] = v2
 				end
 			end
@@ -763,7 +714,7 @@ function NewConfig()
 	end
 
 	config.Autodetect = function(self)
-		for k,v in self.options do
+		for k,v in pairs(self.options) do
 			v:Check()
 			print(v.name..": "..v:Display())
 			self[v.name] = v

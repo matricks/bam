@@ -45,7 +45,7 @@ def test(name, moreflags="", should_fail=0):
 	print "-- " + name.upper() + " --"
 	olddir = os.getcwd()
 	os.chdir(output_path+"/"+name)
-	cmdline = bam+" "+extra_bam_flags+" " + moreflags
+	cmdline = bam+" -v "+extra_bam_flags+" " + moreflags
 	print cmdline
 	ret = os.system(cmdline)
 	print "return code =", ret
@@ -69,7 +69,6 @@ copytree("tests", output_path)
 # run tests
 test("cyclic")
 test("include_paths")
-test("clone")
 test("dot.in.dir")
 #test("subproject")
 test("retval", "", 1)

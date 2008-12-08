@@ -41,11 +41,6 @@
 #define getcwd _getcwd /* stupid msvc is calling getcwd non-ISO-C++ conformant */
 #endif
 
-#define lua_register(L,n,f) \
-	   (lua_pushstring(L, n), \
-		lua_pushcfunction(L, f), \
-		lua_settable(L, LUA_GLOBALSINDEX))
-
 #define DEFAULT_REPORT_STYLE "s"
 
 /* ** */
@@ -137,6 +132,7 @@ void debug_print_lua_value(lua_State *L, int i)
 static int lf_errorfunc(lua_State *L)
 {
 	int depth = 0;
+	int frameskip = 1;
 	lua_Debug frame;
 
 	if(option_report_color)
@@ -153,11 +149,9 @@ static int lf_errorfunc(lua_State *L)
 		lua_getinfo(L, "nlSf", &frame);
 
 		/* check for functions that just report errors. these frames just confuses more then they help */
-		if(frame.currentline == -1 && strcmp(frame.short_src, "[C]") == 0)
-		{
-			if(strcmp(frame.name, "error") == 0 || strcmp(frame.name, "errorfunc") == 0)
-				continue;
-		}
+		if(frameskip && strcmp(frame.short_src, "[C]") == 0 && frame.currentline == -1)
+			continue;
+		frameskip = 0;
 		
 		/* print stack frame */
 		printf("    %s(%d): %s %s\n", frame.short_src, frame.currentline, frame.name, frame.namewhat);
@@ -824,29 +818,27 @@ static int do_targets_default(struct CONTEXT *context)
 	return do_target_pass_build(context, context->defaulttarget);
 }
 
+
+const char *internal_base_reader(lua_State *L, void *data, size_t *size)
+{
+	char **p = (char **)data;
+	if(!*p)
+		return 0;
+		
+	*size = strlen(*p);
+	data = *p;
+	*p = 0;
+	return data;
+}
+
 /* *** */
 int register_lua_globals(struct CONTEXT *context)
 {
-	/* create the clone table */
-	/* this is used for the Import command to clone all the bam functionallity */
-	/* TODO: make C code for this */
-	static const char clonecreate[] = 
-		"_bam_clone = {}\n"
-		"for i,v in _G do\n"
-		"	_bam_clone[i] = v\n"
-		"end\n";
-		
-	int i;
+	int i, error = 0;
 		
 	/* add standard libs */
-	luaopen_base(context->lua);
-	luaopen_table(context->lua);
-	luaopen_io(context->lua);
-	luaopen_string(context->lua);
-	luaopen_math(context->lua);
-	luaopen_debug(context->lua);
-	luaopen_loadlib(context->lua);
-
+	luaL_openlibs(context->lua);
+	
 	/* add specific functions */
 	lua_register(context->lua, L_FUNCTION_PREFIX"add_job", lf_add_job);
 	lua_register(context->lua, L_FUNCTION_PREFIX"add_dependency", lf_add_dependency);
@@ -954,7 +946,7 @@ int register_lua_globals(struct CONTEXT *context)
 	{
 		if(option_verbose)
 			printf("%s: reading base script from '%s'\n", program_name, option_basescript);
-		if(lua_dofile(context->lua, option_basescript))
+		if(luaL_dofile(context->lua, option_basescript) == 0)
 		{
 			printf("%s: error in base script '%s'\n", program_name, option_basescript);
 			return 1;
@@ -962,22 +954,39 @@ int register_lua_globals(struct CONTEXT *context)
 	}
 	else
 	{
+		int ret;
+		const char *p = internal_base;
+		
 		if(option_verbose)
 			printf("%s: reading internal base script\n", program_name);
 		
-		if(lua_dobuffer(context->lua, internal_base, sizeof(internal_base)-1, "internal base.bam"))
+		lua_getglobal(context->lua, "errorfunc");
+		
+		/* push error function to stack */
+		ret = lua_load(context->lua, internal_base_reader, &p, "base.bam");
+		if(ret != 0)
 		{
-			printf("%s: error in internal base script\n", program_name);
-			return 1;
+			if(ret == LUA_ERRSYNTAX)
+				printf("%s: syntax error\n", program_name);
+			else if(ret == LUA_ERRMEM)
+				printf("%s: memory allocation error\n", program_name);
+			else
+				printf("%s: unknown error parsing base script\n", program_name);
+			lf_errorfunc(context->lua);
+			error = 1;
 		}
+		else if(lua_pcall(context->lua, 0, LUA_MULTRET, -2) != 0)
+			error = 1;
 	}
 	
-	if(lua_dobuffer(context->lua, clonecreate, sizeof(clonecreate)-1, "internal clone creation"))
-	{
-		printf("%s: error in internal clone creation script\n", program_name);
-		return 1;
-	}
+	return error;
+}
 
+
+static int lf_panicfunc(lua_State *L)
+{
+	printf("%s: PANIC!\n", program_name);
+	*(int*)0 = 0;
 	return 0;
 }
 
@@ -1028,7 +1037,8 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	}
 	
 	/* create lua context */
-	context.lua = lua_open();
+	context.lua = luaL_newstate();
+	lua_atpanic(context.lua, lf_panicfunc);
 	
 	/* register all functions */
 	if(register_lua_globals(&context) != 0)
