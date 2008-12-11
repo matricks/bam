@@ -858,3 +858,20 @@ function OptFindLibrary(name, header, library, required)
 	o.required = required
 	return o
 end
+
+---
+
+function Import(modname)
+	local chunk = loadfile(modname)
+	if chunk == nil then
+		error(modname .. " not found")
+	end
+
+	_bam_modulefilename = modname
+	chunk()
+	_bam_modulefilename = nil
+end
+
+function ModuleFilename()
+	return _bam_modulefilename
+end
