@@ -454,6 +454,13 @@ int lf_path_path(lua_State *L)
 	}
 
 	path = lua_tostring(L, 1);
+		
+	if(!path)
+	{
+		lua_pushstring(L, "path_path: argument is not a string");
+		lua_error(L);
+	}
+
 	lua_pushlstring(L, path, path_path_length(path));
 	return 1;
 }
