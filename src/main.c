@@ -125,7 +125,7 @@ void debug_print_lua_value(lua_State *L, int i)
 		printf("{...}");
 	}
 	else
-		printf("%p (%s)", lua_topointer(L,i), lua_typename(L,lua_type(L,i)));
+		printf("%p (%s (%d))", lua_topointer(L,i), lua_typename(L,lua_type(L,i)), lua_type(L,i));
 }
 
 /* error function */
@@ -154,7 +154,7 @@ static int lf_errorfunc(lua_State *L)
 		frameskip = 0;
 		
 		/* print stack frame */
-		printf("    %s(%d): %s %s\n", frame.short_src, frame.currentline, frame.name, frame.namewhat);
+		printf("  %s(%d): %s %s\n", frame.short_src, frame.currentline, frame.name, frame.namewhat);
 		
 		/* print all local variables for the frame */
 		{
@@ -162,20 +162,22 @@ static int lf_errorfunc(lua_State *L)
 			const char *name = 0;
 			
 			i = 1;
-			while((name = lua_getlocal(L, &frame, i++)) != NULL)
+			while((name = lua_getlocal(L, &frame, i)) != NULL)
 			{
-				printf("        %s = ", name);
-				debug_print_lua_value(L,i);
+				printf("    %s = ", name);
+				debug_print_lua_value(L,-1);
 				printf("\n");
 				lua_pop(L,1);
+				i++;
 			}
 			
 			i = 1;
-			while((name = lua_getupvalue(L, -1, i++)) != NULL)
+			while((name = lua_getupvalue(L, -1, i)) != NULL)
 			{
 				/* TODO: parse value as well*/
-				printf("        upvalue: %d %s\n", i-1, name);
+				printf("    upvalue: %d %s\n", i-1, name);
 				lua_pop(L,1);
+				i++;
 			}
 		}
 	}
