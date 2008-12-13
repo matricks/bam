@@ -1,11 +1,14 @@
 -- just install a better name for the functions and tables
-Path = bam_path_fix
-PathFilename = bam_path_filename
-PathFileExt = bam_path_ext
-PathPath = bam_path_path
 ScriptArgs = _bam_scriptargs
 Execute = os.execute
 
+--[[GROUP Common]]--
+
+--[[FUNCTION
+	Make sure that the version of the bam that is running
+	the script is compatible with the version of the script
+	specified with the argument ^version.
+]]--
 function CheckVersion(version)
 	if version == _bam_version then
 	else
@@ -13,22 +16,9 @@ function CheckVersion(version)
 	end
 end
 
--- returns the raw filename without any extension.
--- [TODO: Should be in C]
-function PathBase(s)
-	local e = PathFileExt(s)
-	if e == "" then
-		return s
-	end
-	
-	return string.sub(s,1,string.len(s)-string.len(PathFileExt(s))-1)
-end
-
--- [TODO: Should be in C?]
-function str_replace(s, pattern, what)
-	return string.gsub(s, pattern, function(v) return what end)
-end
-
+--[[FUNCTION
+	TODO
+]]--
 function FlatternTable(varargtable)
 	function flattern(collection, varargtable)
 		for i,v in ipairs(varargtable) do
@@ -45,6 +35,66 @@ function FlatternTable(varargtable)
 	return inputs
 end
 
+--[[GROUP Path Manipulation]]--
+
+--[[FUNCTION Path(str)
+	TODO
+]]--
+Path = bam_path_fix
+
+-- [TODO: Should be in C]
+--[[FUNCTION
+]]--
+function PathBase(s)
+	local e = PathFileExt(s)
+	if e == "" then
+		return s
+	end
+	
+	return string.sub(s,1,string.len(s)-string.len(PathFileExt(s))-1)
+end
+
+--[[FUNCTION PathFilename(str)
+	TODO
+]]--
+PathFilename = bam_path_filename
+
+--[[FUNCTION PathFileExt(str)
+	Returns the extension of the filename in ^str.
+]]--
+PathFileExt = bam_path_ext
+
+--[[FUNCTION PathPath(str)
+	Returns the path of the filename in ^str.
+]]--
+PathPath = bam_path_path
+
+-- [TODO: Improve]
+-- [TODO: Should be in C]
+--[[FUNCTION
+	TODO
+]]--
+function PathRelative(base, str)
+	local l = string.len(base)
+	if string.sub(s, 0, l) == base then
+		return string.sub(s, l+2)
+	end
+	return s
+end
+
+--[[FUNCTION
+	TODO
+]]--
+function PathScriptRelative(s)
+	return PathRelative(_bam_path, s)
+end
+
+-- [TODO: Should be in C?]
+function str_replace(s, pattern, what)
+	return string.gsub(s, pattern, function(v) return what end)
+end
+
+
 -- make a table into a string
 -- [TODO: Should be in C?]
 -- [TODO: Should be removed?]
@@ -57,21 +107,6 @@ function tbl_to_str(tbl, prefix, postfix)
 	end
 	return s
 end
-
--- [TODO: Improve]
--- [TODO: Should be in C]
-function PathRelative(base, s)
-	local l = string.len(base)
-	if string.sub(s, 0, l) == base then
-		return string.sub(s, l+2)
-	end
-	return s
-end
-
-function PathScriptRelative(s)
-	return PathRelative(_bam_path, s)
-end
-
 
 function NewTable()
 	local t = {}
@@ -174,6 +209,11 @@ function table.lock(t)
 	setmetatable(t,mt)
 end
 
+--[[GROUP Settings]]--
+
+--[[FUNCTION
+	TODO
+]]--
 function NewSettings()
 	local s = {}
 	
@@ -269,21 +309,27 @@ function NewSettings()
 	return s
 end
 
-
---- SilentExecute
-function _execute_silent_win(command) return os.execute(command .. " >nul 2>&1") end
-function _execute_silent_unix(command) return os.execute(command .. " >/dev/null 2>/dev/null") end
-
-if family == "windows" then
-	ExecuteSilent = _execute_silent_win
-else
-	ExecuteSilent = _execute_silent_unix
-end
+--[[GROUP Files and Directories]]--
 
 -- Collects files in a directory.
+--[[FUNCTION Collect(...)
+	TODO
+]]--
 Collect = bam_collect
+
+--[[FUNCTION CollectRecursive(...)
+	TODO
+]]--
 CollectRecursive = bam_collectrecursive
+
+--[[FUNCTION CollectDirs(...)
+	TODO
+]]--
 CollectDirs = bam_collectdirs
+
+--[[FUNCTION CollectDirsRecursive(...)
+	TODO
+]]--
 CollectDirsRecursive = bam_collectdirsrecursive
 
 -- CollectAdv, Collects files into a table using the pattern syntax of gfind
@@ -300,7 +346,12 @@ function CollectAdv(directory, pattern)
 	return f
 end
 
+--[[GROUP Actions]]--
+
 -- Copy -
+--[[FUNCTION
+	TODO
+]]--
 function Copy(outputdir, ...)
 	local inputs = FlatternTable({...})
 	local outputs = {}
@@ -331,6 +382,9 @@ function Copy(outputdir, ...)
 end
 
 -- Compiles C and C++ files
+--[[FUNCTION
+	TODO
+]]--
 function Compile(settings, ...)
 	local inputs = FlatternTable({...})
 	local outputs = {}
@@ -374,6 +428,9 @@ function Compile(settings, ...)
 	return outputs	
 end
 
+--[[FUNCTION
+	TODO
+]]--
 function Link(settings, output, ...)
 	local inputs = FlatternTable({...})
 	
@@ -395,6 +452,9 @@ function Link(settings, output, ...)
 	return output
 end
 
+--[[FUNCTION
+	TODO
+]]--
 function StaticLibrary(settings, output, ...)
 	local inputs = FlatternTable({...})
 
@@ -411,6 +471,9 @@ function StaticLibrary(settings, output, ...)
 	return output
 end
 
+--[[FUNCTION
+	TODO
+]]--
 function SharedLibrary(settings, output, ...)
 	local inputs = FlatternTable({...})
 
@@ -426,9 +489,21 @@ function SharedLibrary(settings, output, ...)
 	return output
 end
 
+--[[GROUP Targets]]--
+
+--[[FUNCTION Target(node)
+	TODO
+]]--
 Target = bam_add_target
+
+--[[FUNCTION DefaultTarget(node)
+	TODO
+]]--
 DefaultTarget = bam_default_target
 
+--[[FUNCTION
+	TODO
+]]--
 function PseudoTarget(name, ...)
 	local inputs = FlatternTable({...})
 	local name = Path(name)
@@ -615,9 +690,11 @@ else
 	setup_compiler("gcc")
 end
 
+--[[GROUP Configuration]]--
 
-
--- New Config --------------------------------------
+--[[FUNCTION
+	TODO
+]]--
 function NewConfig()
 	local config = {}
 	config.options = {}
@@ -739,6 +816,20 @@ function NewConfig()
 	return config
 end
 
+--- SilentExecute
+function _execute_silent_win(command) return os.execute(command .. " >nul 2>&1") end
+function _execute_silent_unix(command) return os.execute(command .. " >/dev/null 2>/dev/null") end
+
+--[[FUNCTION ExecuteSilent(command)
+	TODO
+]]--
+
+if family == "windows" then
+	ExecuteSilent = _execute_silent_win
+else
+	ExecuteSilent = _execute_silent_unix
+end
+
 -- Helper functions --------------------------------------
 function DefaultOptionDisplay(option)
 	if not option.value then return "no" end
@@ -778,6 +869,9 @@ function OptTestCompileC(name, source)
 end
 
 -- Find Compiler --------------------------------------
+--[[FUNCTION
+	TODO
+]]--
 function OptFindCompiler()
 	local check = function(option)
 		if ExecuteSilent("g++ -v") == 0 then
@@ -799,6 +893,9 @@ function OptFindCompiler()
 end
 
 -- Find Library --------------------------------------
+--[[FUNCTION
+	TODO
+]]--
 function OptFindLibrary(name, header, library, required)
 	local check = function(option)
 		option.value = nil
@@ -861,17 +958,57 @@ end
 
 ---
 
+--[[GROUP Modules]]--
+
+--[[FUNCTION
+	TODO
+]]--
 function Import(modname)
-	local chunk = loadfile(modname)
-	if chunk == nil then
-		error(modname .. " not found")
+	local paths = {""}
+	local chunk = nil
+
+	s = os.getenv("BAM_PACKAGES")
+	if s then
+		for w in string.gmatch(s, "[^:]*") do
+			if string.len(w) > 0 then
+				table.insert(paths, w)
+			end
+		end
+	end
+	
+	for k,v in pairs(paths) do
+		chunk = loadfile(modname)
+		if chunk then
+			local current = _bam_modulefilename
+			_bam_modulefilename = modname
+			chunk()
+			_bam_modulefilename = current
+			return
+		end
 	end
 
-	_bam_modulefilename = modname
-	chunk()
-	_bam_modulefilename = nil
+	error(modname .. " not found")
 end
 
+
+--[[FUNCTION
+	TODO
+]]--
 function ModuleFilename()
 	return _bam_modulefilename
 end
+
+
+
+--[[GROUP Job and Dependencies]]--
+
+--[[FUNCTION AddJob(output, label, command)
+	TODO
+]]--
+AddJob = bam_add_job
+
+--[[FUNCTION AddDependency(node, depedency)
+	TODO
+]]--
+AddDependency = bam_add_dependency
+
