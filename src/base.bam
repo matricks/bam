@@ -2,13 +2,13 @@
 ScriptArgs = _bam_scriptargs
 Execute = os.execute
 
---[[GROUP Common]]--
+--[[@GROUP Common@END]]--
 
---[[FUNCTION
+--[[@FUNCTION
 	Make sure that the version of the bam that is running
 	the script is compatible with the version of the script
 	specified with the argument ^version.
-]]--
+@END]]--
 function CheckVersion(version)
 	if version == _bam_version then
 	else
@@ -16,9 +16,9 @@ function CheckVersion(version)
 	end
 end
 
---[[FUNCTION
+--[[@FUNCTION
 	TODO
-]]--
+@END]]--
 function FlatternTable(varargtable)
 	function flattern(collection, varargtable)
 		for i,v in ipairs(varargtable) do
@@ -35,16 +35,16 @@ function FlatternTable(varargtable)
 	return inputs
 end
 
---[[GROUP Path Manipulation]]--
+--[[@GROUP Path Manipulation@END]]--
 
---[[FUNCTION Path(str)
+--[[@FUNCTION Path(str)
 	TODO
-]]--
+@END]]--
 Path = bam_path_fix
 
 -- [TODO: Should be in C]
---[[FUNCTION
-]]--
+--[[@FUNCTION
+@END]]--
 function PathBase(s)
 	local e = PathFileExt(s)
 	if e == "" then
@@ -54,26 +54,26 @@ function PathBase(s)
 	return string.sub(s,1,string.len(s)-string.len(PathFileExt(s))-1)
 end
 
---[[FUNCTION PathFilename(str)
+--[[@FUNCTION PathFilename(str)
 	TODO
-]]--
+@END]]--
 PathFilename = bam_path_filename
 
---[[FUNCTION PathFileExt(str)
+--[[@FUNCTION PathFileExt(str)
 	Returns the extension of the filename in ^str.
-]]--
+@END]]--
 PathFileExt = bam_path_ext
 
---[[FUNCTION PathPath(str)
+--[[@FUNCTION PathPath(str)
 	Returns the path of the filename in ^str.
-]]--
+@END]]--
 PathPath = bam_path_path
 
 -- [TODO: Improve]
 -- [TODO: Should be in C]
---[[FUNCTION
+--[[@FUNCTION
 	TODO
-]]--
+@END]]--
 function PathRelative(base, str)
 	local l = string.len(base)
 	if string.sub(s, 0, l) == base then
@@ -82,9 +82,9 @@ function PathRelative(base, str)
 	return s
 end
 
---[[FUNCTION
+--[[@FUNCTION
 	TODO
-]]--
+@END]]--
 function PathScriptRelative(s)
 	return PathRelative(_bam_path, s)
 end
@@ -209,11 +209,11 @@ function table.lock(t)
 	setmetatable(t,mt)
 end
 
---[[GROUP Settings]]--
+--[[@GROUP Settings@END]]--
 
---[[FUNCTION
+--[[@FUNCTION
 	TODO
-]]--
+@END]]--
 function NewSettings()
 	local s = {}
 	
@@ -309,27 +309,27 @@ function NewSettings()
 	return s
 end
 
---[[GROUP Files and Directories]]--
+--[[@GROUP Files and Directories@END]]--
 
 -- Collects files in a directory.
---[[FUNCTION Collect(...)
+--[[@FUNCTION Collect(...)
 	TODO
-]]--
+@END]]--
 Collect = bam_collect
 
---[[FUNCTION CollectRecursive(...)
+--[[@FUNCTION CollectRecursive(...)
 	TODO
-]]--
+@END]]--
 CollectRecursive = bam_collectrecursive
 
---[[FUNCTION CollectDirs(...)
+--[[@FUNCTION CollectDirs(...)
 	TODO
-]]--
+@END]]--
 CollectDirs = bam_collectdirs
 
---[[FUNCTION CollectDirsRecursive(...)
+--[[@FUNCTION CollectDirsRecursive(...)
 	TODO
-]]--
+@END]]--
 CollectDirsRecursive = bam_collectdirsrecursive
 
 -- CollectAdv, Collects files into a table using the pattern syntax of gfind
@@ -346,12 +346,12 @@ function CollectAdv(directory, pattern)
 	return f
 end
 
---[[GROUP Actions]]--
+--[[@GROUP Actions@END]]--
 
 -- Copy -
---[[FUNCTION
+--[[@FUNCTION
 	TODO
-]]--
+@END]]--
 function Copy(outputdir, ...)
 	local inputs = FlatternTable({...})
 	local outputs = {}
@@ -382,9 +382,9 @@ function Copy(outputdir, ...)
 end
 
 -- Compiles C and C++ files
---[[FUNCTION
+--[[@FUNCTION
 	TODO
-]]--
+@END]]--
 function Compile(settings, ...)
 	local inputs = FlatternTable({...})
 	local outputs = {}
@@ -428,9 +428,9 @@ function Compile(settings, ...)
 	return outputs	
 end
 
---[[FUNCTION
+--[[@FUNCTION
 	TODO
-]]--
+@END]]--
 function Link(settings, output, ...)
 	local inputs = FlatternTable({...})
 	
@@ -452,9 +452,9 @@ function Link(settings, output, ...)
 	return output
 end
 
---[[FUNCTION
+--[[@FUNCTION
 	TODO
-]]--
+@END]]--
 function StaticLibrary(settings, output, ...)
 	local inputs = FlatternTable({...})
 
@@ -471,9 +471,9 @@ function StaticLibrary(settings, output, ...)
 	return output
 end
 
---[[FUNCTION
+--[[@FUNCTION
 	TODO
-]]--
+@END]]--
 function SharedLibrary(settings, output, ...)
 	local inputs = FlatternTable({...})
 
@@ -489,21 +489,21 @@ function SharedLibrary(settings, output, ...)
 	return output
 end
 
---[[GROUP Targets]]--
+--[[@GROUP Targets@END]]--
 
---[[FUNCTION Target(node)
+--[[@FUNCTION Target(node)
 	TODO
-]]--
+@END]]--
 Target = bam_add_target
 
---[[FUNCTION DefaultTarget(node)
+--[[@FUNCTION DefaultTarget(node)
 	TODO
-]]--
+@END]]--
 DefaultTarget = bam_default_target
 
---[[FUNCTION
+--[[@FUNCTION
 	TODO
-]]--
+@END]]--
 function PseudoTarget(name, ...)
 	local inputs = FlatternTable({...})
 	local name = Path(name)
@@ -690,11 +690,11 @@ else
 	setup_compiler("gcc")
 end
 
---[[GROUP Configuration]]--
+--[[@GROUP Configuration@END]]--
 
---[[FUNCTION
+--[[@FUNCTION
 	TODO
-]]--
+@END]]--
 function NewConfig()
 	local config = {}
 	config.options = {}
@@ -820,9 +820,9 @@ end
 function _execute_silent_win(command) return os.execute(command .. " >nul 2>&1") end
 function _execute_silent_unix(command) return os.execute(command .. " >/dev/null 2>/dev/null") end
 
---[[FUNCTION ExecuteSilent(command)
+--[[@FUNCTION ExecuteSilent(command)
 	TODO
-]]--
+@END]]--
 
 if family == "windows" then
 	ExecuteSilent = _execute_silent_win
@@ -869,9 +869,9 @@ function OptTestCompileC(name, source)
 end
 
 -- Find Compiler --------------------------------------
---[[FUNCTION
+--[[@FUNCTION
 	TODO
-]]--
+@END]]--
 function OptFindCompiler()
 	local check = function(option)
 		if ExecuteSilent("g++ -v") == 0 then
@@ -893,9 +893,9 @@ function OptFindCompiler()
 end
 
 -- Find Library --------------------------------------
---[[FUNCTION
+--[[@FUNCTION
 	TODO
-]]--
+@END]]--
 function OptFindLibrary(name, header, library, required)
 	local check = function(option)
 		option.value = nil
@@ -958,11 +958,11 @@ end
 
 ---
 
---[[GROUP Modules]]--
+--[[@GROUP Modules@END]]--
 
---[[FUNCTION
+--[[@FUNCTION
 	TODO
-]]--
+@END]]--
 function Import(modname)
 	local paths = {""}
 	local chunk = nil
@@ -991,24 +991,24 @@ function Import(modname)
 end
 
 
---[[FUNCTION
+--[[@FUNCTION
 	TODO
-]]--
+@END]]--
 function ModuleFilename()
 	return _bam_modulefilename
 end
 
 
 
---[[GROUP Job and Dependencies]]--
+--[[@GROUP Job and Dependencies@END]]--
 
---[[FUNCTION AddJob(output, label, command)
+--[[@FUNCTION AddJob(output, label, command)
 	TODO
-]]--
+@END]]--
 AddJob = bam_add_job
 
---[[FUNCTION AddDependency(node, depedency)
+--[[@FUNCTION AddDependency(node, depedency)
 	TODO
-]]--
+@END]]--
 AddDependency = bam_add_dependency
 

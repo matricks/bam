@@ -83,26 +83,57 @@ static int option_report_color = 0;
 static int option_report_bar = 0;
 static int option_report_steps = 0;
 
-static struct OPTION options[] =
-	{
-		{&option_basescript,0		, "-b", "base file to use"},
-		{&option_script,0			, "-s", "bam file to use"},
-		{0, &option_clean			, "-c", "clean"},
-		{0, &option_force			, "-f", "force"},
-		{0, &option_verbose			, "-v", "verbose"},
-		{0, &option_print_help		, "-h", "prints this help"},
-		{&option_threads_str,0		, "-j", "sets the number of threads to use. 0 disables threading. (EXPRIMENTAL)"},
-		{&option_report_str,0		, "-r", "sets report format, b = bar, s = steps, c = color, (default:\"" DEFAULT_REPORT_STYLE "\")"},
-		{0, &option_dry				, "--dry", "dry run"},
-		{0, &option_print_help		, "--help", "prints this help"},
-		{0, &option_debug_nodes		, "--debug-nodes", "prints all the nodes with dependencies"},
-		{0, &option_debug_dot		, "--debug-dot", "prints all the nodes with dependencies in DOT format"},
-		{0, &option_debug_tree		, "--debug-tree", "prints the dependency tree"},
-		{0, &option_debug_memstats	, "--debug-memstats", "prints the memory status after build"},
-		{0, &option_debug_buildtime	, "--debug-build-time", "prints the build time"},
-		{0, &option_dump_internal	, "--dump-internal", "dumps the internal base script"},
-		{0, 0, (const char*)0, (const char*)0},
-	};
+static struct OPTION options[] = {
+	/*@OPTION Base File (-b FILENAME)
+		Base file to use.
+	@END*/
+	{&option_basescript,0		, "-b", "base file to use"},
+
+	/*@OPTION Script File (-s FILENAME)
+		Bam file to use.
+	@END*/
+	{&option_script,0			, "-s", "bam file to use"},
+
+	/*@OPTION Clean (-c)
+		Cleans the specified targets or the default target.
+	@END*/
+	{0, &option_clean			, "-c", "clean"},
+
+	/*@OPTION Force (-f) (to be removed)
+		Forces all nodes to be dirty and rebuild.
+	@END*/
+	{0, &option_force			, "-f", "force"},
+
+	/*@OPTION Verbose (-v)
+		Prints all commands that are runned when building.
+	@END*/
+	{0, &option_verbose			, "-v", "verbose"},
+
+	/*@OPTION Threading (-j N)
+		Sets the number of threads used when building. Set to 0 to disable.
+	@END*/
+	{&option_threads_str,0		, "-j", "sets the number of threads to use. 0 disables threading. (EXPRIMENTAL)"},
+	{0, &option_print_help		, "-h", "prints this help"},
+
+	/*@OPTION Report Format (-r [b][s][c])
+		Sets the format of the progress report when building.
+		<ul>
+			<li>b</li> - Use a progress bar showing the precenage.
+			<li>s</li> - Show each step when building. (default)
+			<li>c</li> - Use ANSI colors.
+		</ul>
+	@END*/
+	{&option_report_str,0		, "-r", "sets report format, b = bar, s = steps, c = color, (default:\"" DEFAULT_REPORT_STYLE "\")"},
+	{0, &option_dry				, "--dry", "dry run"},
+	{0, &option_print_help		, "--help", "prints this help"},
+	{0, &option_debug_nodes		, "--debug-nodes", "prints all the nodes with dependencies"},
+	{0, &option_debug_dot		, "--debug-dot", "prints all the nodes with dependencies in DOT format"},
+	{0, &option_debug_tree		, "--debug-tree", "prints the dependency tree"},
+	{0, &option_debug_memstats	, "--debug-memstats", "prints the memory status after build"},
+	{0, &option_debug_buildtime	, "--debug-build-time", "prints the build time"},
+	{0, &option_dump_internal	, "--dump-internal", "dumps the internal base script"},
+	{0, 0, (const char*)0, (const char*)0},
+};
 
 /****/
 void debug_print_lua_value(lua_State *L, int i)
@@ -1182,7 +1213,7 @@ static void print_help()
 {
 	int j;
 	printf("bam version " BAM_VERSION_STRING_COMPLETE ". built "__DATE__" "__TIME__" using " LUA_VERSION "\n");
-	printf("mainly coded by Magnus 'matricks' Auvinen. direct anger to magnus.auvinen (at) gmail.com\n");
+	printf("by Magnus Auvinen (magnus.auvinen@gmail.com)\n");
 	printf("\n");
 	printf("%s [OPTIONS] [TARGETS]\n", program_name);
 	printf("\n");

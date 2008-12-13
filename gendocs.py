@@ -6,6 +6,7 @@ class Node:
 		self.name = name
 		self.body = ""
 		self.index = ""
+		self.tag = ""
 		self.nodes = []
 
 class Output:
@@ -115,7 +116,11 @@ class HTMLOutput(Output):
 
 	def index_begin(self): return '<h2>Contents</h2>'
 	def index_end(self): return '<hr/>'
-	def index_node_begin(self, node): return '<a href="#%s">%s - %s</a><ul>'%(node.index,node.index,node.name.split("(")[0].strip())
+	def index_node_begin(self, node):
+		name = node.name
+		if node.tag == function_tag:
+			name = name.split("(")[0].strip()
+		return '<a href="#%s">%s - %s</a><ul>'%(node.index,node.index,name)
 	def index_node_end(self, node): return '</ul>'
 	
 	def format_header(self, index, name):
@@ -137,52 +142,68 @@ class WikiOutput(Output):
 outputs = [HTMLOutput()] #, WikiOutput()]
 
 # tags
-group_tag = "--[[GROUP"
-function_tag = "--[[FUNCTION"
-end_tag = "]]--"
+group_tag = "@GROUP"
+function_tag = "@FUNCTION"
+option_tag = "@OPTION"
+tags = [function_tag, option_tag]
+end_tag = "@END"
 
 root = Node("root")
-ref = Node("Function Reference")
+function_reference = Node("Function Reference")
+cli_reference = Node("Command Line Reference")
 group = 0
 root.nodes += [Node("Introduction")]
 root.nodes += [Node("Building Bam")]
 root.nodes += [Node("Quick Start")]
 root.nodes += [Node("Custom Actions")]
-root.nodes += [Node("Command Line Reference")]
-root.nodes += [ref]
+root.nodes += [cli_reference]
+root.nodes += [function_reference]
 root.nodes += [Node("Settings Reference")]
 notes = Node("Implementation Notes")
 root.nodes += [notes]
 notes.nodes +=[Node("C/C++ Dependency Checker")]
 notes.nodes +=[Node("Spaces in Paths")]
 
-# 0 = scaning for start tag
-# 1 = scaning for end tag,
-# 2 = outputting function decl
-state = 0
-for line in file("src/base.bam"):
-	if state == 0:
-		if function_tag in line:
-			function_decl = line.split(function_tag)[1].strip()
-			body = ""
-			state = 1
-		elif group_tag in line:
-			group_name = line.split(group_tag)[1].replace("]]--","").strip()
-			group = Node(group_name)
-			ref.nodes += [group]
-	elif state == 1:
-		if end_tag in line:
-			state = 2
+def parse_file(rootnode, filename):
+	# 0 = scaning for start tag
+	# 1 = scaning for end tag,
+	# 2 = outputting function decl
+	state = 0
+	group = rootnode
+	for line in file(filename):
+		if state == 0:
+			if group_tag in line:
+				group_name = line.split(group_tag)[-1].split(end_tag)[0].strip()
+				group = Node(group_name)
+				rootnode.nodes += [group]
+			else:
+				for t in tags:
+					if t in line:
+						title = line.split(t)[-1].strip()
+						tag = t
+						body = ""
+						state = 1
+						break
+	
+		elif state == 1:
+			if end_tag in line:
+				state = 2
+			else:
+				body += line.strip() + " "
 		else:
-			body += line.strip() + " "
-	else:
-		if len(function_decl) == 0:
-			function_decl = line.replace("function", "").strip()
-		function_decl = function_decl.replace("(", " (")
-		node = Node(function_decl)
-		node.body = body
-		group.nodes += [node]
-		state = 0
+			if tag == function_tag:
+				if len(title) == 0:
+					title = line.replace("function", "").strip()
+				title = title.replace("(", " (")
+			node = Node(title)
+			node.body = body
+			node.tag = tag
+			group.nodes += [node]
+			state = 0
+
+# parse files
+parse_file(function_reference, "src/base.bam")
+parse_file(cli_reference, "src/main.c")
 
 # render files
 for o in outputs:
