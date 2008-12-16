@@ -211,6 +211,16 @@ end
 
 --[[@GROUP Settings@END]]--
 
+function SetupToolChain(settings, chain)
+	settings.cxx.Driver = _G["compile_cxx_"..chain]
+	settings.c.Driver = _G["compile_c_"..chain]
+	settings.ctest.Driver = _G["compile_c_test_"..chain]
+	settings.link.Driver = _G["link_"..chain]
+	settings.lib.Driver = _G["lib_"..chain]
+	settings.dll.Driver = _G["dll_"..chain]
+end
+
+
 --[[@FUNCTION
 	TODO
 @END]]--
@@ -225,6 +235,32 @@ function NewSettings()
 	s.exedir = ""
 	s.config_name = ""
 	s.config_ext = ""
+	
+	--[[
+	s.compilers = {"":}
+	
+	]]--
+	
+	s.tools = {}
+
+	s.compiler_mappings = {
+		["cpp"] = "cxx",
+		["c++"] = "cxx",
+		["cxx"] = "cxx",
+		["cc"] = "cxx",
+		["c"] = "c",
+		["S"] = "c",
+		["m"] = "c"
+	}
+	
+	s.c = {}
+	s.c.Driver = nil
+
+	s.cxx = {}
+	s.cxx.Driver = nil
+
+	s.ctest = {}
+	s.ctest.Driver = nil
 	
 	s.cc = {}
 	s.cc.path = ""
@@ -242,23 +278,25 @@ function NewSettings()
 	end
 	s.cc._propagate(s.cc, s)
 	
-	s.linker = {}
-	s.linker.path = ""
-	s.linker.linker = "g++"
-	s.linker.inputflags = ""
-	s.linker.flags = NewFlagTable()
-	s.linker.libs = NewTable()
-	s.linker.frameworks = NewTable()
-	s.linker.frameworkpath = NewPathTable()
-	s.linker.libpath = NewPathTable()
-	s.linker.extrafiles = NewPathTable()
-	s.linker.output = default_intermediate_output_func
-	s.linker._propagate = function(linker, s) 
-		linker.debug = s.debug
+	s.link = {}
+	s.link.Driver = nil
+	s.link.path = ""
+	s.link.linker = "g++"
+	s.link.inputflags = ""
+	s.link.flags = NewFlagTable()
+	s.link.libs = NewTable()
+	s.link.frameworks = NewTable()
+	s.link.frameworkpath = NewPathTable()
+	s.link.libpath = NewPathTable()
+	s.link.extrafiles = NewPathTable()
+	s.link.output = default_intermediate_output_func
+	s.link._propagate = function(link, s) 
+		link.debug = s.debug
 	end
-	s.linker._propagate(s.linker, s)
+	s.link._propagate(s.link, s)
 	
 	s.lib = {}
+	s.lib.Driver = nil
 	s.lib.path = ""
 	s.lib.flags = NewFlagTable()
 	s.lib.output = default_intermediate_output_func
@@ -268,6 +306,7 @@ function NewSettings()
 	s.lib._propagate(s.lib, s)
 
 	s.dll = {}
+	s.lib.Driver = nil
 	s.dll.path = ""
 	s.dll.linker = "g++"
 	s.dll.inputflags = ""
@@ -284,13 +323,17 @@ function NewSettings()
 	s.dll._propagate(s.dll, s)
 
 	if family == "windows" then
+		s.cxx.extension = ".obj"
+		s.c.extension = ".obj"
 		s.cc.extension = ".obj"
-		s.linker.extension = ".exe"
+		s.link.extension = ".exe"
 		s.lib.extension = ".lib"
 		s.dll.extension = ".dll"
 	else
+		s.cxx.extension = ".o"
+		s.c.extension = ".o"
 		s.cc.extension = ".o"
-		s.linker.extension = ""
+		s.link.extension = ""
 		s.lib.extension = ".a"
 		if platform == "macosx" then
 			s.dll.extension = ".dylib"
@@ -299,10 +342,19 @@ function NewSettings()
 		end
 	end
 
+	-- setup default tool chain
+	if family == "windows" then
+		SetupToolChain(s, "cl")
+	else
+		SetupToolChain(s, "gcc")
+	end
+
 	-- lock the tables
 	table.lock(s)	
 	table.lock(s.cc)
-	table.lock(s.linker)
+	table.lock(s.c)
+	table.lock(s.cxx)
+	table.lock(s.link)
 	table.lock(s.lib)
 	table.lock(s.dll)
 
@@ -396,14 +448,7 @@ function Compile(settings, ...)
 
 		-- fetch correct compiler
 		local ext = PathFileExt(inname)
-		local compiler = nil
-		if ext == "cpp" then compiler = "cxx" end
-		if ext == "c++" then compiler = "cxx" end
-		if ext == "cxx" then compiler = "cxx" end
-		if ext == "cc" then compiler = "cxx" end
-		if ext == "c" then compiler = "c" end
-		if ext == "S" then compiler = "c" end
-		if ext == "m" then compiler = "c" end
+		local compiler = settings.compiler_mappings[ext]
 
 		if not compiler then
 			error("don't know how to compile a file with the ending '"..ext.."'")
@@ -411,11 +456,12 @@ function Compile(settings, ...)
 
 		local outname = settings.cc.output(settings.objdir, inname, settings) .. settings.cc.extension
 		
+		print(compiler, settings.tools[compiler])
 		-- add job and run dependencies
 		bam_add_job(
 			outname,
 			compiler .. " " .. inname,
-			_G["compile_"..compiler](outname, inname, settings.cc)
+			settings[compiler].Driver(outname, inname, settings.cc)
 		)
 		
 		bam_add_dependency(outname, inname)
@@ -434,18 +480,18 @@ end
 function Link(settings, output, ...)
 	local inputs = FlatternTable({...})
 	
-	settings.linker:_propagate(settings);
+	settings.link:_propagate(settings);
 
-	output = settings.linker.output(settings.exedir, Path(output), settings) .. settings.linker.extension
+	output = settings.link.output(settings.exedir, Path(output), settings) .. settings.link.extension
 	
-	bam_add_job(output, "link " .. output, link(output, inputs, settings.linker))
+	bam_add_job(output, "link " .. output, settings.link.Driver(output, inputs, settings.link))
 
 	-- all the files
 	for index, inname in ipairs(inputs) do
 		bam_add_dependency(output, inname)
 	end
 	
-	for index, inname in ipairs(settings.linker.extrafiles) do
+	for index, inname in ipairs(settings.link.extrafiles) do
 		bam_add_dependency(output, inname)
 	end
 
@@ -462,7 +508,7 @@ function StaticLibrary(settings, output, ...)
 
 	output = settings.lib.output(settings.libdir, Path(output), settings) .. settings.lib.extension
 
-	bam_add_job(output, "link " .. output, lib(output, inputs, settings.lib))
+	bam_add_job(output, "link " .. output, settings.lib.Driver(output, inputs, settings.lib))
 
 	for index, inname in ipairs(inputs) do
 		bam_add_dependency(output, inname)
@@ -480,7 +526,7 @@ function SharedLibrary(settings, output, ...)
 	settings.dll:_propagate(settings);
 
 	output = settings.dll.output(settings.libdir, Path(output), settings) .. settings.dll.extension
-	bam_add_job(output, "dll ".. output, dll(output, inputs, settings.dll))
+	bam_add_job(output, "dll ".. output, settings.dll.Driver(output, inputs, settings.dll))
 
 	for index, inname in ipairs(inputs) do
 		bam_add_dependency(output, inname)
@@ -663,7 +709,34 @@ function link_cl(output, inputs, settings)
 	return exec
 end
 
+compiler_cxx_cl = {
+	["compile"] = compile_cxx_cl,
+	["test"] = compile_c_test_cl,
+}
 
+compiler_c_cl = {
+	["compile"] = compile_c_cl,
+	["test"] = compile_c_test_cl,
+	["link"] = link_cl,
+	["lib"] = lib_cl,
+	["dll"] = dll_cl,
+}
+
+compiler_cxx_gcc = {
+	["compile"] = compile_cxx_gcc,
+	["test"] = compile_c_test_gcc,
+	["link"] = link_gcc,
+	["lib"] = lib_gcc,
+	["dll"] = dll_gcc,
+}
+
+compiler_c_gcc = {
+	["compile"] = compile_c_gcc,
+	["test"] = compile_c_test_gcc,
+	["link"] = link_gcc,
+	["lib"] = lib_gcc,
+	["dll"] = dll_gcc,
+}
 
 function setup_compiler(what_compiler)
 	if what_compiler == "gcc" then
@@ -681,13 +754,6 @@ function setup_compiler(what_compiler)
 		lib = lib_cl
 		dll = dll_cl
 	end
-end
-
--- set compilers and linkers --
-if family == "windows" then
-	setup_compiler("cl")
-else
-	setup_compiler("gcc")
 end
 
 --[[@GROUP Configuration@END]]--

@@ -58,14 +58,10 @@ struct OPTION
 /* options passed via the command line */
 static int option_clean = 0;
 static int option_verbose = 0;
-static int option_force = 0;
 static int option_dry = 0;
 static int option_simpleoutput = 0;
 static int option_threads = 1;
-static int option_debug_tree = 0;
 static int option_debug_nodes = 0;
-static int option_debug_dot = 0;
-static int option_debug_memstats = 0;
 static int option_debug_buildtime = 0;
 static int option_dump_internal = 0;
 static int option_print_help = 0;
@@ -84,38 +80,39 @@ static int option_report_bar = 0;
 static int option_report_steps = 0;
 
 static struct OPTION options[] = {
-	/*@OPTION Base File (-b FILENAME)
+	/*@OPTION Base File ( -b FILENAME )
 		Base file to use.
 	@END*/
 	{&option_basescript,0		, "-b", "base file to use"},
 
-	/*@OPTION Script File (-s FILENAME)
+	/*@OPTION Script File ( -s FILENAME )
 		Bam file to use.
 	@END*/
 	{&option_script,0			, "-s", "bam file to use"},
 
-	/*@OPTION Clean (-c)
+	/*@OPTION Clean ( -c )
 		Cleans the specified targets or the default target.
 	@END*/
 	{0, &option_clean			, "-c", "clean"},
 
-	/*@OPTION Force (-f) (to be removed)
-		Forces all nodes to be dirty and rebuild.
-	@END*/
-	{0, &option_force			, "-f", "force"},
-
-	/*@OPTION Verbose (-v)
+	/*@OPTION Verbose ( -v )
 		Prints all commands that are runned when building.
 	@END*/
 	{0, &option_verbose			, "-v", "verbose"},
 
-	/*@OPTION Threading (-j N)
+	/*@OPTION Threading ( -j N )
 		Sets the number of threads used when building. Set to 0 to disable.
 	@END*/
 	{&option_threads_str,0		, "-j", "sets the number of threads to use. 0 disables threading. (EXPRIMENTAL)"},
-	{0, &option_print_help		, "-h", "prints this help"},
 
-	/*@OPTION Report Format (-r [b][s][c])
+	/*@OPTION Help ( -h, --help )
+		Prints out a short reference of the command line options and quits
+		directly after.
+	@END*/
+	{0, &option_print_help		, "-h", "prints this help"},
+	{0, &option_print_help		, "--help", "prints this help"},
+
+	/*@OPTION Report Format ( -r [b][s][c] )
 		Sets the format of the progress report when building.
 		<ul>
 			<li>b</li> - Use a progress bar showing the precenage.
@@ -124,14 +121,29 @@ static struct OPTION options[] = {
 		</ul>
 	@END*/
 	{&option_report_str,0		, "-r", "sets report format, b = bar, s = steps, c = color, (default:\"" DEFAULT_REPORT_STYLE "\")"},
+
+	/*@OPTION Dry Run ( --dry )
+		Does everything that it normally would do but does not execute any
+		commands.
+	@END*/
 	{0, &option_dry				, "--dry", "dry run"},
-	{0, &option_print_help		, "--help", "prints this help"},
-	{0, &option_debug_nodes		, "--debug-nodes", "prints all the nodes with dependencies"},
-	{0, &option_debug_dot		, "--debug-dot", "prints all the nodes with dependencies in DOT format"},
-	{0, &option_debug_tree		, "--debug-tree", "prints the dependency tree"},
-	{0, &option_debug_memstats	, "--debug-memstats", "prints the memory status after build"},
+
+	/*@OPTION Debug: Build Time ( --debug-build-time )
+		Prints out the time spent building the targets when done.
+	@END*/
 	{0, &option_debug_buildtime	, "--debug-build-time", "prints the build time"},
-	{0, &option_dump_internal	, "--dump-internal", "dumps the internal base script"},
+
+	/*@OPTION Debug: Dump Nodes ( --debug-nodes )
+		Dumps all nodes in the dependency graph, their state and their
+		dependent nodes. This is useful if you are writing your own
+		actions to verify that dependencies are correctly added.
+	@END*/
+	{0, &option_debug_nodes		, "--debug-nodes", "prints all the nodes with dependencies"},
+
+	/*@OPTION Debug: Dump Internal ( --debug-dump-internal )
+		Prints the built in 'base.bam' file to stdout and quits.
+	@END*/
+	{0, &option_dump_internal	, "--debug-dump-internal", "dumps the internal base script"},
 	{0, 0, (const char*)0, (const char*)0},
 };
 
@@ -552,9 +564,6 @@ static void threads_run(void *u)
 {
 	struct THREADINFO *info = (struct THREADINFO *)u;
 	int flags = NODEWALK_BOTTOMUP|NODEWALK_UNDONE|NODEWALK_QUICK;
-	
-	if(option_force)
-		flags |= NODEWALK_FORCE;
 	
 	info->errorcode = 0;
 	
@@ -1110,46 +1119,6 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 		node_debug_dump(context.graph);
 		report_done = 0;
 	}
-	else if(option_debug_dot)
-	{
-		/* debug dump all nodes */
-		for(i = 0; i < num_targets; i++)
-		{
-			char cwd[512];
-			char nice_target[512];
-			struct NODE *node;
-			getcwd(cwd, 512);
-			if(path_join(context.script_directory, targets[i], nice_target, 512))
-			{
-				printf("crap error1\n");
-				*((int*)0) = 0;
-			}
-		
-			node = node_find(context.graph, nice_target);
-			node_debug_dump_dot(context.graph, node);
-		}
-		
-		report_done = 0;
-	}
-	else if(option_debug_tree)
-	{
-		/* debug dump the tree */
-		for(i = 0; i < num_targets; i++)
-		{
-			struct NODE *node = node_find(context.graph, targets[i]);
-			if(node)
-				do_target_pass_setup(&context, node);
-		}
-		
-		for(i = 0; i < num_targets; i++)
-		{
-			struct NODE *node = node_find(context.graph, targets[i]);
-			if(node)
-				node_debug_dump_tree(node);
-		}
-		
-		report_done = 0;
-	}
 	else if(option_dry)
 	{
 		/* do NADA */
@@ -1182,10 +1151,6 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 			}
 		}
 	}
-
-	/* */
-	if(option_debug_memstats)
-		mem_dumpstats(context.heap);
 
 	/* clean up */
 	lua_close(context.lua);

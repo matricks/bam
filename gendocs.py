@@ -52,7 +52,7 @@ class HTMLOutput(Output):
 		# large part of the style sheet is stolen from luas documentation
 		return '''
 			<head>
-			<title>BAM Reference Manual</title>
+			<title>Bam Manual</title>
 			
 			<style type="text/css"><!--
 			
@@ -105,7 +105,7 @@ class HTMLOutput(Output):
 			</head>
 			<body>
 			<hr/>
-			<img src="bam_logo.png"/><h1>Bam Reference Manual</h1>
+			<img src="bam_logo.png"/><h1>Bam Manual</h1>
 			<hr/>
 		'''
 	def render_end(self):
