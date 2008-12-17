@@ -2,12 +2,16 @@
 ScriptArgs = _bam_scriptargs
 Execute = os.execute
 
---[[@GROUP Common@END]]--
+--[[@GROUP Common @END]]--
 
 --[[@FUNCTION
 	Make sure that the version of the bam that is running
 	the script is compatible with the version of the script
 	specified with the argument ^version.
+	
+	<pre>
+	CheckVersion("0.1") -- Version 0.1.x required
+	</pre>
 @END]]--
 function CheckVersion(version)
 	if version == _bam_version then
@@ -35,15 +39,26 @@ function FlatternTable(varargtable)
 	return inputs
 end
 
---[[@GROUP Path Manipulation@END]]--
+--[[@GROUP Path Manipulation @END]]--
 
 --[[@FUNCTION Path(str)
-	TODO
+	Normalizes the path in ^str by removing ".." and "." from it
+
+	<pre>
+	Path("test/./path/../file.name.ext") -- Returns "test/file.name.ext"
+	</pre>
 @END]]--
 Path = bam_path_fix
 
 -- [TODO: Should be in C]
 --[[@FUNCTION
+	Returns the everthing except the extention in the path.
+
+	<pre>
+	Path("test/path/file.name.ext") -- Returns "test/path/file.name"<br/>
+	Path("test/path/file.name") -- Returns "test/path/file"<br/>
+	Path("test/path/file") -- Returns "test/path/file"
+	</pre>
 @END]]--
 function PathBase(s)
 	local e = PathFileExt(s)
@@ -55,17 +70,29 @@ function PathBase(s)
 end
 
 --[[@FUNCTION PathFilename(str)
-	TODO
+	Returns the filename of the path in ^str.
+
+	<pre>
+	PathFilename("test/path/file.name.ext") -- Returns "file.name.ext"
+	</pre>
 @END]]--
 PathFilename = bam_path_filename
 
 --[[@FUNCTION PathFileExt(str)
 	Returns the extension of the filename in ^str.
+	
+	<pre>
+	PathFileExt("test/path/file.name.ext") -- Returns "ext"
+	</pre>
 @END]]--
 PathFileExt = bam_path_ext
 
 --[[@FUNCTION PathPath(str)
 	Returns the path of the filename in ^str.
+
+	<pre>
+	PathPath("test/path/file.name.ext") -- Returns "test/path"
+	</pre>
 @END]]--
 PathPath = bam_path_path
 
@@ -1069,12 +1096,25 @@ end
 --[[@GROUP Job and Dependencies@END]]--
 
 --[[@FUNCTION AddJob(output, label, command)
-	TODO
+	Adds a job to be done. The ^output string specifies the file that
+	will be created by the command line specified in ^command string.
+	The ^label is printed out before ^command is runned.
 @END]]--
 AddJob = bam_add_job
 
---[[@FUNCTION AddDependency(node, depedency)
-	TODO
+--[[@FUNCTION AddDependency(filename, depfilename)
+	Specifies a dependency of a file. The file specified in the
+	^depfilename is a dependency of ^filename.
+	
+	<pre>
+		TODO: MoveThis!!<br/>
+		AddJob("myapp", "Compile", "gcc -o myapp myapp.c")<br/>
+		AddDependency("myapp", "myapp.c")<br/>
+		AddDependency("myapp.c", "myapp.h")<br/>
+		AddDependency("myapp.c", "myheader.h")<br/>
+		AddDependency("myapp.h", "myinternals.h")<br/>
+		Target("myapp")
+	</pre>
 @END]]--
 AddDependency = bam_add_dependency
 

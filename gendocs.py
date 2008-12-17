@@ -1,5 +1,6 @@
-import re
+#!/usr/bin/python
 
+import re
 
 class Node:
 	def __init__(self, name):
@@ -65,7 +66,7 @@ class HTMLOutput(Output):
 					margin-left: 20px ;
 				}
 
-				h1, h2, h3, h4 {
+				h1, h2, h3, h4, h5 {
 					font-weight: normal ;
 					font-style: italic ;
 				}
@@ -96,7 +97,11 @@ class HTMLOutput(Output):
 					color: #a0a0a0 ;
 					background-color: #a0a0a0 ;
 				}
-
+				
+				pre {
+					padding: 5px ;
+					background-color: #eeeeee ;
+				}
 			
 				.identifier {
 					font-family: monospace ;
