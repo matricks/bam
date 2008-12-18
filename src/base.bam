@@ -228,7 +228,7 @@ function table.copy(self, ud_copy_fn)
 end
 
 function table.lock(t)
-	mt = getmetatable(t)
+	local mt = getmetatable(t)
 	if not mt then mt = {} end
 	mt.__newindex = function(t, key, value)
 		error("trying to create key '" .. key .. "' on a locked table")
@@ -1105,16 +1105,6 @@ AddJob = bam_add_job
 --[[@FUNCTION AddDependency(filename, depfilename)
 	Specifies a dependency of a file. The file specified in the
 	^depfilename is a dependency of ^filename.
-	
-	<pre>
-		TODO: MoveThis!!<br/>
-		AddJob("myapp", "Compile", "gcc -o myapp myapp.c")<br/>
-		AddDependency("myapp", "myapp.c")<br/>
-		AddDependency("myapp.c", "myapp.h")<br/>
-		AddDependency("myapp.c", "myheader.h")<br/>
-		AddDependency("myapp.h", "myinternals.h")<br/>
-		Target("myapp")
-	</pre>
 @END]]--
 AddDependency = bam_add_dependency
 

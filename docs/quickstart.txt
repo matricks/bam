@@ -1,0 +1,29 @@
+This section is a short introduction to bam and is designed to get
+you started quickly.
+
+@GROUP Your first script @END
+
+<pre>
+settings = NewSettings()
+source = Collect("src/*.c")
+objects = Compile(settings, source)
+exe = Link(settings, "my_app", objects)
+DefaultTarget(exe)
+</pre>
+
+Line 1 creates a new settings object. This contains all the settings
+on how to compile, link etc. See NewSettings.
+
+Line 2 gathers all the files under the src/ directory which has .c as
+extention. Collect returns a table of strings which are the files.
+See Collect.
+
+Line 3 compiles the source using the specified settings and returns a
+table of the object files. See Compile.
+
+Line 4 links the object files to an executable named "my_app", using
+the specified settings. See Link.
+
+Line 5 tells bam that the executable is the default target to build.
+If you invoke bam without specifying what to build, it will use the
+default target. See DefaultTarget.

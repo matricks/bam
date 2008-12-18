@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import re
+import re, time
 
 class Node:
 	def __init__(self, name):
@@ -111,25 +111,32 @@ class HTMLOutput(Output):
 			<body>
 			<hr/>
 			<img src="bam_logo.png"/><h1>Bam Manual</h1>
+			
 			<hr/>
+			Copyright &copy; 2008 Magnus Auvinen. Freely available under the terms of the zlib/libpng license.
+
 		'''
 	def render_end(self):
 		return '''
 			<hr/>
+			Generated at %s.
 			</body>
-		'''
+		''' % (time.asctime())
 
-	def index_begin(self): return '<h2>Contents</h2>'
-	def index_end(self): return '<hr/>'
+	def index_begin(self): return '<h2>Contents</h2><ul>'
+	def index_end(self): return '</ul><hr/>'
 	def index_node_begin(self, node):
 		name = node.name
 		if node.tag == function_tag:
 			name = name.split("(")[0].strip()
-		return '<a href="#%s">%s - %s</a><ul>'%(node.index,node.index,name)
-	def index_node_end(self, node): return '</ul>'
+		return '<li><a href="#%s">%s - %s</a></li><ul>'%(node.index,node.index,name)
+	def index_node_end(self, node):
+		if len(node.index) == 1:
+			return '</ul><p></p>'
+		return '</ul>'
 	
 	def format_header(self, index, name):
-		i = (len(index)-1)/2 + 2
+		i = (len(index)-1)/2 + 1
 		return '<h%d><a name="%s">%s - %s</a></h%d>'%(i,index,index,name,i)
 	def format_body(self, body):
 		body = re.sub('\^(?P<ident>(\w)+)', '<span class="identifier">\g<ident></span>', body)
@@ -150,26 +157,26 @@ outputs = [HTMLOutput()] #, WikiOutput()]
 group_tag = "@GROUP"
 function_tag = "@FUNCTION"
 option_tag = "@OPTION"
-tags = [function_tag, option_tag]
+body_tag = "@BODY"
+tags = [function_tag, option_tag, body_tag]
 end_tag = "@END"
 
-root = Node("root")
-function_reference = Node("Function Reference")
-cli_reference = Node("Command Line Reference")
-group = 0
-root.nodes += [Node("Introduction")]
-root.nodes += [Node("Building Bam")]
-root.nodes += [Node("Quick Start")]
-root.nodes += [Node("Custom Actions")]
-root.nodes += [cli_reference]
-root.nodes += [function_reference]
-root.nodes += [Node("Settings Reference")]
-notes = Node("Implementation Notes")
-root.nodes += [notes]
-notes.nodes +=[Node("C/C++ Dependency Checker")]
-notes.nodes +=[Node("Spaces in Paths")]
+def ParseTextFile(rootnode, filename, addbr=False):
+	group = rootnode
+	for line in file(filename):
+		if group_tag in line:
+			group_name = line.split(group_tag)[-1].split(end_tag)[0].strip()
+			group = Node(group_name)
+			rootnode.nodes += [group]
+		else:
+			if addbr:
+				group.body += line.strip() + "<br/>\n"
+			else:
+				group.body += line
+			
+	return rootnode
 
-def parse_file(rootnode, filename):
+def ParseFile(rootnode, filename):
 	# 0 = scaning for start tag
 	# 1 = scaning for end tag,
 	# 2 = outputting function decl
@@ -189,7 +196,6 @@ def parse_file(rootnode, filename):
 						body = ""
 						state = 1
 						break
-	
 		elif state == 1:
 			if end_tag in line:
 				state = 2
@@ -205,10 +211,21 @@ def parse_file(rootnode, filename):
 			node.tag = tag
 			group.nodes += [node]
 			state = 0
+	return rootnode
 
 # parse files
-parse_file(function_reference, "src/base.bam")
-parse_file(cli_reference, "src/main.c")
+group = 0
+root = Node("root")
+root.nodes += [ParseTextFile(Node("Introduction"), "docs/introduction.txt")]
+root.nodes += [ParseTextFile(Node("Building Bam"), "docs/building.txt")]
+root.nodes += [ParseTextFile(Node("Quick Start (TODO)"), "docs/quickstart.txt")]
+root.nodes += [ParseTextFile(Node("Custom Actions"), "docs/actions.txt")]
+root.nodes += [ParseFile(Node("Command Line Reference (TODO)"), "src/main.c")]
+root.nodes += [ParseFile(Node("Function Reference (TODO)"), "src/base.bam")]
+root.nodes += [Node("Settings Reference (TODO)")]
+root.nodes += [ParseTextFile(Node("License"), "license.txt", True)]
+#notes.nodes +=[Node("C/C++ Dependency Checker")]
+#notes.nodes +=[Node("Spaces in Paths")]
 
 # render files
 for o in outputs:
