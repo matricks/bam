@@ -478,7 +478,7 @@ function Compile(settings, ...)
 		local compiler = settings.compiler_mappings[ext]
 
 		if not compiler then
-			error("don't know how to compile a file with the ending '"..ext.."'")
+			error("'"..inname.."' has unknown extention '"..ext.."' which there are no compiler for")
 		end
 
 		local outname = settings.cc.output(settings.objdir, inname, settings) .. settings.cc.extension
