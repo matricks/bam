@@ -176,7 +176,6 @@ end
 function NewAntiPathTable()
 	local t = {}
 	t.Add = function(self, value)
-		print(value)
 		table.insert(self, PathFilename(value))
 	end
 	return t
@@ -483,7 +482,6 @@ function Compile(settings, ...)
 
 		local outname = settings.cc.output(settings.objdir, inname, settings) .. settings.cc.extension
 		
-		print(compiler, settings.tools[compiler])
 		-- add job and run dependencies
 		bam_add_job(
 			outname,
@@ -606,12 +604,10 @@ function compile_c_cxx_gcc(label, type, output, input, settings)
 end
 
 function compile_cxx_gcc(output,input,settings)
-	--print("c++ " .. PathFilename(input))
 	return compile_c_cxx_gcc("c++ " .. PathFilename(input), settings.cxx_compiler,output,input,settings)
 end
 
 function compile_c_gcc(output,input,settings)
-	--print("c " .. PathFilename(input))
 	return compile_c_cxx_gcc("c " .. PathFilename(input), settings.c_compiler,output,input,settings)
 end
 
@@ -628,16 +624,13 @@ function compile_c_test_gcc(code, options)
 end
 
 function lib_ar(output, inputs, settings)
-	-- print("lib " .. PathFilename(output))
 	local e = "ar qc " .. output
 	local e = e .. " " .. tbl_to_str(inputs, '', ' ') .. settings.flags:ToString()
-	-- bam_execute("rm -f " .. output) -- TODO: remove this
 	ExecuteSilent("rm -f " .. output) -- TODO: remove this
 	return e
 end
 
 function dll_gcc(output, inputs, settings)
-	--print("dll " .. PathFilename(output))
 	local shared_flags = ""
 
 	if platform == "macosx" then
@@ -658,7 +651,6 @@ function dll_gcc(output, inputs, settings)
 end
 
 function link_gcc(output, inputs, settings)
-	--print("link " .. PathFilename(output))
 	local e = settings.linker .. " -o " .. output
 	local e = e .. " " .. settings.inputflags .. " " .. tbl_to_str(inputs, '', ' ') 
 	local e = e .. tbl_to_str(settings.extrafiles, '', ' ')

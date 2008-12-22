@@ -10,6 +10,14 @@ class Node:
 		self.tag = ""
 		self.nodes = []
 
+# tags
+group_tag = "@GROUP"
+function_tag = "@FUNCTION"
+option_tag = "@OPTION"
+body_tag = "@BODY"
+tags = [function_tag, option_tag, body_tag]
+end_tag = "@END"
+
 class Output:
 	def render_node_index(self, cur):
 		if len(cur.index):
@@ -20,8 +28,8 @@ class Output:
 			print >>self.file, self.index_node_end(cur)
 	def render_node(self, cur):
 		if len(cur.index):
-			print >>self.file, self.format_header(cur.index, cur.name)
-			print >>self.file, self.format_body(cur.body)
+			print >>self.file, self.format_header(cur)
+			print >>self.file, self.format_body(cur)
 		for node in cur.nodes:
 			self.render_node(node)
 			
@@ -114,12 +122,11 @@ class HTMLOutput(Output):
 			
 			<hr/>
 			Copyright &copy; 2008 Magnus Auvinen. Freely available under the terms of the zlib/libpng license.
-
 		'''
 	def render_end(self):
 		return '''
 			<hr/>
-			Generated at %s.
+			<small>Generated at %s.</small>
 			</body>
 		''' % (time.asctime())
 
@@ -135,31 +142,21 @@ class HTMLOutput(Output):
 			return '</ul><p></p>'
 		return '</ul>'
 	
-	def format_header(self, index, name):
-		i = (len(index)-1)/2 + 1
-		return '<h%d><a name="%s">%s - %s</a></h%d>'%(i,index,index,name,i)
-	def format_body(self, body):
+	def format_header(self, node):
+		i = (len(node.index)-1)/2 + 1
+		header = '<h%d><a name="%s">%s</a> - <a name="%s">%s</a></h%d>'%(i,node.index,node.index,node.name,node.name,i)
+		if node.tag == function_tag:
+			header = '<hr/>' + header
+		return header
+
+	def format_body(self, node):
+		body = node.body
 		body = re.sub('\^(?P<ident>(\w)+)', '<span class="identifier">\g<ident></span>', body)
-		return '<p class="body">' + body + '</p>\n'
+		body = re.sub('\n\n', '</p><p>', body)
+		body = '<p class="body">' + body + '</p>\n'
+		return body
 
-class WikiOutput(Output):
-	def output_name(self):
-		return "bam.txt"
-	def format_header(self, decl):
-		return "== ''!" + decl + "'' =="
-	def format_body(self, body):
-		body = re.sub('\^(?P<ident>(\w)+)', "{{{\g<ident>}}}", body)
-		return body + "\n----"
-
-outputs = [HTMLOutput()] #, WikiOutput()]
-
-# tags
-group_tag = "@GROUP"
-function_tag = "@FUNCTION"
-option_tag = "@OPTION"
-body_tag = "@BODY"
-tags = [function_tag, option_tag, body_tag]
-end_tag = "@END"
+outputs = [HTMLOutput()]
 
 def ParseTextFile(rootnode, filename, addbr=False):
 	group = rootnode
@@ -172,7 +169,7 @@ def ParseTextFile(rootnode, filename, addbr=False):
 			if addbr:
 				group.body += line.strip() + "<br/>\n"
 			else:
-				group.body += line
+				group.body += line.strip() + "\n"
 			
 	return rootnode
 
@@ -200,7 +197,7 @@ def ParseFile(rootnode, filename):
 			if end_tag in line:
 				state = 2
 			else:
-				body += line.strip() + " "
+				body += line.strip() + "\n"
 		else:
 			if tag == function_tag:
 				if len(title) == 0:

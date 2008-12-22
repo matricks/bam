@@ -4,11 +4,11 @@ you started quickly.
 @GROUP Your first script @END
 
 <pre>
-settings = NewSettings()
-source = Collect("src/*.c")
-objects = Compile(settings, source)
-exe = Link(settings, "my_app", objects)
-DefaultTarget(exe)
+1: settings = NewSettings()
+2: source = Collect("src/*.c")
+3: objects = Compile(settings, source)
+4: exe = Link(settings, "my_app", objects)
+5: DefaultTarget(exe)
 </pre>
 
 Line 1 creates a new settings object. This contains all the settings
