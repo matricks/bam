@@ -623,7 +623,7 @@ function compile_c_test_gcc(code, options)
 	return ret==0
 end
 
-function lib_ar(output, inputs, settings)
+function lib_gcc(output, inputs, settings)
 	local e = "ar qc " .. output
 	local e = e .. " " .. tbl_to_str(inputs, '', ' ') .. settings.flags:ToString()
 	ExecuteSilent("rm -f " .. output) -- TODO: remove this
@@ -763,7 +763,7 @@ function setup_compiler(what_compiler)
 		compile_c = compile_c_gcc
 		compile_c_test = compile_c_test_gcc
 		link = link_gcc
-		lib = lib_ar
+		lib = lib_gcc
 		dll = dll_gcc
 	elseif what_compiler == "cl" then
 		compile_cxx = compile_cxx_cl
