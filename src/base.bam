@@ -5,13 +5,12 @@ Execute = os.execute
 --[[@GROUP Common @END]]--
 
 --[[@FUNCTION
-	Make sure that the version of the bam that is running
-	the script is compatible with the version of the script
-	specified with the argument ^version.
+	Tells bam what version this script is written for. It will either
+	make sure that it behaves like that version or print out an error.
 	
-	<pre>
-	CheckVersion("0.1") -- Version 0.1.x required
-	</pre>
+	{{{{
+	CheckVersion("0.1.0")
+	}}}}
 @END]]--
 function CheckVersion(version)
 	if version == _bam_version then
@@ -42,11 +41,11 @@ end
 --[[@GROUP Path Manipulation @END]]--
 
 --[[@FUNCTION Path(str)
-	Normalizes the path in ^str by removing ".." and "." from it
+	Normalizes the path in ^str^ by removing ".." and "." from it
 
-	<pre>
+	{{{{
 	Path("test/./path/../file.name.ext") -- Returns "test/file.name.ext"
-	</pre>
+	}}}}
 @END]]--
 Path = bam_path_fix
 
@@ -54,11 +53,11 @@ Path = bam_path_fix
 --[[@FUNCTION
 	Returns the everthing except the extention in the path.
 
-	<pre>
+	{{{{
 	Path("test/path/file.name.ext") -- Returns "test/path/file.name"<br/>
 	Path("test/path/file.name") -- Returns "test/path/file"<br/>
 	Path("test/path/file") -- Returns "test/path/file"
-	</pre>
+	}}}}
 @END]]--
 function PathBase(s)
 	local e = PathFileExt(s)
@@ -70,29 +69,29 @@ function PathBase(s)
 end
 
 --[[@FUNCTION PathFilename(str)
-	Returns the filename of the path in ^str.
+	Returns the filename of the path in ^str^.
 
-	<pre>
+	{{{{
 	PathFilename("test/path/file.name.ext") -- Returns "file.name.ext"
-	</pre>
+	}}}}
 @END]]--
 PathFilename = bam_path_filename
 
 --[[@FUNCTION PathFileExt(str)
-	Returns the extension of the filename in ^str.
+	Returns the extension of the filename in ^str^.
 	
-	<pre>
+	{{{{
 	PathFileExt("test/path/file.name.ext") -- Returns "ext"
-	</pre>
+	}}}}
 @END]]--
 PathFileExt = bam_path_ext
 
 --[[@FUNCTION PathPath(str)
-	Returns the path of the filename in ^str.
+	Returns the path of the filename in ^str^.
 
-	<pre>
+	{{{{
 	PathPath("test/path/file.name.ext") -- Returns "test/path"
-	</pre>
+	}}}}
 @END]]--
 PathPath = bam_path_path
 
@@ -391,38 +390,36 @@ end
 
 -- Collects files in a directory.
 --[[@FUNCTION Collect(...)
-	TODO
+	Gathers a set of files using wildcard. Accepts strings and tables
+	of strings as input and returns a table of all the files that
+	matches A single wildcard * may be used in each string to collect
+	a set of files.
+	
+	Example:
+	{{{{
+		source_files = Collect('src/*.c", "lib/*.c")
+	}}}}
+	
+	Note. This version collects files, non-recursive.
 @END]]--
 Collect = bam_collect
 
 --[[@FUNCTION CollectRecursive(...)
-	TODO
+	Collects files as the [Collect] but does so recursivly.
 @END]]--
 CollectRecursive = bam_collectrecursive
 
 --[[@FUNCTION CollectDirs(...)
-	TODO
+	Collects directories in the same fashion as [Collect] but returns
+	directories instead.
 @END]]--
 CollectDirs = bam_collectdirs
 
 --[[@FUNCTION CollectDirsRecursive(...)
-	TODO
+	Collects directories in the same fashion as [Collect] but does so
+	recursivly and returns directories instead.
 @END]]--
 CollectDirsRecursive = bam_collectdirsrecursive
-
--- CollectAdv, Collects files into a table using the pattern syntax of gfind
--- TODO: Recursion
--- [TODO: Should be in C?]
-function CollectAdv(directory, pattern)
-	local d = bam_listdir(directory)
-	local f = {}
-	for i,v in ipairs(d) do
-		if string.find(v,pattern) then
-			table.insert(f, v)
-		end
-	end
-	return f
-end
 
 --[[@GROUP Actions@END]]--
 
@@ -562,18 +559,20 @@ end
 
 --[[@GROUP Targets@END]]--
 
---[[@FUNCTION Target(node)
-	TODO
+--[[@FUNCTION Target(filename) (Redundent?)
+	Specifies ^filename^ as a target. This target will be include when
+	specifying the ^all^ target.
 @END]]--
 Target = bam_add_target
 
---[[@FUNCTION DefaultTarget(node)
-	TODO
+--[[@FUNCTION DefaultTarget(filename)
+	Specifies the default target use build when no targets are
+	specified when bam is invoked.
 @END]]--
 DefaultTarget = bam_default_target
 
 --[[@FUNCTION
-	TODO
+	TODO	
 @END]]--
 function PseudoTarget(name, ...)
 	local inputs = FlatternTable({...})
@@ -1088,15 +1087,15 @@ end
 --[[@GROUP Job and Dependencies@END]]--
 
 --[[@FUNCTION AddJob(output, label, command)
-	Adds a job to be done. The ^output string specifies the file that
-	will be created by the command line specified in ^command string.
-	The ^label is printed out before ^command is runned.
+	Adds a job to be done. The ^output^ string specifies the file that
+	will be created by the command line specified in ^command^ string.
+	The ^label^ is printed out before ^command^ is runned.
 @END]]--
 AddJob = bam_add_job
 
 --[[@FUNCTION AddDependency(filename, depfilename)
 	Specifies a dependency of a file. The file specified in the
-	^depfilename is a dependency of ^filename.
+	^depfilename^ is a dependency of ^filename^.
 @END]]--
 AddDependency = bam_add_dependency
 

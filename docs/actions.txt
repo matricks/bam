@@ -1,0 +1,98 @@
+This section describes how you can make your own custom actions needed
+for your perticular project. An action is just a normal Lua function
+that adds a series of jobs and dependencies.
+
+For the sake of demonstration, we are going to compile an application
+without using the supplied Compile and Link actions. Instead we are
+going to add the jobs and dependencies by hand. We assume that we are
+running under a Unix like operating system with GCC as tool chain for
+sake of simplicity.
+
+@GROUP Jobs @END
+
+A job is a command line that needs to be executed to generate an output
+file. All actions results in a series of jobs being added to the node
+graph.
+
+To compile ^myapp.c^ into ^myapp.o^ we simply add this to our bam file:
+
+{{{{
+AddJob("myapp.o", "compiling myapp.c", "gcc -c myapp.c -o myapp.o")
+}}}}
+
+Bam now knows that inorder to get ^myapp.o^, it must run
+^"gcc -c myapp.c -o myapp.o"^. It will print ^"compiling myapp.c"^ when
+this is happening as a nice indicator instead of spewing out the whole
+command line that it ran. See [AddJob] for a complete reference of the
+function.
+
+Now that we can compile our object, we need to link it as well. To link
+the application, we add this to our bam file:
+
+{{{{
+AddJob("myapp", "linking myapp", "gcc myapp.o -o myapp")
+}}}}
+
+Bam now knows that inorder to get ^myapp^, it must run
+^"gcc myapp.o -o myapp"^.
+
+We can now build our application by running these commands from a
+shell:
+
+{{{{
+# bam myapp.o
+# bam myapp
+}}}}
+
+We must run both commands because Bam does not yet know that it needs
+to build ^myapp.o^ before it can build ^myapp^. This is where dependencies
+comes in.
+
+@GROUP Dependencies @END
+
+To tell Bam that ^myapp needs ^myapp.o we simply add a dependency. This
+is done with the AddDependency function like this:
+
+{{{{
+AddDependency("myapp", "myapp.o")
+AddDependency("myapp.o", "myapp.c")
+}}}}
+
+This tells Bam that ^myapp^ needs ^myapp.o^ inorder to build. We also
+added ^myapp.c^ as a dependency for ^myapp.o^. This will make sure that
+bam rebuilds ^myapp.o^ when ^myapp.c^ changes. See [AddDependency] for
+a complete reference of the function.
+
+@GROUP All Together @END
+
+TODO: Some nice text about this
+
+{{{{
+AddJob("myapp.o", "compiling myapp.c", "gcc -c myapp.c -o myapp.o")
+AddJob("myapp", "linking myapp", "gcc myapp.o -o myapp")
+AddDependency("myapp", "myapp.o")
+AddDependency("myapp.o", "myapp.c")
+DefaultTarget("myapp")
+}}}}
+
+@GROUP Examples @END
+
+TODO: Some nice text about this
+
+Here is a small function that takes one C file as a string and returns
+the object file as one string. This is an over simplification of the
+supplied Compile function and serves just as an example.
+
+{{{{
+function Compile(cfile)
+&nbsp;	output = PathBase(cfile) .. ".o"
+&nbsp;	AddJob(
+&nbsp;		output,
+&nbsp;		"Compiling " .. cfile,
+&nbsp;		"gcc -c " ..  cfile .. " -o " .. output
+&nbsp;	)
+&nbsp;	AddDependency(output, cfile)
+&nbsp;	return output		
+end
+}}}}
+

@@ -80,13 +80,35 @@ static int option_report_bar = 0;
 static int option_report_steps = 0;
 
 static struct OPTION options[] = {
+	/*@OPTION Targets ( name )
+		Specify a target to be built. A target can be any output
+		specified to the [AddJob] function.
+		
+		If no targets are specified, the default target will be built
+		If there are no default target and there is only one target
+		specified with the [Target] function, it will be built.
+		Otherwise bam will report an error.
+		
+		There is a special pseudo target named ^all^ that represents
+		all targets specified by the [Target] function.
+	@END*/
+
+	/*@OPTION Script Arguments ( name=value )
+		TODO
+	@END*/
+
 	/*@OPTION Base File ( -b FILENAME )
-		Base file to use.
+		Base file to use. In normal operation, Bam executes the builtin
+		^base.bam^ during startup before executing the build script
+		itself. This option allows to control that behaviour and
+		loading your own base file if wanted.
 	@END*/
 	{&option_basescript,0		, "-b", "base file to use"},
 
 	/*@OPTION Script File ( -s FILENAME )
-		Bam file to use.
+		Bam file to use. In normal operation, Bam executes
+		^default.bam^. This option allows you to specify another bam
+		file.
 	@END*/
 	{&option_script,0			, "-s", "bam file to use"},
 
@@ -101,7 +123,8 @@ static struct OPTION options[] = {
 	{0, &option_verbose			, "-v", "verbose"},
 
 	/*@OPTION Threading ( -j N )
-		Sets the number of threads used when building. Set to 0 to disable.
+		Sets the number of threads used when building.
+		Set to 0 to disable.
 	@END*/
 	{&option_threads_str,0		, "-j", "sets the number of threads to use. 0 disables threading. (EXPRIMENTAL)"},
 

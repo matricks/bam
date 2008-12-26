@@ -7,6 +7,7 @@ class Node:
 		self.name = name
 		self.body = ""
 		self.index = ""
+		self.indexname = ""
 		self.tag = ""
 		self.nodes = []
 
@@ -40,6 +41,9 @@ class Output:
 			else:
 				cur.nodes[i].index = str(i+1)
 			
+			cur.nodes[i].indexname = cur.nodes[i].name
+			if cur.nodes[i].tag == function_tag:
+				cur.nodes[i].indexname = cur.nodes[i].indexname.split("(")[0].strip()
 			self.index_nodes(cur.nodes[i], cur.nodes[i].index)
 		
 	def render(self, rootnode):
@@ -119,6 +123,7 @@ class HTMLOutput(Output):
 			<body>
 			<hr/>
 			<img src="bam_logo.png"/><h1>Bam Manual</h1>
+			<small>This manual is a work in progress and is not complete.</small>
 			
 			<hr/>
 			Copyright &copy; 2008 Magnus Auvinen. Freely available under the terms of the zlib/libpng license.
@@ -133,10 +138,7 @@ class HTMLOutput(Output):
 	def index_begin(self): return '<h2>Contents</h2><ul>'
 	def index_end(self): return '</ul><hr/>'
 	def index_node_begin(self, node):
-		name = node.name
-		if node.tag == function_tag:
-			name = name.split("(")[0].strip()
-		return '<li><a href="#%s">%s - %s</a></li><ul>'%(node.index,node.index,name)
+		return '<li><a href="#%s">%s - %s</a></li><ul>'%(node.index,node.index,node.indexname)
 	def index_node_end(self, node):
 		if len(node.index) == 1:
 			return '</ul><p></p>'
@@ -144,14 +146,17 @@ class HTMLOutput(Output):
 	
 	def format_header(self, node):
 		i = (len(node.index)-1)/2 + 1
-		header = '<h%d><a name="%s">%s</a> - <a name="%s">%s</a></h%d>'%(i,node.index,node.index,node.name,node.name,i)
+		header = '<h%d><a name="%s"></a><a name="%s">%s</a> - <a name="%s">%s</a></h%d>'%(i,node.indexname,node.index,node.index,node.name,node.name,i)
 		if node.tag == function_tag:
 			header = '<hr/>' + header
 		return header
 
 	def format_body(self, node):
 		body = node.body
-		body = re.sub('\^(?P<ident>(\w)+)', '<span class="identifier">\g<ident></span>', body)
+		body = re.sub('\^(?P<ident>[^\^]+)\^', '<span class="identifier">\g<ident></span>', body)
+		body = re.sub('\[(?P<ident>[^\]]+)\]', '<a href="#\g<ident>">\g<ident></a>', body)
+		body = re.sub('{{{{', '<pre>', body)
+		body = re.sub('}}}}', '</pre>', body)
 		body = re.sub('\n\n', '</p><p>', body)
 		body = '<p class="body">' + body + '</p>\n'
 		return body
