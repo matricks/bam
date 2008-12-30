@@ -202,9 +202,9 @@ static int lf_errorfunc(lua_State *L)
 	lua_Debug frame;
 
 	if(option_report_color)
-		printf("\033[01;31m%s: %s\033[00m\n", program_name, lua_tostring(L,-1));
+		printf("\033[01;31m%s\033[00m\n", lua_tostring(L,-1));
 	else
-		printf("%s: %s\n", program_name, lua_tostring(L,-1));
+		printf("%s\n", lua_tostring(L,-1));
 	
 	printf("stack traceback:\n");
 	

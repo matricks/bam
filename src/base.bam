@@ -20,7 +20,7 @@ function CheckVersion(version)
 end
 
 --[[@FUNCTION
-	TODO
+	Flatterns a tree of tables
 @END]]--
 function FlatternTable(varargtable)
 	function flattern(collection, varargtable)
@@ -36,6 +36,16 @@ function FlatternTable(varargtable)
 	local inputs = {}
 	flattern(inputs, varargtable)
 	return inputs
+end
+
+--[[@FUNCTION
+	Inserts all fieds in source table into target table
+@END]]--
+function MergeIntoTable(target, source)
+	for k,v in ipairs(source) do
+		table.insert(target, v)
+	end
+	return taget
 end
 
 --[[@GROUP Path Manipulation @END]]--
