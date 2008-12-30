@@ -1009,13 +1009,28 @@ int register_lua_globals(struct CONTEXT *context)
 	/* load base script */
 	if(option_basescript)
 	{
+		
+		int ret;
+		lua_getglobal(context->lua, "errorfunc");
+
 		if(option_verbose)
 			printf("%s: reading base script from '%s'\n", program_name, option_basescript);
-		if(luaL_dofile(context->lua, option_basescript) == 0)
+		
+		/* push error function to stack */
+		ret = luaL_loadfile(context->lua, option_basescript);
+		if(ret != 0)
 		{
-			printf("%s: error in base script '%s'\n", program_name, option_basescript);
-			return 1;
+			if(ret == LUA_ERRSYNTAX)
+				printf("%s: syntax error\n", program_name);
+			else if(ret == LUA_ERRMEM)
+				printf("%s: memory allocation error\n", program_name);
+			else if(ret == LUA_ERRFILE)
+				printf("%s: error opening '%s'\n", program_name, option_basescript);
+			lf_errorfunc(context->lua);
+			error = 1;
 		}
+		else if(lua_pcall(context->lua, 0, LUA_MULTRET, -2) != 0)
+			error = 1;
 	}
 	else
 	{

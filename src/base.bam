@@ -38,16 +38,6 @@ function FlatternTable(varargtable)
 	return inputs
 end
 
---[[@FUNCTION
-	Inserts all fieds in source table into target table
-@END]]--
-function MergeIntoTable(target, source)
-	for k,v in ipairs(source) do
-		table.insert(target, v)
-	end
-	return taget
-end
-
 --[[@GROUP Path Manipulation @END]]--
 
 --[[@FUNCTION Path(str)
@@ -146,22 +136,25 @@ end
 
 function NewTable()
 	local t = {}
+
 	t.Add = function(self, ...)
 		for i,what in ipairs({...}) do
 			table.insert(self, what)
 		end
 	end
+
+	t.Merge = function(self, source)
+		for k,v in ipairs(source) do
+			table.insert(self, v)
+		end
+	end
+
 	return t
 end
 
 function NewFlagTable()
-	local t = {}
-	t.Add = function(self, ...)
-		for i,what in ipairs({...}) do
-			self[what] = 1
-		end
-	end
-	
+	local t = NewTable()
+
 	t.ToString = function(self)
 		local s = ""
 		for key,value in pairs(self) do
@@ -171,25 +164,19 @@ function NewFlagTable()
 		end
 		return s
 	end
+
 	return t
 end
 
 function NewPathTable()
-	local t = {}
-	t.Add = function(self, value)
-		table.insert(self, Path(value))
-	end
+	local t = NewTable()
 	return t
 end
 
 function NewAntiPathTable()
-	local t = {}
-	t.Add = function(self, value)
-		table.insert(self, PathFilename(value))
-	end
+	local t = NewTable()
 	return t
 end
-
 
 function default_intermediate_output_func(dir, input, settings)
 	if not (dir == "") then
