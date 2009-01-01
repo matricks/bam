@@ -40,6 +40,14 @@ end
 
 --[[@GROUP Path Manipulation @END]]--
 
+--[[@UNITTESTS
+	err=1 : Path(nil)
+	err=1 : Path({})
+	catch="" : Path("")
+	catch="" : Path("/")
+	catch="/b.c/file.ext" : Path("/a/../b.c/./file.ext")
+	catch="/b.c" : Path("/a/../b.c/./")
+@END]]--
 --[[@FUNCTION Path(str)
 	Normalizes the path in ^str^ by removing ".." and "." from it
 
@@ -50,6 +58,13 @@ end
 Path = bam_path_fix
 
 -- [TODO: Should be in C]
+--[[@UNITTESTS
+	err=1: PathBase(nil)
+	err=1: PathBase({})
+	catch="": PathBase("")
+	catch="/": PathBase("/")
+	catch="/a/../b.c/./file": PathBase("/a/../b.c/./file.ext")
+@END]]--
 --[[@FUNCTION
 	Returns the everthing except the extention in the path.
 
@@ -68,6 +83,13 @@ function PathBase(s)
 	return string.sub(s,1,string.len(s)-string.len(PathFileExt(s))-1)
 end
 
+--[[@UNITTESTS
+	err=1 : PathFilename(nil)
+	err=1 : PathFilename({})
+	catch="" : PathFilename("")
+	catch="" : PathFilename("/")
+	catch="file.ext" : PathFilename("/a/../b.c/./file.ext")
+@END]]--
 --[[@FUNCTION PathFilename(str)
 	Returns the filename of the path in ^str^.
 
@@ -77,6 +99,13 @@ end
 @END]]--
 PathFilename = bam_path_filename
 
+--[[@UNITTESTS
+	err=1 : PathFileExt(nil)
+	err=1 : PathFileExt({})
+	catch="" : PathFileExt("")
+	catch="" : PathFileExt("/")
+	catch="ext" : PathFileExt("/a/../b.c/./file.ext")
+@END]]--
 --[[@FUNCTION PathFileExt(str)
 	Returns the extension of the filename in ^str^.
 	
@@ -86,6 +115,13 @@ PathFilename = bam_path_filename
 @END]]--
 PathFileExt = bam_path_ext
 
+--[[@UNITTESTS
+	err=1 : PathPath(nil)
+	err=1 : PathPath({})
+	catch="" : PathPath("")
+	catch="" : PathPath("/")
+	catch="/b.c" : PathPath("/a/../b.c/./file.ext")
+@END]]--
 --[[@FUNCTION PathPath(str)
 	Returns the path of the filename in ^str^.
 

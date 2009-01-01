@@ -421,6 +421,13 @@ int lf_path_ext(lua_State *L)
 	}
 	
 	path = lua_tostring(L, 1);
+	
+	if(!path)
+	{
+		lua_pushstring(L, "path_ext: argument is not a string");
+		lua_error(L);
+	}
+		
 	lua_pushstring(L, path_ext(path));
 	return 1;
 }
@@ -445,6 +452,7 @@ static int path_path_length(const char *path)
 /*  */
 int lf_path_path(lua_State *L)
 {
+	char buffer[1024];
 	int n = lua_gettop(L);
 	const char *path = 0;
 	if(n < 1)
@@ -460,8 +468,18 @@ int lf_path_path(lua_State *L)
 		lua_pushstring(L, "path_path: argument is not a string");
 		lua_error(L);
 	}
-
-	lua_pushlstring(L, path, path_path_length(path));
+	
+	/* check if we can take the easy way out */
+	if(path_isnice(path))
+	{
+		lua_pushlstring(L, path, path_path_length(path));
+		return 1;
+	}
+	
+	/* we must normalize the path as well */
+	strncpy(buffer, path, sizeof(buffer));
+	path_normalize(buffer);
+	lua_pushlstring(L, buffer, path_path_length(buffer));
 	return 1;
 }
 
