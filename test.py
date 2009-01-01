@@ -9,6 +9,11 @@ output_path = "test_output"
 failed_tests = []
 
 tests = []
+verbose = False
+
+for v in sys.argv:
+	if v == "-v":
+		verbose = True
 
 
 bam = "../../src/bam"
@@ -67,6 +72,7 @@ def unittests():
 		def __init__(self):
 			self.line = ""
 			self.catch = None
+			self.find = None
 			self.err = None
 	
 	tests = []
@@ -82,13 +88,17 @@ def unittests():
 				test = Test()
 				(args, cmdline) = line.split(":", 1)
 				test.line = cmdline.strip()
-				args = args.split()
+				args = args.split(";")
 				for arg in args:
 					arg,value = arg.split("=")
+					arg = arg.strip()
+					value = value.strip()
 					if arg.lower() == "err":
 						test.err = int(value)
 					elif arg.lower() == "catch":
 						test.catch = value[1:-1]
+					elif arg.lower() == "find":
+						test.find = value[1:-1]
 				tests += [test]
 	
 	olddir = os.getcwd()
@@ -96,7 +106,10 @@ def unittests():
 	
 	for test in tests:
 		f = file("default.bam", "w")
-		print >>f, "print(\"CATCH:\", %s)"%(test.line)
+		if test.catch != None:
+			print >>f, "print(\"CATCH:\", %s)"%(test.line)
+		else:
+			print >>f, test.line
 		print >>f, 'DefaultTarget(PseudoTarget("Test"))'
 		f.close()
 
@@ -110,7 +123,8 @@ def unittests():
 		if test.err != None and ret != test.err:
 			failed = True
 			print "FAILED! error %d != %d" % (test.err, ret)
-		elif test.catch != None:
+		
+		if test.catch != None:
 			for l in report:
 				l = l.split("CATCH:", 1)
 				if len(l) == 2:
@@ -119,9 +133,20 @@ def unittests():
 						failed = True
 						print "FAILED! catch '%s' != '%s'" % (test.catch, catched)
 		
-		if failed:
+		if test.find != None:
+			found = False
 			for l in report:
-				print "\t", l.strip()
+				if test.find in l:
+					found = True
+			
+			if not found:
+				failed = True
+				print "FAILED! could not find '%s' in output" % (test.find)
+		if failed or verbose:
+			if not failed:
+				print "",
+			for l in report:
+				print "\t", l.rstrip()
 		else:
 			print "ok"
 			

@@ -4,6 +4,18 @@ Execute = os.execute
 
 --[[@GROUP Common @END]]--
 
+--[[@UNITTESTS
+	err=1; find="expected a settings object": CheckSettings(nil)
+	err=1; find="expected a settings object": CheckSettings("")
+	err=1; find="expected a settings object": CheckSettings({})
+	err=0 : CheckSettings(NewSettings())
+@END]]--
+function CheckSettings(settings)
+	if type(settings) ~= type({}) or settings._is_settingsobject == nil then
+		error("expected a settings object, got an " .. type(settings) .. " instead")
+	end
+end
+
 --[[@FUNCTION
 	Tells bam what version this script is written for. It will either
 	make sure that it behaves like that version or print out an error.
@@ -264,6 +276,7 @@ end
 function NewSettings()
 	local settings = {}
 	
+	settings._is_settingsobject = true
 	settings.Copy = table.copy
 	
 	settings.filemappings = {}
@@ -788,10 +801,17 @@ end)
 ------------------------ COMPILE ACTION ------------------------
 
 -- Compiles C and C++ files
+--[[@UNITTESTS
+	err=1; find="expected a settings object": Compile(nil)
+	err=1; find="compiler returned a nil": s = NewSettings(); s.filemappings["c"] = function()end; Compile(s, "test.c")
+	err=0 : s = NewSettings(); Compile(s)
+@END]]--
 --[[@FUNCTION
 	TODO
 @END]]--
 function Compile(settings, ...)
+	CheckSettings(settings)
+	
 	local inputs = FlatternTable({...})
 	local outputs = {}
 	
@@ -806,7 +826,11 @@ function Compile(settings, ...)
 			error("'"..inname.."' has unknown extention '"..ext.."' which there are no compiler for")
 		end
 		
-		table.insert(outputs, Compiler(settings, inname))
+		local objectfile = Compiler(settings, inname)
+		if type(objectfile) ~= type("") then
+			error("compiler returned a "..type(objectfile).." instead of a string")
+		end
+		table.insert(outputs, objectfile)
 	end
 
 	-- return the output
@@ -840,6 +864,8 @@ end)
 	TODO
 @END]]--
 function Link(settings, output, ...)
+	CheckSettings(settings)
+	
 	local inputs = FlatternTable({...})
 
 	output = output .. settings.link.extension
@@ -874,6 +900,8 @@ end)
 	TODO
 @END]]--
 function StaticLibrary(settings, output, ...)
+	CheckSettings(settings)
+	
 	local inputs = FlatternTable({...})
 
 	output = output .. settings.lib.extension
@@ -910,6 +938,8 @@ end)
 	TODO
 @END]]--
 function SharedLibrary(settings, output, ...)
+	CheckSettings(settings)
+	
 	local inputs = FlatternTable({...})
 
 	output = output .. settings.dll.extension
