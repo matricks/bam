@@ -63,6 +63,7 @@ static int option_simpleoutput = 0;
 static int option_threads = 1;
 static int option_debug_nodes = 0;
 static int option_debug_buildtime = 0;
+static int option_debug_dirty = 0;
 static int option_dump_internal = 0;
 static int option_print_help = 0;
 static const char *option_script = "default.bam"; /* -f filename */
@@ -162,6 +163,10 @@ static struct OPTION options[] = {
 		actions to verify that dependencies are correctly added.
 	@END*/
 	{0, &option_debug_nodes		, "--debug-nodes", "prints all the nodes with dependencies"},
+
+	/*@OPTION Debug: Dirty Marking ( --debug-dirty )
+	@END*/
+	{0, &option_debug_dirty		, "--debug-dirty", ""},
 
 	/*@OPTION Debug: Dump Internal ( --debug-dump-internal )
 		Prints the built in 'base.bam' file to stdout and quits.
@@ -708,10 +713,20 @@ static int dirty_mark_callback(struct NODEWALK *walkinfo)
 	struct CONTEXT *context = (struct CONTEXT *)walkinfo->user;
 	struct DEPENDENCY *dep;
 	time_t time = timestamp();
+	
+	if(option_debug_dirty)
+		printf("%s: dirty: check on '%s'\n", program_name, node->filename);
 
 	/* check against the global timestamp first */
 	if(node->cmdline && (!node->timestamp || node->timestamp < context->globaltimestamp))
 	{
+		if(option_debug_dirty)
+		{
+			if(!node->timestamp)
+				printf("%s: dirty: \ttimestamp == 0\n", program_name);
+			else
+				printf("%s: dirty: \ttimestamp < globaltimestamp\n", program_name);
+		}
 		node->dirty = 1;
 		return 0;
 	}
@@ -724,6 +739,8 @@ static int dirty_mark_callback(struct NODEWALK *walkinfo)
 		
 		if(dep->node->dirty)
 		{
+			if(option_debug_dirty)
+				printf("%s: dirty: \tdep '%s' dirty\n", program_name, dep->node->filename);
 			node->dirty = 1;
 			break;
 		}
@@ -731,11 +748,17 @@ static int dirty_mark_callback(struct NODEWALK *walkinfo)
 		{
 			if(node->cmdline)
 			{
+				if(option_debug_dirty)
+					printf("%s: dirty: \tdep '%s' timestamp\n", program_name, dep->node->filename);
 				node->dirty = 1;
 				break;
 			}
 			else /* no cmdline, just propagate the timestamp */
+			{
+				if(option_debug_dirty)
+					printf("%s: dirty: \ttimestamp taken from '%s'\n", program_name, dep->node->filename);
 				node->timestamp = dep->node->timestamp;
+			}
 		}
 	}
 	return 0;
@@ -743,7 +766,8 @@ static int dirty_mark_callback(struct NODEWALK *walkinfo)
 
 int dirty_mark(struct CONTEXT *context, struct NODE *target)
 {
-	return node_walk(target, NODEWALK_BOTTOMUP|NODEWALK_FORCE|NODEWALK_QUICK, dirty_mark_callback, context);
+	/* TODO: we should have NODEWALK_QUICK here, but then it will fail on circular dependencies */
+	return node_walk(target, NODEWALK_BOTTOMUP|NODEWALK_FORCE, dirty_mark_callback, context);
 }
 
 static int validate_graph_callback(struct NODEWALK *walkinfo)
