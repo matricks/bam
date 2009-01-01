@@ -64,7 +64,6 @@ static int option_threads = 1;
 static int option_debug_nodes = 0;
 static int option_debug_buildtime = 0;
 static int option_debug_dirty = 0;
-static int option_dump_internal = 0;
 static int option_print_help = 0;
 static const char *option_script = "default.bam"; /* -f filename */
 static const char *option_basescript = 0x0; /* -b filename or BAM_BASE */
@@ -167,12 +166,9 @@ static struct OPTION options[] = {
 	/*@OPTION Debug: Dirty Marking ( --debug-dirty )
 	@END*/
 	{0, &option_debug_dirty		, "--debug-dirty", ""},
-
-	/*@OPTION Debug: Dump Internal ( --debug-dump-internal )
-		Prints the built in 'base.bam' file to stdout and quits.
-	@END*/
-	{0, &option_dump_internal	, "--debug-dump-internal", "dumps the internal base script"},
-	{0, 0, (const char*)0, (const char*)0},
+	
+	/* terminate list */
+	{0, 0, (const char*)0, (const char*)0}
 };
 
 /****/
@@ -1059,28 +1055,34 @@ int register_lua_globals(struct CONTEXT *context)
 	else
 	{
 		int ret;
-		const char *p = internal_base;
+		const char *p;
+		int f;
 		
-		if(option_verbose)
-			printf("%s: reading internal base script\n", program_name);
-		
-		lua_getglobal(context->lua, "errorfunc");
-		
-		/* push error function to stack */
-		ret = lua_load(context->lua, internal_base_reader, &p, "base.bam");
-		if(ret != 0)
+		for(f = 0; internal_files[f].filename; f++)
 		{
-			if(ret == LUA_ERRSYNTAX)
-				printf("%s: syntax error\n", program_name);
-			else if(ret == LUA_ERRMEM)
-				printf("%s: memory allocation error\n", program_name);
-			else
-				printf("%s: unknown error parsing base script\n", program_name);
-			lf_errorfunc(context->lua);
-			error = 1;
+			p = internal_files[f].content;
+			
+			if(option_verbose)
+				printf("%s: reading internal file '%s'\n", program_name, internal_files[f].filename);
+		
+			lua_getglobal(context->lua, "errorfunc");
+			
+			/* push error function to stack */
+			ret = lua_load(context->lua, internal_base_reader, &p, internal_files[f].filename);
+			if(ret != 0)
+			{
+				if(ret == LUA_ERRSYNTAX)
+					printf("%s: syntax error\n", program_name);
+				else if(ret == LUA_ERRMEM)
+					printf("%s: memory allocation error\n", program_name);
+				else
+					printf("%s: unknown error parsing base script\n", program_name);
+				lf_errorfunc(context->lua);
+				error = 1;
+			}
+			else if(lua_pcall(context->lua, 0, LUA_MULTRET, -2) != 0)
+				error = 1;
 		}
-		else if(lua_pcall(context->lua, 0, LUA_MULTRET, -2) != 0)
-			error = 1;
 	}
 	
 	return error;
@@ -1366,13 +1368,6 @@ int main(int argc, char **argv)
 	if(option_print_help)
 	{
 		print_help();
-		return 0;
-	}
-	
-	/* check if we should dump the internal base script */
-	if(option_dump_internal)
-	{
-		printf("%s", internal_base);
 		return 0;
 	}
 	

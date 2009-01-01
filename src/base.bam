@@ -194,8 +194,8 @@ function NewFlagTable()
 	t.ToString = function(self)
 		local s = ""
 		for key,value in pairs(self) do
-			if value == 1 then
-				s = s .. key .. " "
+			if type(value) == type("") then
+				s = s .. value .. " "
 			end
 		end
 		return s
@@ -212,20 +212,6 @@ end
 function NewAntiPathTable()
 	local t = NewTable()
 	return t
-end
-
-function default_intermediate_output_func(dir, input, settings)
-	if not (dir == "") then
-		return Path(dir .. "/" .. PathBase(PathFilename(input)) .. settings.config_ext)
-	end
-	return PathBase(input) .. settings.config_ext
-end
-
-function default_link_output_func(dir, input, settings)
-	if not (dir == "") then
-		return Path(dir .. "/" .. PathFilename(input) .. settings.config_ext)
-	end
-	return Path(input) .. settings.config_ext
 end
 
 -- copied from the lua-users mailing-list and modified abit 
@@ -267,157 +253,43 @@ function table.lock(t)
 	setmetatable(t,mt)
 end
 
---[[@GROUP Settings@END]]--
+--[[@GROUP Settings @END]]--
 
-function SetupToolChain(settings, chain)
-	settings.cxx.Driver = _G["compile_cxx_"..chain]
-	settings.c.Driver = _G["compile_c_"..chain]
-	settings.ctest.Driver = _G["compile_c_test_"..chain]
-	settings.link.Driver = _G["link_"..chain]
-	settings.lib.Driver = _G["lib_"..chain]
-	settings.dll.Driver = _G["dll_"..chain]
+_bam_tools = {}
+
+function AddTool(name, func)
+	_bam_tools[name] = func
 end
 
-
---[[@FUNCTION
-	TODO
-@END]]--
 function NewSettings()
-	local s = {}
+	local settings = {}
 	
-	s.Copy = table.copy
+	settings.Copy = table.copy
 	
-	s.debug = 1
-	s.objdir = ""
-	s.libdir = ""
-	s.exedir = ""
-	s.config_name = ""
-	s.config_ext = ""
-	
-	--[[
-	s.compilers = {"":}
-	
-	]]--
-	
-	s.tools = {}
+	settings.filemappings = {}
 
-	s.compiler_mappings = {
-		["cpp"] = "cxx",
-		["c++"] = "cxx",
-		["cxx"] = "cxx",
-		["cc"] = "cxx",
-		["c"] = "c",
-		["S"] = "c",
-		["m"] = "c"
-	}
+	settings.config_name = ""
+	settings.config_ext = ""
+	settings.debug = 1
+	settings.optimize = 0
 	
-	s.c = {}
-	s.c.Driver = nil
-
-	s.cxx = {}
-	s.cxx.Driver = nil
-
-	s.ctest = {}
-	s.ctest.Driver = nil
-	
-	s.cc = {}
-	s.cc.path = ""
-	s.cc.c_compiler = "gcc"
-	s.cc.cxx_compiler = "g++"
-	s.cc.flags = NewFlagTable()
-	s.cc.includes = NewPathTable()
-	s.cc.systemincludes = NewTable()
-	s.cc.defines = NewTable()
-	s.cc.frameworks = NewTable()
-	s.cc.output = default_intermediate_output_func
-	s.cc.optimize = 0
-	s.cc._propagate = function(cc, s) 
-		cc.debug = s.debug
+	-- add all tools
+	for name, tool in pairs(_bam_tools) do
+		tool(settings)
 	end
-	s.cc._propagate(s.cc, s)
-	
-	s.link = {}
-	s.link.Driver = nil
-	s.link.path = ""
-	s.link.linker = "g++"
-	s.link.inputflags = ""
-	s.link.flags = NewFlagTable()
-	s.link.libs = NewTable()
-	s.link.frameworks = NewTable()
-	s.link.frameworkpath = NewPathTable()
-	s.link.libpath = NewPathTable()
-	s.link.extrafiles = NewPathTable()
-	s.link.output = default_intermediate_output_func
-	s.link._propagate = function(link, s) 
-		link.debug = s.debug
-	end
-	s.link._propagate(s.link, s)
-	
-	s.lib = {}
-	s.lib.Driver = nil
-	s.lib.path = ""
-	s.lib.flags = NewFlagTable()
-	s.lib.output = default_intermediate_output_func
-	s.lib._propagate = function(lib, s) 
-		lib.debug = s.debug
-	end
-	s.lib._propagate(s.lib, s)
 
-	s.dll = {}
-	s.lib.Driver = nil
-	s.dll.path = ""
-	s.dll.linker = "g++"
-	s.dll.inputflags = ""
-	s.dll.flags = NewFlagTable()
-	s.dll.libs = NewTable()
-	s.dll.frameworks = NewTable()
-	s.dll.frameworkpath = NewPathTable()
-	s.dll.libpath = NewPathTable()
-	s.dll.extrafiles = NewPathTable()
-	s.dll.output = default_intermediate_output_func
-	s.dll._propagate = function(dll, s) 
-		dll.debug = s.debug
-	end
-	s.dll._propagate(s.dll, s)
-
+	table.lock(settings)
+	
+	-- set default drivers
 	if family == "windows" then
-		s.cxx.extension = ".obj"
-		s.c.extension = ".obj"
-		s.cc.extension = ".obj"
-		s.link.extension = ".exe"
-		s.lib.extension = ".lib"
-		s.dll.extension = ".dll"
+		SetDriversCL(settings)
 	else
-		s.cxx.extension = ".o"
-		s.c.extension = ".o"
-		s.cc.extension = ".o"
-		s.link.extension = ""
-		s.lib.extension = ".a"
-		if platform == "macosx" then
-			s.dll.extension = ".dylib"
-		else
-			s.dll.extension = ".so"	
-		end
+		SetDriversGCC(settings)
 	end
-
-	-- setup default tool chain
-	if family == "windows" then
-		SetupToolChain(s, "cl")
-	else
-		SetupToolChain(s, "gcc")
-	end
-
-	-- lock the tables
-	table.lock(s)	
-	table.lock(s.cc)
-	table.lock(s.c)
-	table.lock(s.cxx)
-	table.lock(s.link)
-	table.lock(s.lib)
-	table.lock(s.dll)
-
-	return s
+	
+	return settings
 end
+
 
 --[[@GROUP Files and Directories@END]]--
 
@@ -489,107 +361,6 @@ function Copy(outputdir, ...)
 	return outputs
 end
 
--- Compiles C and C++ files
---[[@FUNCTION
-	TODO
-@END]]--
-function Compile(settings, ...)
-	local inputs = FlatternTable({...})
-	local outputs = {}
-	
-	settings.cc:_propagate(settings);
-	
-	-- compile all the files
-	for index, inname in ipairs(inputs) do
-
-		-- fetch correct compiler
-		local ext = PathFileExt(inname)
-		local compiler = settings.compiler_mappings[ext]
-
-		if not compiler then
-			error("'"..inname.."' has unknown extention '"..ext.."' which there are no compiler for")
-		end
-
-		local outname = settings.cc.output(settings.objdir, inname, settings) .. settings.cc.extension
-		
-		-- add job and run dependencies
-		bam_add_job(
-			outname,
-			compiler .. " " .. inname,
-			settings[compiler].Driver(outname, inname, settings.cc)
-		)
-		
-		bam_add_dependency(outname, inname)
-		bam_dependency_cpp(inname, settings.cc.includes)
-		
-		table.insert(outputs, outname)
-	end
-
-	-- return the output
-	return outputs	
-end
-
---[[@FUNCTION
-	TODO
-@END]]--
-function Link(settings, output, ...)
-	local inputs = FlatternTable({...})
-	
-	settings.link:_propagate(settings);
-
-	output = settings.link.output(settings.exedir, Path(output), settings) .. settings.link.extension
-	
-	bam_add_job(output, "link " .. output, settings.link.Driver(output, inputs, settings.link))
-
-	-- all the files
-	for index, inname in ipairs(inputs) do
-		bam_add_dependency(output, inname)
-	end
-	
-	for index, inname in ipairs(settings.link.extrafiles) do
-		bam_add_dependency(output, inname)
-	end
-
-	return output
-end
-
---[[@FUNCTION
-	TODO
-@END]]--
-function StaticLibrary(settings, output, ...)
-	local inputs = FlatternTable({...})
-
-	settings.lib:_propagate(settings);
-
-	output = settings.lib.output(settings.libdir, Path(output), settings) .. settings.lib.extension
-
-	bam_add_job(output, "link " .. output, settings.lib.Driver(output, inputs, settings.lib))
-
-	for index, inname in ipairs(inputs) do
-		bam_add_dependency(output, inname)
-	end
-
-	return output
-end
-
---[[@FUNCTION
-	TODO
-@END]]--
-function SharedLibrary(settings, output, ...)
-	local inputs = FlatternTable({...})
-
-	settings.dll:_propagate(settings);
-
-	output = settings.dll.output(settings.libdir, Path(output), settings) .. settings.dll.extension
-	bam_add_job(output, "dll ".. output, settings.dll.Driver(output, inputs, settings.dll))
-
-	for index, inname in ipairs(inputs) do
-		bam_add_dependency(output, inname)
-	end
-
-	return output
-end
-
 --[[@GROUP Targets@END]]--
 
 --[[@FUNCTION Target(filename) (Redundent?)
@@ -620,193 +391,6 @@ function PseudoTarget(name, ...)
 	return name
 end
 
------ gcc/g++ compiler ------
-function compile_c_cxx_gcc(label, type, output, input, settings)
-	local d = tbl_to_str(settings.defines, "-D", " ")
-	local i = tbl_to_str(settings.includes, '-I "', '" ')
-	local i = i .. tbl_to_str(settings.systemincludes, '-isystem "', '" ')
-	local i = i .. tbl_to_str(settings.frameworks, '-framework ', ' ')
-	local f = settings.flags:ToString()
-	local path = settings.path
-	if settings.debug > 0 then f = f .. "-g " end
-	if settings.optimize > 0 then f = f .. "-O2 " end
-	local e = path .. type .. ' ' .. f ..'-c ' .. input .. ' -o ' .. output .. ' ' .. d .. i
-	return e
-	-- return bam_execute(e)
-end
-
-function compile_cxx_gcc(output,input,settings)
-	return compile_c_cxx_gcc("c++ " .. PathFilename(input), settings.cxx_compiler,output,input,settings)
-end
-
-function compile_c_gcc(output,input,settings)
-	return compile_c_cxx_gcc("c " .. PathFilename(input), settings.c_compiler,output,input,settings)
-end
-
-
-function compile_c_test_gcc(code, options)
-	local f = io.open("_test.c", "w")
-	f:write(code)
-	f:write("\n")
-	f:close()
-	local ret = ExecuteSilent("gcc _test.c -o _test " .. options)
-	os.remove("_test.c")
-	os.remove("_test")
-	return ret==0
-end
-
-function lib_gcc(output, inputs, settings)
-	local e = "ar qc " .. output
-	local e = e .. " " .. tbl_to_str(inputs, '', ' ') .. settings.flags:ToString()
-	ExecuteSilent("rm -f " .. output) -- TODO: remove this
-	return e
-end
-
-function dll_gcc(output, inputs, settings)
-	local shared_flags = ""
-
-	if platform == "macosx" then
-		shared_flags = " -dynamiclib"
-	else
-		shared_flags = " -shared"
-	end
-
-	local e = settings.linker .. shared_flags .. " -o " .. output
-	local e = e .. " " .. settings.inputflags .. " " .. tbl_to_str(inputs, '', ' ') 
-	local e = e .. tbl_to_str(settings.extrafiles, '', ' ')
-	local e = e .. tbl_to_str(settings.libpath, '-L', ' ')
-	local e = e .. tbl_to_str(settings.libs, '-l', ' ')
-	local e = e .. tbl_to_str(settings.frameworkpath, '-F', ' ')
-	local e = e .. tbl_to_str(settings.frameworks, '-framework ', ' ')
-	local e = e .. settings.flags:ToString()
-	return e
-end
-
-function link_gcc(output, inputs, settings)
-	local e = settings.linker .. " -o " .. output
-	local e = e .. " " .. settings.inputflags .. " " .. tbl_to_str(inputs, '', ' ') 
-	local e = e .. tbl_to_str(settings.extrafiles, '', ' ')
-	local e = e .. tbl_to_str(settings.libpath, '-L', ' ')
-	local e = e .. tbl_to_str(settings.libs, '-l', ' ')
-	local e = e .. tbl_to_str(settings.frameworkpath, '-F', ' ')
-	local e = e .. tbl_to_str(settings.frameworks, '-framework ', ' ')
-	local e = e .. settings.flags:ToString()
-	return e
-end
-
------ cl compiler ------
-function compile_c_cxx_cl(output, input, settings, label)
-	local defs = tbl_to_str(settings.defines, "-D", " ") .. " "
-	local incs = tbl_to_str(settings.includes, '-I"', '" ')
-	local incs = incs .. tbl_to_str(settings.systemincludes, '-I"', '" ')
-	local flags = settings.flags:ToString()
-	local path = str_replace(settings.path, "/", "\\")
-	if platform =="win32" then
-		flags = flags .. " /D \"WIN32\" "
-	else
-		flags = flags .. " /D \"WIN64\" "
-	end
-	if settings.debug > 0 then flags = flags .. "/Od /MTd /Zi /D \"_DEBUG\" " end
-	if settings.optimize > 0 then flags = flags .. "/Ox /Ot /MT /D \"NDEBUG\" " end
-	local exec = path .. 'cl /nologo /D_CRT_SECURE_NO_DEPRECATE /c ' .. flags .. input .. " " .. incs .. defs .. " /Fo" .. output
-	return exec
-end
-
-function compile_cxx_cl(output,input,settings)
-	return compile_c_cxx_cl(output,input,settings,"c++ ")
-end
-
-function compile_c_cl(output,input,settings)
-	return compile_c_cxx_cl(output,input,settings,"c ")
-end
-
-function compile_c_test_cl(code, options)
-	local f = io.open("_test.c", "w")
-	f:write(code)
-	f:write("\n")
-	f:close()
-	local ret = ExecuteSilent("cl _test.c /Fe_test " .. options)
-	os.remove("_test.c")
-	os.remove("_test.exe")
-	os.remove("_test.obj")
-	return ret==0
-end
-
-function lib_cl(output, inputs, settings)
-	local input =  tbl_to_str(inputs, "", " ")
-	local path = str_replace(settings.path, "/", "\\")
-	local exec = path .. 'lib /nologo ' .. settings.flags:ToString() .. " /OUT:" .. output .. " " .. input
-	return exec
-end
-
-function dll_cl(output, inputs, settings)
-	local input =  tbl_to_str(inputs, "", " ")
-	local flags = settings.flags:ToString()
-	local libs  = tbl_to_str(settings.libs, "", " ")
-	local libpaths = tbl_to_str(settings.libpath, "/libpath:\"", "\" ")
-	local path = str_replace(settings.path, "/", "\\")
-	local exec = path .. 'link /nologo /DLL' .. flags .. libpaths .. libs .. " /OUT:" .. output .. " " .. input
-	return exec
-end
-
-function link_cl(output, inputs, settings)
-	local input =  tbl_to_str(inputs, "", " ")
-	local flags = settings.flags:ToString()
-	local libs  = tbl_to_str(settings.libs, "", ".lib ")
-	local libpaths = tbl_to_str(settings.libpath, "/libpath:\"", "\" ")
-	local path = str_replace(settings.path, "/", "\\")
-	if settings.debug > 0 then flags = flags .. "/DEBUG " end
-	local exec = path .. 'link /nologo /incremental:no ' .. flags .. libpaths .. libs .. " /OUT:" .. output .. " " .. input
-	return exec
-end
-
-compiler_cxx_cl = {
-	["compile"] = compile_cxx_cl,
-	["test"] = compile_c_test_cl,
-}
-
-compiler_c_cl = {
-	["compile"] = compile_c_cl,
-	["test"] = compile_c_test_cl,
-	["link"] = link_cl,
-	["lib"] = lib_cl,
-	["dll"] = dll_cl,
-}
-
-compiler_cxx_gcc = {
-	["compile"] = compile_cxx_gcc,
-	["test"] = compile_c_test_gcc,
-	["link"] = link_gcc,
-	["lib"] = lib_gcc,
-	["dll"] = dll_gcc,
-}
-
-compiler_c_gcc = {
-	["compile"] = compile_c_gcc,
-	["test"] = compile_c_test_gcc,
-	["link"] = link_gcc,
-	["lib"] = lib_gcc,
-	["dll"] = dll_gcc,
-}
-
-function setup_compiler(what_compiler)
-	if what_compiler == "gcc" then
-		compile_cxx = compile_cxx_gcc
-		compile_c = compile_c_gcc
-		compile_c_test = compile_c_test_gcc
-		link = link_gcc
-		lib = lib_gcc
-		dll = dll_gcc
-	elseif what_compiler == "cl" then
-		compile_cxx = compile_cxx_cl
-		compile_c = compile_c_cl
-		compile_c_test = compile_c_test_cl
-		link = link_cl
-		lib = lib_cl
-		dll = dll_cl
-	end
-end
-
 --[[@GROUP Configuration@END]]--
 
 --[[@FUNCTION
@@ -815,6 +399,7 @@ end
 function NewConfig()
 	local config = {}
 	config.options = {}
+	config.settings = NewSettings()
 
 	config.Add = function(self, o)
 		table.insert(self.options, o)
@@ -898,16 +483,16 @@ function NewConfig()
 			end
 		end
 		
-		if options_table['compiler'] then
-			setup_compiler(self.compiler.value)
-		end
+		--if options_table['compiler'] then
+		--	setup_compiler(self.compiler.value)
+		--end
 
 		return true
 	end
 
 	config.Autodetect = function(self)
 		for k,v in pairs(self.options) do
-			v:Check()
+			v:Check(self.settings)
 			print(v.name..": "..v:Display())
 			self[v.name] = v
 		end
@@ -969,9 +554,9 @@ end
 
 -- Test Compile C --------------------------------------
 function OptTestCompileC(name, source)
-	local check = function(option)
+	local check = function(option, settings)
 		option.value = nil
-		if compile_c_test("int main(){return 0;}", "-fstack-protector -fstack-protector-all") then
+		if CTestCompile(settings, "int main(){return 0;}", "-fstack-protector -fstack-protector-all") then
 			option.value = 1
 		end
 	end
@@ -990,7 +575,7 @@ end
 	TODO
 @END]]--
 function OptFindCompiler()
-	local check = function(option)
+	local check = function(option, settings)
 		if ExecuteSilent("g++ -v") == 0 then
 			option.value = "gcc"
 		elseif ExecuteSilent("cl") == 0 then
@@ -999,7 +584,7 @@ function OptFindCompiler()
 			error("no c/c++ compiler found")
 		end
 		
-		setup_compiler(option.value)
+		--setup_compiler(option.value)
 	end
 	
 	local save = function(option, output)
@@ -1014,16 +599,16 @@ end
 	TODO
 @END]]--
 function OptFindLibrary(name, header, library, required)
-	local check = function(option)
+	local check = function(option, settings)
 		option.value = nil
 		
 		local function check_compile_include(filename, paths)
-			if compile_c_test("#include <" .. filename .. ">\nint main(){return 0;}", "") then
+			if CTestCompile(settings, "#include <" .. filename .. ">\nint main(){return 0;}", "") then
 				return ""
 			end
 
 			for k,v in pairs(paths) do
-				if compile_c_test("#include <" .. filename .. ">\nint main(){return 0;}", "-I"..v) then
+				if CTestCompile(settings, "#include <" .. filename .. ">\nint main(){return 0;}", "-I"..v) then
 					return v
 				end
 			end
@@ -1116,8 +701,7 @@ function ModuleFilename()
 end
 
 
-
---[[@GROUP Job and Dependencies@END]]--
+--[[@GROUP Job and Dependencies @END]]--
 
 --[[@FUNCTION AddJob(output, label, command)
 	Adds a job to be done. The ^output^ string specifies the file that
@@ -1131,4 +715,210 @@ AddJob = bam_add_job
 	^depfilename^ is a dependency of ^filename^.
 @END]]--
 AddDependency = bam_add_dependency
+
+
+function Default_Intermediate_Output(settings, input)
+	return PathBase(input) .. settings.config_ext
+end
+
+function DriverNull()
+	error("no driver set")
+end
+
+------------------------ C/C++ COMPILE ------------------------
+
+function InitCommonCCompiler(settings)
+	settings.cc = {}
+	settings.cc.extension = ""
+	settings.cc.path = ""
+	settings.cc.c_compiler = ""
+	settings.cc.cxx_compiler = ""
+	settings.cc.DriverCTest = DriverNull
+	settings.cc.DriverC = DriverNull
+	settings.cc.DriverCXX = DriverNull
+	settings.cc.flags = NewFlagTable()
+	settings.cc.includes = NewPathTable()
+	settings.cc.systemincludes = NewTable()
+	settings.cc.defines = NewTable()
+	settings.cc.frameworks = NewTable()
+	settings.cc.Output = Default_Intermediate_Output
+	settings.cc.optimize = 0
+	
+	table.lock(settings.cc)
+end
+
+function CCompiler(settings, input)
+	local outname = settings.cc.Output(settings, input) .. settings.cc.extension
+	AddJob(
+		outname,
+		"c " .. input,
+		settings.cc.DriverC(outname, input, settings)
+	)	
+	AddDependency(outname, input)
+	bam_dependency_cpp(input, settings.cc.includes)
+	return outname
+end
+
+function CXXCompiler(settings, input)
+	local outname = settings.cc.Output(settings, input) .. settings.cc.extension
+	AddJob(
+		outname,
+		"c++ " .. input,
+		settings.cc.DriverCXX(outname, input, settings)
+	)	
+	AddDependency(outname, input)
+	bam_dependency_cpp(input, settings.cc.includes)	
+	return outname
+end
+
+
+AddTool("c", function (settings)
+	InitCommonCCompiler(settings)
+	settings.filemappings["c"] = CCompiler
+end)
+
+AddTool("cxx", function (settings)
+	InitCommonCCompiler(settings)
+	settings.filemappings["cpp"] = CXXCompiler
+	settings.filemappings["cxx"] = CXXCompiler
+	settings.filemappings["c++"] = CXXCompiler
+	settings.filemappings["cc"] = CXXCompiler
+end)
+
+------------------------ COMPILE ACTION ------------------------
+
+-- Compiles C and C++ files
+--[[@FUNCTION
+	TODO
+@END]]--
+function Compile(settings, ...)
+	local inputs = FlatternTable({...})
+	local outputs = {}
+	
+	-- compile all the files
+	for index, inname in ipairs(inputs) do
+
+		-- fetch correct compiler
+		local ext = PathFileExt(inname)
+		local Compiler = settings.filemappings[ext]
+
+		if not Compiler then
+			error("'"..inname.."' has unknown extention '"..ext.."' which there are no compiler for")
+		end
+		
+		table.insert(outputs, Compiler(settings, inname))
+	end
+
+	-- return the output
+	return outputs	
+end
+
+function CTestCompile(settings, code, options)
+	return settings.cc.DriverCTest(code, options)
+end
+
+------------------------ LINK ------------------------
+
+AddTool("link", function (settings)
+	settings.link = {}
+	settings.link.Driver = DriverNull
+	settings.link.path = ""
+	settings.link.extension = ""
+	settings.link.linker = "g++"
+	settings.link.inputflags = ""
+	settings.link.flags = NewFlagTable()
+	settings.link.libs = NewTable()
+	settings.link.frameworks = NewTable()
+	settings.link.frameworkpath = NewPathTable()
+	settings.link.libpath = NewPathTable()
+	settings.link.extrafiles = NewPathTable()
+	
+	table.lock(settings.link)
+end)
+
+--[[@FUNCTION
+	TODO
+@END]]--
+function Link(settings, output, ...)
+	local inputs = FlatternTable({...})
+
+	output = output .. settings.link.extension
+
+	AddJob(output, "link " .. output, settings.link.Driver(output, inputs, settings))
+
+	-- all the files
+	for index, inname in ipairs(inputs) do
+		AddDependency(output, inname)
+	end
+	
+	for index, inname in ipairs(settings.link.extrafiles) do
+		AddDependency(output, inname)
+	end
+
+	return output
+end
+
+------------------------ STATIC LIBRARY ACTION ------------------------
+
+AddTool("lib", function (settings)
+	settings.lib = {}
+	settings.lib.Driver = DriverNull
+	settings.lib.extension = ""
+	settings.lib.path = ""
+	settings.lib.flags = NewFlagTable()
+	
+	table.lock(settings.lib)
+end)
+
+--[[@FUNCTION
+	TODO
+@END]]--
+function StaticLibrary(settings, output, ...)
+	local inputs = FlatternTable({...})
+
+	output = output .. settings.lib.extension
+
+	AddJob(output, "link " .. output, settings.lib.Driver(output, inputs, settings))
+
+	for index, inname in ipairs(inputs) do
+		AddDependency(output, inname)
+	end
+
+	return output
+end
+
+------------------------ SHARED LIBRARY ACTION ------------------------
+
+AddTool("dll", function (settings)
+	settings.dll = {}
+	settings.dll.Driver = DriverNull
+	settings.dll.extension = ""
+	settings.dll.path = ""
+	settings.dll.linker = "g++"
+	settings.dll.inputflags = ""
+	settings.dll.flags = NewFlagTable()
+	settings.dll.libs = NewTable()
+	settings.dll.frameworks = NewTable()
+	settings.dll.frameworkpath = NewPathTable()
+	settings.dll.libpath = NewPathTable()
+	settings.dll.extrafiles = NewPathTable()
+
+	table.lock(settings.dll)
+end)
+
+--[[@FUNCTION
+	TODO
+@END]]--
+function SharedLibrary(settings, output, ...)
+	local inputs = FlatternTable({...})
+
+	output = output .. settings.dll.extension
+	AddJob(output, "dll ".. output, settings.dll.Driver(output, inputs, settings))
+
+	for index, inname in ipairs(inputs) do
+		AddDependency(output, inname)
+	end
+
+	return output
+end
 

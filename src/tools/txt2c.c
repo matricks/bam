@@ -6,19 +6,44 @@
 
 int main(int argc, char **argv)
 {
-	int c;
+	int c, f;
 	int i = 0;
-	printf("const char internal_base[] = {");
-	while(1)
+	FILE *input;
+	printf("typedef struct\n");
+	printf("{\n");
+	printf("\tconst char *filename;\n");
+	printf("\tconst char *content;\n");
+	printf("} INTERNALFILE;\n");
+	printf("\n");
+	
+	
+	for(f = 1; f < argc; f++)
 	{
-		c = fgetc(stdin);
-		if(feof(stdin))
-			break;
-		printf("0x%x, ", c);
-		i = (i+1)&0xf;
-		if(i == 0)
-			printf("\n");
+		printf("const char internal_file_%d[] = {", f);
+		input = fopen(argv[f], "r");
+		
+		while(1)
+		{
+			c = fgetc(input);
+			if(feof(input))
+				break;
+			printf("0x%x, ", c);
+			i = (i+1)&0xf;
+			if(i == 0)
+				printf("\n\t");
+		}
+		
+		fclose(input);
+		
+		printf("0};\n");
 	}
-	printf("0x00};\n");
+
+	printf("INTERNALFILE internal_files[] = {");
+		
+	for(f = 1; f < argc; f++)
+	{
+		printf("{\"%s\", internal_file_%d },\n", argv[f], f);
+	}
+	printf("{0}};\n");
 	return 0;
 }

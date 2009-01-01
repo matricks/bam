@@ -57,7 +57,7 @@ def test(name, moreflags="", should_fail=0):
 	if (should_fail and not ret) or (not should_fail and ret):
 		print " FAILED!"
 		for l in report:
-			print "\t", l
+			print "\t", l,
 		failed_tests += [name]
 	else:
 		print " ok"
