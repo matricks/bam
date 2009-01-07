@@ -788,6 +788,7 @@ end
 AddTool("c", function (settings)
 	InitCommonCCompiler(settings)
 	settings.filemappings["c"] = CCompiler
+	settings.filemappings["m"] = CCompiler
 end)
 
 AddTool("cxx", function (settings)
@@ -800,7 +801,7 @@ end)
 
 ------------------------ COMPILE ACTION ------------------------
 
--- Compiles C and C++ files
+-- Compiles C, Obj-C and C++ files
 --[[@UNITTESTS
 	err=1; find="expected a settings object": Compile(nil)
 	err=1; find="compiler returned a nil": s = NewSettings(); s.filemappings["c"] = function()end; Compile(s, "test.c")
