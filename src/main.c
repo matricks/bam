@@ -64,6 +64,7 @@ static int option_threads = 1;
 static int option_debug_nodes = 0;
 static int option_debug_buildtime = 0;
 static int option_debug_dirty = 0;
+static int option_debug_dumpinternal = 0;
 static int option_print_help = 0;
 static const char *option_script = "default.bam"; /* -f filename */
 static const char *option_basescript = 0x0; /* -b filename or BAM_BASE */
@@ -166,6 +167,11 @@ static struct OPTION options[] = {
 	/*@OPTION Debug: Dirty Marking ( --debug-dirty )
 	@END*/
 	{0, &option_debug_dirty		, "--debug-dirty", ""},
+	
+	/*@OPTION Debug: Dump Internal Scripts ( --debug-dump-internal )
+	@END*/
+	{0, &option_debug_dumpinternal		, "--debug-dump-internal", "dumps the internals scripts to stdout"},
+	
 	
 	/* terminate list */
 	{0, 0, (const char*)0, (const char*)0}
@@ -1370,7 +1376,20 @@ int main(int argc, char **argv)
 		print_help();
 		return 0;
 	}
-	
+
+	/* */
+	if(option_debug_dumpinternal)
+	{
+		int f;
+		for(f = 0; internal_files[f].filename; f++)
+		{
+			printf("%s:\n", internal_files[f].filename);
+			puts(internal_files[f].content);
+		}
+				
+		return 0;
+	}
+		
 	/* check if a script exist */
 	if(!file_exist(option_script))
 	{
