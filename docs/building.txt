@@ -51,7 +51,7 @@ to be installed. This test suite is used during the development
 of Bam to verify that nothing breaks between releases. You
 can run the test suite by typing this:
 
-{{{{python test.py}}}}
+{{{{python scripts/test.py}}}}
 
 It will either print out that all tests where successfull or
 what tests it didn't pass.
