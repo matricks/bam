@@ -363,11 +363,11 @@ function Copy(outputdir, ...)
 			dstfile = str_replace(dstfile, "/", "\\")
 		end
 
-		bam_add_job(output,
+		AddJob(output,
 			"copy " .. input .. " -> " .. output,
 			copy_command .. " " .. input .. " " .. output)
 
-		bam_add_dependency(output, input)
+		AddDependency(output, input)
 		table.insert(outputs, output)
 	end
 	
@@ -394,11 +394,11 @@ DefaultTarget = bam_default_target
 function PseudoTarget(name, ...)
 	local inputs = FlatternTable({...})
 	local name = Path(name)
-	bam_add_job(name, "", "")
+	AddJob(name, "", "")
 
 	-- all the files
 	for index, inname in ipairs(inputs) do
-		bam_add_dependency(name, inname)
+		AddDependency(name, inname)
 	end
 
 	return name
@@ -869,7 +869,7 @@ function Link(settings, output, ...)
 	
 	local inputs = FlatternTable({...})
 
-	output = output .. settings.link.extension
+	output = output .. settings.config_ext .. settings.link.extension
 
 	AddJob(output, "link " .. output, settings.link.Driver(output, inputs, settings))
 
@@ -905,7 +905,7 @@ function StaticLibrary(settings, output, ...)
 	
 	local inputs = FlatternTable({...})
 
-	output = output .. settings.lib.extension
+	output = output .. settings.config_ext .. settings.lib.extension
 
 	AddJob(output, "link " .. output, settings.lib.Driver(output, inputs, settings))
 
@@ -943,7 +943,7 @@ function SharedLibrary(settings, output, ...)
 	
 	local inputs = FlatternTable({...})
 
-	output = output .. settings.dll.extension
+	output = output .. settings.config_ext .. settings.dll.extension
 	AddJob(output, "dll ".. output, settings.dll.Driver(output, inputs, settings))
 
 	for index, inname in ipairs(inputs) do
