@@ -510,9 +510,23 @@ function NewConfig()
 			self[v.name] = v
 		end
 	end
+
+	config.PrintHelp = function(self)
+		print("available options:")
+		for k,v in pairs(self.options) do
+			if v.PrintHelp then
+				v:PrintHelp()
+			end
+		end
+	end
 	
 	config.Finalize = function(self, filename)
 		if _bam_targets[0] == "config" then
+			if _bam_targets[1] == "help" then
+				self:PrintHelp()
+				os.exit(0)
+			end
+			
 			self:Autodetect()
 			self:Save(filename)
 			os.exit(0)
@@ -570,7 +584,7 @@ function IsPositiveTerm(s)
 	return false
 end
 
-function MakeOption(name, value, check, save, display)
+function MakeOption(name, value, check, save, display, printhelp)
 	local o = {}
 	o.name = name
 	o.value = value
@@ -584,13 +598,14 @@ function MakeOption(name, value, check, save, display)
 	end
 	
 	o.Display = display
+	o.PrintHelp = printhelp
 	if o.Display == nil then o.Display = DefaultOptionDisplay end
 	return o
 end
 
 
 -- Test Compile C --------------------------------------
-function OptTestCompileC(name, source)
+function OptTestCompileC(name, source, compileoptions, desc)
 	local check = function(option, settings)
 		option.value = false
 		if ScriptArgs[option.name] then
@@ -603,7 +618,7 @@ function OptTestCompileC(name, source)
 			end
 			option.auto_detected = false
 		else
-			if CTestCompile(settings, "int main(){return 0;}", "-fstack-protector -fstack-protector-all") then
+			if CTestCompile(settings, option.source, option.compileoptions) then
 				option.value = true
 			end
 		end
@@ -613,8 +628,15 @@ function OptTestCompileC(name, source)
 		output:option(option, "value")
 	end
 	
-	local o = MakeOption(name, false, check, save)
+	local printhelp = function(option)
+		print("    "..option.name.."=on|off")
+		if option.desc then print("        "..option.desc) end
+	end
+	
+	local o = MakeOption(name, false, check, save, nil, printhelp)
+	o.desc = desc
 	o.source = source
+	o.compileoptions = compileoptions
 	return o
 end
 
@@ -622,35 +644,94 @@ end
 --[[@FUNCTION
 	TODO
 @END]]--
-function OptFindCompiler()
+function OptCCompiler(name, default_driver, default_c, default_cxx, desc)
 	local check = function(option, settings)
-		if ScriptArgs.compiler then
-			option.value = ScriptArgs.compiler
+		if ScriptArgs[option.name] then
+			-- set compile driver
+			option.driver = ScriptArgs[option.name]
+
+			-- set c compiler
+			if ScriptArgs[option.name..".c"] then
+				option.c_compiler = ScriptArgs[option.name..".c"]
+			end
+
+			-- set c+= compiler
+			if ScriptArgs[option.name..".cxx"] then
+				option.cxx_compiler = ScriptArgs[option.name..".cxx"]
+			end
+			
 			option.auto_detected = false
+		elseif option.driver then
+			-- no need todo anything if we have a driver
+			-- TODO: test if we can find the compiler
 		else
 			if ExecuteSilent("g++ -v") == 0 then
-				option.value = "gcc"
+				option.driver = "gcc"
 			elseif ExecuteSilent("cl") == 0 then
-				option.value = "cl"
+				option.driver = "cl"
 			else
 				error("no c/c++ compiler found")
 			end
 		end
 		--setup_compiler(option.value)
 	end
-	
-	local save = function(option, output)
-		output:option(option, "value")
+
+	local apply = function(option, settings)
+		if option.driver == "cl" then
+			SetDriversCL(settings)
+		elseif option.driver == "gcc" then
+			SetDriversGCC(settings)
+		else
+			error(option.driver.." is not a known c/c++ compile driver")
+		end
+		
+		if option.c_compiler then settings.cc.c_compiler = option.c_compiler end
+		if option.cxx_compiler then settings.cc.cxx_compiler = option.cxx_compiler end
 	end
 	
-	return MakeOption("compiler", "none", check, save)
+	local save = function(option, output)
+		output:option(option, "driver")
+		output:option(option, "c_compiler")
+		output:option(option, "cxx_compiler")
+	end
+
+	local printhelp = function(option)
+		local a = ""
+		if option.desc then a = "for "..option.desc end
+		print("    "..option.name.."=gcc|cl")
+		print("        what c/c++ compile driver to use"..a)
+		print("    "..option.name..".c=FILENAME")
+		print("        what c compiler executable to use"..a)
+		print("    "..option.name..".cxx=FILENAME")
+		print("        what c++ compiler executable to use"..a)
+	end
+
+	local display = function(option)
+		local s = option.driver
+		if option.c_compiler then s = s .. " c="..option.c_compiler end
+		if option.cxx_compiler then s = s .. " cxx="..option.cxx_compiler end
+		return s
+	end
+		
+	local o = MakeOption(name, nil, check, save, display, printhelp)
+	o.desc = desc
+	o.driver = false
+	o.c_compiler = false
+	o.cxx_compiler = false
+
+	if default_driver then o.driver = default_driver end
+	if default_c then o.c_compiler = default_c end
+	if default_cxx then o.cxx_compiler = default_cxx end
+
+	o.Apply = apply
+	return o
 end
 
--- Find Library --------------------------------------
+-- Option Library --------------------------------------
 --[[@FUNCTION
 	TODO
 @END]]--
-function OptFindLibrary(name, header, library, required)
+function OptLibrary(name, header, required, desc)
 	local check = function(option, settings)
 		option.value = false
 		option.include_path = false
@@ -713,11 +794,17 @@ function OptFindLibrary(name, header, library, required)
 			end
 		end
 	end
+
+	local printhelp = function(option)
+		print("    "..option.name.."=disable|system|PATH")
+		if option.desc then print("        "..option.desc) end
+	end
 	
-	local o = MakeOption(name, false, check, save, display)
+	local o = MakeOption(name, false, check, save, display, printhelp)
 	o.include_path = false
 	o.header = header
 	o.required = required
+	o.desc = desc
 	return o
 end
 
