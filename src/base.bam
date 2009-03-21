@@ -440,15 +440,20 @@ function NewConfig()
 		end
 		
 		saver.option = function(self, option, name)
-			local valuestr = "nil"
+			local valuestr = "no"
 			if type(option[name]) == type(0) then
 				valuestr = option[name]
+			elseif type(option[name]) == type(true) then
+				valuestr = "false"
+				if option[name] then
+					valuestr = "true"
+				end
 			elseif type(option[name]) == type("") then
 				valuestr = "'"..option[name].."'"
-			elseif type(option[name]) == type(nil) then
-				valuestr = "nil"
+			--elseif type(option[name]) == type(nil) then
+			--	valuestr = "nil"
 			else
-				error("don't know how to save a value with the type of ".. type(option[name]))
+				error("option "..name.." have a value of type ".. type(option[name]).." that can't be saved")
 			end
 			self.file:write(option.name.."."..name.." = ".. valuestr.."\n")
 		end
@@ -482,12 +487,13 @@ function NewConfig()
 			if v ~= nil then return v end
 			error("there is no configuration option named '" .. key .. "'")
 		end
-		setmetatable(options_table, mt)		
 		
+		setmetatable(options_table, mt)		
+
 		-- Process the options
 		options_func()
-		
-		-- Copy the optionss
+
+		-- Copy the options
 		for k,v in pairs(self.options) do
 			if options_table[v.name] then
 				for k2,v2 in pairs(options_table[v.name]) do
@@ -549,6 +555,7 @@ end
 function DefaultOptionDisplay(option)
 	if not option.value then return "no" end
 	if option.value == 1 then return "yes" end
+	if option.value == true then return "yes" end
 	return option.value
 end
 
@@ -568,9 +575,9 @@ end
 -- Test Compile C --------------------------------------
 function OptTestCompileC(name, source)
 	local check = function(option, settings)
-		option.value = nil
+		option.value = false
 		if CTestCompile(settings, "int main(){return 0;}", "-fstack-protector -fstack-protector-all") then
-			option.value = 1
+			option.value = true
 		end
 	end
 	
@@ -578,7 +585,7 @@ function OptTestCompileC(name, source)
 		output:option(option, "value")
 	end
 	
-	local o = MakeOption(name, 0, check, save)
+	local o = MakeOption(name, false, check, save)
 	o.source = source
 	return o
 end
@@ -613,7 +620,7 @@ end
 @END]]--
 function OptFindLibrary(name, header, library, required)
 	local check = function(option, settings)
-		option.value = nil
+		option.value = false
 		
 		local function check_compile_include(filename, paths)
 			if CTestCompile(settings, "#include <" .. filename .. ">\nint main(){return 0;}", "") then
@@ -626,20 +633,18 @@ function OptFindLibrary(name, header, library, required)
 				end
 			end
 			
-			return nil
+			return false
 		end
 		
 		option.include_path = check_compile_include(option.header, {})
-		if option.include_path == nil then
+		if option.include_path == false then
 			if option.required then
 				print(name.." library not found and is required")
 				error("required library not found")
 			end
 		else
-			option.value = 1
-			if option.include_path == "" then
-				option.include_path = nil
-			end
+			option.value = true
+			option.include_path = false
 		end
 	end
 	
@@ -664,8 +669,8 @@ function OptFindLibrary(name, header, library, required)
 		end
 	end
 	
-	local o = MakeOption(name, 0, check, save, display)
-	o.include_path = nil
+	local o = MakeOption(name, false, check, save, display)
+	o.include_path = false
 	o.header = header
 	o.required = required
 	return o
