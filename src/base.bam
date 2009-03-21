@@ -422,7 +422,7 @@ function NewConfig()
 	config.Print = function(self)
 		print("--- CONFIGURATION ---")
 		for k,v in pairs(self.options) do
-			print(v.name..": "..v:display())
+			print(v:FormatDisplay())
 		end
 		print("--- --- ---")
 	end
@@ -450,8 +450,6 @@ function NewConfig()
 				end
 			elseif type(option[name]) == type("") then
 				valuestr = "'"..option[name].."'"
-			--elseif type(option[name]) == type(nil) then
-			--	valuestr = "nil"
 			else
 				error("option "..name.." have a value of type ".. type(option[name]).." that can't be saved")
 			end
@@ -501,10 +499,6 @@ function NewConfig()
 				end
 			end
 		end
-		
-		--if options_table['compiler'] then
-		--	setup_compiler(self.compiler.value)
-		--end
 
 		return true
 	end
@@ -512,7 +506,7 @@ function NewConfig()
 	config.Autodetect = function(self)
 		for k,v in pairs(self.options) do
 			v:Check(self.settings)
-			print(v.name..": "..v:Display())
+			print(v:FormatDisplay())
 			self[v.name] = v
 		end
 	end
@@ -554,9 +548,26 @@ end
 -- Helper functions --------------------------------------
 function DefaultOptionDisplay(option)
 	if not option.value then return "no" end
-	if option.value == 1 then return "yes" end
-	if option.value == true then return "yes" end
+	if option.value == 1 or option.value == true then return "yes" end
 	return option.value
+end
+
+function IsNegativeTerm(s)
+	if s == "no" then return true end
+	if s == "false" then return true end
+	if s == "off" then return true end
+	if s == "disable" then return true end
+	if s == "0" then return true end
+	return false
+end
+
+function IsPositiveTerm(s)
+	if s == "yes" then return true end
+	if s == "true" then return true end
+	if s == "on" then return true end
+	if s == "enable" then return true end
+	if s == "1" then return true end
+	return false
 end
 
 function MakeOption(name, value, check, save, display)
@@ -565,6 +576,12 @@ function MakeOption(name, value, check, save, display)
 	o.value = value
 	o.Check = check
 	o.Save = save
+	o.auto_detected = true
+	o.FormatDisplay = function(self)
+		local a = "SET"
+		if self.auto_detected then a = "AUTO" end	
+		return string.format("%-4s %-20s %s", a, self.name, self:Display())
+	end
 	
 	o.Display = display
 	if o.Display == nil then o.Display = DefaultOptionDisplay end
@@ -576,8 +593,19 @@ end
 function OptTestCompileC(name, source)
 	local check = function(option, settings)
 		option.value = false
-		if CTestCompile(settings, "int main(){return 0;}", "-fstack-protector -fstack-protector-all") then
-			option.value = true
+		if ScriptArgs[option.name] then
+			if IsNegativeTerm(ScriptArgs[option.name]) then
+				option.value = false
+			elseif IsPositiveTerm(ScriptArgs[option.name]) then
+				option.value = true
+			else
+				error(ScriptArgs[option.name].." is not a valid value for option "..option.name)
+			end
+			option.auto_detected = false
+		else
+			if CTestCompile(settings, "int main(){return 0;}", "-fstack-protector -fstack-protector-all") then
+				option.value = true
+			end
 		end
 	end
 	
@@ -596,14 +624,18 @@ end
 @END]]--
 function OptFindCompiler()
 	local check = function(option, settings)
-		if ExecuteSilent("g++ -v") == 0 then
-			option.value = "gcc"
-		elseif ExecuteSilent("cl") == 0 then
-			option.value = "cl"
+		if ScriptArgs.compiler then
+			option.value = ScriptArgs.compiler
+			option.auto_detected = false
 		else
-			error("no c/c++ compiler found")
+			if ExecuteSilent("g++ -v") == 0 then
+				option.value = "gcc"
+			elseif ExecuteSilent("cl") == 0 then
+				option.value = "cl"
+			else
+				error("no c/c++ compiler found")
+			end
 		end
-		
 		--setup_compiler(option.value)
 	end
 	
@@ -621,6 +653,7 @@ end
 function OptFindLibrary(name, header, library, required)
 	local check = function(option, settings)
 		option.value = false
+		option.include_path = false
 		
 		local function check_compile_include(filename, paths)
 			if CTestCompile(settings, "#include <" .. filename .. ">\nint main(){return 0;}", "") then
@@ -635,16 +668,28 @@ function OptFindLibrary(name, header, library, required)
 			
 			return false
 		end
-		
-		option.include_path = check_compile_include(option.header, {})
-		if option.include_path == false then
-			if option.required then
-				print(name.." library not found and is required")
-				error("required library not found")
+
+		if ScriptArgs[option.name] then
+			if IsNegativeTerm(ScriptArgs[option.name]) then
+				option.value = false
+			elseif ScriptArgs[option.name] == "system" then
+				option.value = true
+			else
+				option.value = true
+				option.include_path = ScriptArgs[option.name]
 			end
+			option.auto_detected = false
 		else
-			option.value = true
-			option.include_path = false
+			option.include_path = check_compile_include(option.header, {})
+			if option.include_path == false then
+				if option.required then
+					print(name.." library not found and is required")
+					error("required library not found")
+				end
+			else
+				option.value = true
+				option.include_path = false
+			end
 		end
 	end
 	
