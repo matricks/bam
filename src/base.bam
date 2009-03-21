@@ -697,10 +697,11 @@ function Import(modname)
 	end
 	
 	for k,v in pairs(paths) do
-		chunk = loadfile(modname)
+		chunk = bam_loadfile(modname)
 		if chunk then
 			local current = _bam_modulefilename
 			_bam_modulefilename = modname
+			bam_update_globalstamp(_bam_modulefilename)
 			chunk()
 			_bam_modulefilename = current
 			return

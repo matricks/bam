@@ -445,6 +445,28 @@ static int lf_update_globalstamp(lua_State *L)
 }
 
 
+/* loadfile(filename) */
+static int lf_loadfile(lua_State *L)
+{
+	int n = lua_gettop(L);
+	int ret = 0;
+	
+	if(n < 1)
+	{
+		lua_pushstring(L, "loadfile: to few arguments");
+		lua_error(L);
+	}
+
+	if(option_verbose)
+		printf("%s: reading script from '%s'\n", program_name, lua_tostring(L,1));
+	
+	ret = luaL_loadfile(L, lua_tostring(L,1));
+	if(ret != 0)
+		lua_error(L);
+		
+	return 1;
+}
+
 static void progressbar_clear()
 {
 	printf("                                                 \r");
@@ -953,6 +975,7 @@ int register_lua_globals(struct CONTEXT *context)
 	
 	lua_register(context->lua, L_FUNCTION_PREFIX"listdir", lf_listdir);
 	lua_register(context->lua, L_FUNCTION_PREFIX"update_globalstamp", lf_update_globalstamp);
+	lua_register(context->lua, L_FUNCTION_PREFIX"loadfile", lf_loadfile);
 
 	/* error handling */
 	lua_register(context->lua, "errorfunc", lf_errorfunc);
@@ -1035,28 +1058,20 @@ int register_lua_globals(struct CONTEXT *context)
 	/* load base script */
 	if(option_basescript)
 	{
-		
-		int ret;
-		lua_getglobal(context->lua, "errorfunc");
-
 		if(option_verbose)
 			printf("%s: reading base script from '%s'\n", program_name, option_basescript);
 		
 		/* push error function to stack */
-		ret = luaL_loadfile(context->lua, option_basescript);
-		if(ret != 0)
+		if(luaL_loadfile(context->lua, option_basescript) != 0)
 		{
-			if(ret == LUA_ERRSYNTAX)
-				printf("%s: syntax error\n", program_name);
-			else if(ret == LUA_ERRMEM)
-				printf("%s: memory allocation error\n", program_name);
-			else if(ret == LUA_ERRFILE)
-				printf("%s: error opening '%s'\n", program_name, option_basescript);
-			lf_errorfunc(context->lua);
 			error = 1;
+			lua_error(context->lua);
 		}
 		else if(lua_pcall(context->lua, 0, LUA_MULTRET, -2) != 0)
+		{
 			error = 1;
+			lua_error(context->lua);
+		}
 	}
 	else
 	{
