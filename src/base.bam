@@ -540,16 +540,20 @@ function NewConfig(on_configured_callback)
 			if _bam_targets[1] == "print" then
 				self:Load(filename)
 				self:Print()
+				print("")
+				print("notes:")
+				self:OnConfigured()
+				print("")
 			else
 				self:Autodetect()
+				print("")
+				print("notes:")
+				if self:OnConfigured() then
+					self:Save(filename)
+				end
+				print("")
 			end
 
-			print("")
-			print("notes:")
-			if self:OnConfigured() then
-				self:Save(filename)
-			end
-			print("")
 			os.exit(0)
 		end
 	
