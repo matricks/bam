@@ -427,11 +427,9 @@ function NewConfig(on_configured_callback)
 	end
 	
 	config.Print = function(self)
-		print("--- CONFIGURATION ---")
 		for k,v in pairs(self.options) do
 			print(v:FormatDisplay())
 		end
-		print("--- --- ---")
 	end
 	
 	config.Save = function(self, filename)
@@ -474,40 +472,43 @@ function NewConfig(on_configured_callback)
 		local options_func = loadfile(filename)
 		local options_table = {}
 		
-		if options_func == nil then
-			return false
-		end
+		if options_func then
+			-- Setup the options tables
+			for k,v in pairs(self.options) do
+				options_table[v.name] = {}
+			end
+			setfenv(options_func, options_table)
+			
+			-- this is to make sure that we get nice error messages when
+			-- someone sets an option that isn't valid.
+			local mt = {}
+			mt.__index = function(t, key)
+				local v = rawget(t, key)
+				if v ~= nil then return v end
+				error("there is no configuration option named '" .. key .. "'")
+			end
+			
+			setmetatable(options_table, mt)		
 
-		-- Setup the options tables
-		for k,v in pairs(self.options) do
-			options_table[v.name] = {}
-		end
-		setfenv(options_func, options_table)
-		
-		-- this is to make sure that we get nice error messages when
-		-- someone sets an option that isn't valid.
-		local mt = {}
-		mt.__index = function(t, key)
-			local v = rawget(t, key)
-			if v ~= nil then return v end
-			error("there is no configuration option named '" .. key .. "'")
-		end
-		
-		setmetatable(options_table, mt)		
+			-- Process the options
+			options_func()
 
-		-- Process the options
-		options_func()
-
-		-- Copy the options
-		for k,v in pairs(self.options) do
-			if options_table[v.name] then
-				for k2,v2 in pairs(options_table[v.name]) do
-					v[k2] = v2
+			-- Copy the options
+			for k,v in pairs(self.options) do
+				if options_table[v.name] then
+					for k2,v2 in pairs(options_table[v.name]) do
+						v[k2] = v2
+					end
 				end
 			end
+		else
+			print("error: no '"..filename.."' found")
+			print("")
+			print("run 'bam config' to generate")
+			print("run 'bam config help' for configuration options")
+			print("")
+			os.exit(1)			
 		end
-
-		return true
 	end
 
 	config.Autodetect = function(self)
@@ -526,7 +527,7 @@ function NewConfig(on_configured_callback)
 			end
 		end
 	end
-
+	
 	config.Finalize = function(self, filename)
 		if _bam_targets[0] == "config" then
 			if _bam_targets[1] == "help" then
@@ -536,7 +537,13 @@ function NewConfig(on_configured_callback)
 			
 			print("")
 			print("configuration:")
-			self:Autodetect()
+			if _bam_targets[1] == "print" then
+				self:Load(filename)
+				self:Print()
+			else
+				self:Autodetect()
+			end
+
 			print("")
 			print("notes:")
 			if self:OnConfigured() then
@@ -546,15 +553,7 @@ function NewConfig(on_configured_callback)
 			os.exit(0)
 		end
 	
-		if not self:Load(filename) then
-			print("error: no '"..filename.."' found")
-			print("")
-			print("run 'bam config' to generate")
-			print("run 'bam config help' for configuration options")
-			print("")
-			os.exit(1)
-		end
-		
+		self:Load(filename)
 		bam_update_globalstamp(filename)
 	end
 	
