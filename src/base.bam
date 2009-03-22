@@ -499,6 +499,7 @@ function NewConfig(on_configured_callback)
 					for k2,v2 in pairs(options_table[v.name]) do
 						v[k2] = v2
 					end
+					v.auto_detected = false
 				end
 			end
 		else
