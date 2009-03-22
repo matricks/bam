@@ -629,8 +629,8 @@ function OptTestCompileC(name, source, compileoptions, desc)
 	end
 	
 	local printhelp = function(option)
-		print("    "..option.name.."=on|off")
-		if option.desc then print("        "..option.desc) end
+		print("\t"..option.name.."=on|off")
+		if option.desc then print("\t\t"..option.desc) end
 	end
 	
 	local o = MakeOption(name, false, check, save, nil, printhelp)
@@ -698,12 +698,12 @@ function OptCCompiler(name, default_driver, default_c, default_cxx, desc)
 	local printhelp = function(option)
 		local a = ""
 		if option.desc then a = "for "..option.desc end
-		print("    "..option.name.."=gcc|cl")
-		print("        what c/c++ compile driver to use"..a)
-		print("    "..option.name..".c=FILENAME")
-		print("        what c compiler executable to use"..a)
-		print("    "..option.name..".cxx=FILENAME")
-		print("        what c++ compiler executable to use"..a)
+		print("\t"..option.name.."=gcc|cl")
+		print("\t\twhat c/c++ compile driver to use"..a)
+		print("\t"..option.name..".c=FILENAME")
+		print("\t\twhat c compiler executable to use"..a)
+		print("\t"..option.name..".cxx=FILENAME")
+		print("\t\twhat c++ compiler executable to use"..a)
 	end
 
 	local display = function(option)
@@ -796,8 +796,8 @@ function OptLibrary(name, header, required, desc)
 	end
 
 	local printhelp = function(option)
-		print("    "..option.name.."=disable|system|PATH")
-		if option.desc then print("        "..option.desc) end
+		print("\t"..option.name.."=disable|system|PATH")
+		if option.desc then print("\t\t"..option.desc) end
 	end
 	
 	local o = MakeOption(name, false, check, save, display, printhelp)
