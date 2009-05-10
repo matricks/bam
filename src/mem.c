@@ -44,6 +44,9 @@ static void *mem_allocate_from_chunk(struct CHUNK *chunk, int size)
 {
 	char *mem;
 	
+	/* align the size to the size of a pointer */
+	size = (size+sizeof(void*)-1)&(~(sizeof(void*)-1));
+	
 	/* check if we need can fit the allocation */
 	if(chunk->current + size > chunk->end)
 		return (void*)0x0;
