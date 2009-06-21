@@ -8,7 +8,7 @@
 @dir /s /b src\*.c > files
 @move src\tools\txt2c.c.temp src\tools\txt2c.c > nul
 
-@dmc -Isrc/lua @files -o src\bam.exe
+@dmc -Isrc/lua @files -o bam.exe
 
 @REM ------ Restore everything
 @del *.obj *.map

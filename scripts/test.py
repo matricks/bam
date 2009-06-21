@@ -16,9 +16,9 @@ for v in sys.argv:
 		verbose = True
 
 
-bam = "../../src/bam"
+bam = "../../bam"
 if os.name == 'nt':
-	bam = "..\\..\\src\\bam"
+	bam = "..\\..\\bam"
 
 if len(sys.argv) > 1:
 	tests = sys.argv[1:]

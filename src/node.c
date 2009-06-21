@@ -500,7 +500,7 @@ struct WRITEINFO
 	{
 		struct CACHENODE nodes[WRITE_BUFFERNODES];
 		unsigned deps[WRITE_BUFFERDEPS];
-	};
+	} buffers;
 	
 	/* index into nodes or deps */	
 	unsigned index;
@@ -508,14 +508,14 @@ struct WRITEINFO
 
 static void write_flush_nodes(struct WRITEINFO *info)
 {
-	fwrite(info->nodes, info->index, sizeof(struct CACHENODE), info->fp);
+	fwrite(info->buffers.nodes, info->index, sizeof(struct CACHENODE), info->fp);
 	info->index = 0;
 }
 
 
 static void write_flush_deps(struct WRITEINFO *info)
 {
-	fwrite(info->deps, info->index, sizeof(unsigned), info->fp);
+	fwrite(info->buffers.deps, info->index, sizeof(unsigned), info->fp);
 	info->index = 0;
 }
 
@@ -531,7 +531,7 @@ static void write_nodes(struct WRITEINFO *info, struct GRAPH *graph)
 	for(node = graph->first; node; node = node->next)
 	{
 		/* fetch cache node */
-		struct CACHENODE *cachenode = &info->nodes[info->index++];
+		struct CACHENODE *cachenode = &info->buffers.nodes[info->index++];
 
 		/* count dependencies */
 		struct DEPENDENCY *dep;
@@ -560,7 +560,7 @@ static void write_nodes(struct WRITEINFO *info, struct GRAPH *graph)
 		struct DEPENDENCY *dep;
 		for(dep = node->firstdep; dep; dep = dep->next)
 		{
-			info->deps[info->index++] = dep->node->id;
+			info->buffers.deps[info->index++] = dep->node->id;
 			if(info->index == WRITE_BUFFERNODES)
 				write_flush_deps(info);
 		}
