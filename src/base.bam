@@ -315,7 +315,7 @@ end
 	
 	Example:
 	{{{{
-		source_files = Collect('src/*.c", "lib/*.c")
+		source_files = Collect("src/*.c", "lib/*.c")
 	}}}}
 	
 	Note. This version collects files, non-recursive.

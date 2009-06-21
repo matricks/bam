@@ -178,7 +178,7 @@ static struct OPTION options[] = {
 };
 
 /****/
-void debug_print_lua_value(lua_State *L, int i)
+static void debug_print_lua_value(lua_State *L, int i)
 {
 	if(lua_type(L,i) == LUA_TNIL)
 		printf("nil");
@@ -1196,6 +1196,9 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 		else if(lua_pcall(context.lua, 0, LUA_MULTRET, -2) != 0)
 			error = 1;
 	}
+	
+	/* write cache */
+	node_save_graph("bamcache", context.graph);
 
 	/* debug */
 	if(option_debug_nodes)
@@ -1278,7 +1281,7 @@ static void print_help()
 static void abortsignal(int i)
 {
 	(void)i;
-	printf("signal cought! exiting.\n");
+	printf("%s: signal cought, exiting.\n", program_name);
 	exit(1);
 }
 
@@ -1298,7 +1301,7 @@ static int parse_parameters(int num, char **params)
 					if(i+1 >= num)
 					{
 						printf("%s: you must supply a argument with %s\n", program_name, options[j].sw);
-						return 1;
+						return -1;
 					}
 					
 					i++;
@@ -1318,7 +1321,7 @@ static int parse_parameters(int num, char **params)
 			if(params[i][0] == '-')
 			{
 				printf("%s: unknown switch '%s'\n", program_name, params[i]);
-				return 1;
+				return -1;
 			}
 			else
 			{
@@ -1337,6 +1340,65 @@ static int parse_parameters(int num, char **params)
 		}
 	}
 	return 0;
+}
+
+static int parse_parameters_str(const char *str)
+{
+	char *ptrs[64];
+	int num_ptrs = 0;
+	char buffer[1024];
+	char *start = buffer;
+	char *current = start;
+	char *end = buffer+sizeof(buffer);
+	int string_parse = 0;
+	
+	ptrs[0] = start;
+	
+	while(1)
+	{
+		/* fetch next character */
+		char c = *str++;
+		
+		if(string_parse)
+		{
+			if(c == '"')
+				string_parse = 0;
+			else if(*str == 0)
+			{
+				printf("%s: error: unterminated \"\n", program_name);
+				return -1;	
+			}
+			else
+				*current++ = c;
+		}
+		else
+		{			
+			if(c == ' ' || c == '\t' || c == 0)
+			{
+				/* zero term and add this ptr */
+				*current++ = 0;
+				num_ptrs++;
+				ptrs[num_ptrs] = current;
+			}
+			else if(c == '"')
+				string_parse = 1;
+			else
+				*current++ = c;
+		}
+		
+		if(current == end)
+		{
+			printf("%s: error: argument too long\n", program_name);
+			return -1;
+		}
+		
+		/* break out on zero term */
+		if(!c)
+			break;
+	}
+
+	/* parse all the parameters */	
+	return parse_parameters(num_ptrs, ptrs);
 }
 
 /* ********* */
@@ -1359,12 +1421,16 @@ int main(int argc, char **argv)
 	if(getenv("BAM_BASESCRIPT"))
 		option_basescript = getenv("BAM_BASESCRIPT");
 
+	/* parse environment parameters */
 	if(getenv("BAM_OPTIONS"))
 	{
-		/* TODO: implement this */
+		if(parse_parameters_str(getenv("BAM_OPTIONS")))
+			return -1;
 	}
 	
-	parse_parameters(argc-1, argv+1);
+	/* parse commandline parameters */
+	if(parse_parameters(argc-1, argv+1))
+		return -1;
 		
 	/* parse the report str */
 	for(i = 0; option_report_str[i]; i++)

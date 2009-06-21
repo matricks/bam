@@ -50,7 +50,7 @@ comes in.
 
 @GROUP Dependencies @END
 
-To tell Bam that ^myapp needs ^myapp.o we simply add a dependency. This
+To tell Bam that ^myapp^ needs ^myapp.o^, we simply add a dependency. This
 is done with the AddDependency function like this:
 
 {{{{

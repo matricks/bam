@@ -11,34 +11,28 @@
 
 #include "tree.h"
 
-#ifdef USE_NODE_RB
-	RB_HEAD(NODERB, NODE);
+RB_HEAD(NODERB, NODE);
 
-	static int node_cmp(struct NODE *a, struct NODE *b)
-	{
-		return a->hashid - b->hashid;
-	}
+static int node_cmp(struct NODE *a, struct NODE *b)
+{
+	return a->hashid - b->hashid;
+}
 
-	RB_GENERATE_INTERNAL(NODERB, NODE, rbentry, node_cmp, static)
+RB_GENERATE_INTERNAL(NODERB, NODE, rbentry, node_cmp, static)
 
-	void FUNCTIONREMOVER() /* this is just to get it not to complain about unused static functions */
-	{
-		(void)NODERB_RB_REMOVE;
-		(void)NODERB_RB_NFIND;
-		(void)NODERB_RB_NEXT;
-		(void)NODERB_RB_PREV;
-		(void)NODERB_RB_MINMAX;
-	}
-#endif
+void NODE_FUNCTIONREMOVER() /* this is just to get it not to complain about unused static functions */
+{
+	(void)NODERB_RB_REMOVE;
+	(void)NODERB_RB_NFIND;
+	(void)NODERB_RB_NEXT;
+	(void)NODERB_RB_PREV;
+	(void)NODERB_RB_MINMAX;
+}
 
 /**/
 struct GRAPH
 {
-#ifdef USE_NODE_RB
 	struct NODERB nodehash[0x10000];
-#else
-	struct NODE *nodehash[0x10000];
-#endif
 	struct NODE *first;
 	struct HEAP *heap;
 	int num_nodes;
@@ -129,12 +123,7 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 	}
 		
 	/* add to hashed tree */
-#ifdef USE_NODE_RB
 	RB_INSERT(NODERB, &graph->nodehash[node->hashid&0xffff], node);
-#else
-	node->hashnext = graph->nodehash[node->hashid&0xffff];
-	graph->nodehash[node->hashid&0xffff] = node;
-#endif
 
 	/* add to list */
 	node->next = graph->first;
@@ -157,22 +146,9 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 struct NODE *node_find(struct GRAPH *graph, const char *filename)
 {
 	unsigned int hashid = string_hash(filename);
-#ifdef USE_NODE_RB
 	struct NODE tempnode;
 	tempnode.hashid = hashid;
 	return RB_FIND(NODERB, &graph->nodehash[hashid&0xffff], &tempnode);
-#else	
-	struct NODE *node = graph->nodehash[hashid&0xffff];
-	for(;node;node = node->hashnext)
-	{
-		if(node->hashid == hashid)
-		{
-			if(strcmp(node->filename, filename) == 0)
-				return node;
-		}
-	}
-	return (struct NODE *)0x0;
-#endif
 }
 
 /* this will return the existing node or create a new one */
@@ -457,4 +433,156 @@ void node_debug_dump_dot(struct GRAPH *graph, struct NODE *root_node)
 
 	node_walk(root_node, NODEWALK_FORCE|NODEWALK_BOTTOMUP|NODEWALK_QUICK, node_debug_dump_dot_r, root_node);
 	printf("}\n");	
+}
+
+static const unsigned bamendianness = 0x01020304;
+static char bamheader[8] = {
+	'B','A','M',0, /* signature */
+	0,3,			/* version */
+	sizeof(void*), /* pointer size */
+	0, /*((char*)&bamendianness)[0] */ /* endianness */
+};
+
+static int read_header(FILE *fp)
+{
+	char header[sizeof(bamheader)];
+	if(fread(header, sizeof(header), 1, fp) != 1)
+		return -1;
+	if(memcmp(bamheader, header, sizeof(header)) != 0)
+		return -1;
+	return 0;
+}
+
+static void write_header(FILE *fp)
+{
+	fwrite(bamheader, 1, sizeof(bamheader), fp);
+}
+
+struct CACHENODE
+{
+	RB_ENTRY(CACHENODE) rbentry;
+
+	unsigned id;
+	unsigned hashid;
+	
+	unsigned deps_num;
+	unsigned deps_start;
+};
+
+RB_HEAD(CACHENODERB, CACHENODE);
+
+static int cachenode_cmp(struct CACHENODE *a, struct CACHENODE *b)
+{
+	return a->hashid - b->hashid;
+}
+
+RB_GENERATE_INTERNAL(CACHENODERB, CACHENODE, rbentry, cachenode_cmp, static)
+
+void CACHENODE_FUNCTIONREMOVER() /* this is just to get it not to complain about unused static functions */
+{
+	(void)CACHENODERB_RB_REMOVE;
+	(void)CACHENODERB_RB_NFIND;
+	(void)CACHENODERB_RB_NEXT;
+	(void)CACHENODERB_RB_PREV;
+	(void)CACHENODERB_RB_MINMAX;
+}
+
+
+#define WRITE_BUFFERSIZE (32*1024)
+#define WRITE_BUFFERNODES (WRITE_BUFFERSIZE/sizeof(struct CACHENODE))
+#define WRITE_BUFFERDEPS (WRITE_BUFFERSIZE/sizeof(unsigned))
+
+struct WRITEINFO
+{
+	FILE *fp;
+	
+	union
+	{
+		struct CACHENODE nodes[WRITE_BUFFERNODES];
+		unsigned deps[WRITE_BUFFERDEPS];
+	};
+	
+	/* index into nodes or deps */	
+	unsigned index;
+};
+
+static void write_flush_nodes(struct WRITEINFO *info)
+{
+	fwrite(info->nodes, info->index, sizeof(struct CACHENODE), info->fp);
+	info->index = 0;
+}
+
+
+static void write_flush_deps(struct WRITEINFO *info)
+{
+	fwrite(info->deps, info->index, sizeof(unsigned), info->fp);
+	info->index = 0;
+}
+
+static void write_nodes(struct WRITEINFO *info, struct GRAPH *graph)
+{
+	unsigned num_deps;
+	
+	struct NODE *node;
+	
+	/* write the cache nodes */	
+	fwrite(&graph->num_nodes, 1, sizeof(graph->num_nodes), info->fp);
+	num_deps = 0;
+	for(node = graph->first; node; node = node->next)
+	{
+		/* fetch cache node */
+		struct CACHENODE *cachenode = &info->nodes[info->index++];
+
+		/* count dependencies */
+		struct DEPENDENCY *dep;
+		cachenode->deps_num = 0;
+		for(dep = node->firstdep; dep; dep = dep->next)
+			cachenode->deps_num++;
+		
+		cachenode->id = node->id;
+		cachenode->hashid = node->hashid;
+		cachenode->deps_start = num_deps;
+		
+		num_deps += cachenode->deps_num;
+		
+		if(info->index == WRITE_BUFFERNODES)
+			write_flush_nodes(info);
+	}
+
+	/* flush the remainder */
+	if(info->index)
+		write_flush_nodes(info);
+
+	/* write the cache nodes deps */	
+	fwrite(&num_deps, 1, sizeof(num_deps), info->fp);
+	for(node = graph->first; node; node = node->next)
+	{
+		struct DEPENDENCY *dep;
+		for(dep = node->firstdep; dep; dep = dep->next)
+		{
+			info->deps[info->index++] = dep->node->id;
+			if(info->index == WRITE_BUFFERNODES)
+				write_flush_deps(info);
+		}
+	}
+
+	/* flush the remainder */
+	if(info->index)
+		write_flush_deps(info);
+}
+
+int node_save_graph(const char *filename, struct GRAPH *graph)
+{
+	struct WRITEINFO info;
+	
+	info.fp = fopen(filename, "wb");
+	if(!info.fp)
+		return -1;
+	
+	info.index = 0;
+	write_header(info.fp);
+	write_nodes(&info, graph);
+	
+	fclose(info.fp);
+	return 0;
 }

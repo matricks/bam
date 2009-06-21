@@ -11,8 +11,6 @@ struct DEPENDENCY
 	struct DEPENDENCY *next;
 };
 
-#define USE_NODE_RB
-
 struct SCANNER
 {
 	struct SCANNER *next;
@@ -27,11 +25,7 @@ struct NODE
 	struct NODE *next;
 	struct DEPENDENCY *firstdep; /* list of dependencies */
 
-#ifdef USE_NODE_RB
 	RB_ENTRY(NODE) rbentry;
-#else
-	struct NODE *hashnext;
-#endif
 
 	/* filename and the tool to build the resource */
 	char *filename; /* this contains the filename with the FULLPATH */
@@ -81,6 +75,10 @@ struct GRAPH;
 struct GRAPH *node_create_graph(struct HEAP *heap);
 struct HEAP *node_graph_heap(struct GRAPH *graph);
 
+/* used for cache */
+int node_save_graph(const char *filename, struct GRAPH *graph);
+
+/* */
 int node_create(struct NODE **node, struct GRAPH *graph, const char *filename, const char *label, const char *cmdline);
 struct NODE *node_find(struct GRAPH *graph, const char *filename);
 struct NODE *node_add_dependency(struct NODE *node, const char *filename);
