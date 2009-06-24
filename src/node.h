@@ -28,31 +28,46 @@ struct NODE
 	RB_ENTRY(NODE) rbentry;
 
 	/* filename and the tool to build the resource */
+	unsigned filename_len; /* including zero term */
 	char *filename; /* this contains the filename with the FULLPATH */
-	/*char *tool; */ /* should be an id or something into an array of tools */
 	
 	char *cmdline; /* command line that should be executed to build this node */
 	char *label; /* what to print when we build this node */
 	
 	struct SCANNER *firstscanner;
 
-	unsigned int hashid;
+	unsigned hashid;
 	
 	time_t timestamp;
-	unsigned int id; /* is this needed at all? */
+	unsigned id; /* used when doing traversal with marking (bitarray) */
 	
 	/* various flags */
-	unsigned int dirty:1; /* set if the node has to be rebuilt */
-	unsigned int depchecked:1; /* set if a dependency checker have processed the file */
-	unsigned int cached:1;
-	unsigned int parenthastool:1; /* set if a parent has a tool */
-	unsigned int counted:1;
+	unsigned dirty:1; /* set if the node has to be rebuilt */
+	unsigned depchecked:1; /* set if a dependency checker have processed the file */
+	unsigned cached:1;
+	unsigned parenthastool:1; /* set if a parent has a tool */
+	unsigned counted:1;
 	
-	volatile unsigned int workstatus:2; /* 0 = undone, 1 = in the workings, 2 = done*/
+	volatile unsigned workstatus:2; /* 0 = undone, 1 = in the workings, 2 = done*/
 };
+
+/* cache node */
+struct CACHENODE
+{
+	RB_ENTRY(CACHENODE) rbentry;
+
+	unsigned hashid;
+	time_t timestamp;
+	char *filename;
+	
+	unsigned deps_num;
+	unsigned *deps; /* index id, not hashid */
+};
+
 
 struct HEAP;
 struct GRAPH;
+struct CONTEXT;
 
 /* node status */
 #define NODESTATUS_UNDONE 0
@@ -75,8 +90,12 @@ struct GRAPH;
 struct GRAPH *node_create_graph(struct HEAP *heap);
 struct HEAP *node_graph_heap(struct GRAPH *graph);
 
-/* used for cache */
-int node_save_graph(const char *filename, struct GRAPH *graph);
+/* cache */
+int node_cache_save(const char *filename, struct GRAPH *graph);
+struct CACHE *node_cache_load(const char *filename);
+struct CACHENODE *node_cache_find_byhash(struct CACHE *cache, unsigned hashid);
+struct CACHENODE *node_cache_find_byindex(struct CACHE *cache, unsigned index);
+int node_cache_do_dependency(struct CONTEXT *context, struct NODE *node);
 
 /* */
 int node_create(struct NODE **node, struct GRAPH *graph, const char *filename, const char *label, const char *cmdline);

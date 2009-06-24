@@ -8,6 +8,7 @@
 #include "mem.h"
 #include "support.h"
 #include "path.h"
+#include "context.h"
 
 #include "tree.h"
 
@@ -15,7 +16,9 @@ RB_HEAD(NODERB, NODE);
 
 static int node_cmp(struct NODE *a, struct NODE *b)
 {
-	return a->hashid - b->hashid;
+	if(a->hashid > b->hashid) return 1;
+	if(a->hashid < b->hashid) return -1;
+	return 0;
 }
 
 RB_GENERATE_INTERNAL(NODERB, NODE, rbentry, node_cmp, static)
@@ -34,8 +37,12 @@ struct GRAPH
 {
 	struct NODERB nodehash[0x10000];
 	struct NODE *first;
+	struct NODE *last;
 	struct HEAP *heap;
+	
+	/* needed when saving the cache */
 	int num_nodes;
+	int num_deps;
 };
 
 /* */
@@ -85,7 +92,7 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 	/* */
 	if(!path_isnice(filename))
 		return NODECREATE_NOTNICE;
-	
+		
 	/* */
 	if(node_find(graph, filename))
 		return NODECREATE_EXISTS;
@@ -99,9 +106,9 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 	node->firstscanner = (struct SCANNER*)0x0;
 	
 	/* set filename */
-	sn = strlen(filename)+1;
-	node->filename = (char *)mem_allocate(graph->heap, sn);
-	memcpy(node->filename, filename, sn);
+	node->filename_len = strlen(filename)+1;
+	node->filename = (char *)mem_allocate(graph->heap, node->filename_len);
+	memcpy(node->filename, filename, node->filename_len);
 	node->hashid = string_hash(filename);
 
 	/* set label line */
@@ -126,8 +133,10 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 	RB_INSERT(NODERB, &graph->nodehash[node->hashid&0xffff], node);
 
 	/* add to list */
-	node->next = graph->first;
-	graph->first = node;
+	if(graph->last) graph->last->next = node;
+	else graph->first = node;
+	node->next = 0;
+	graph->last = node;
 	
 	/* zero out flags */
 	node->dirty = 0;
@@ -190,7 +199,10 @@ struct NODE *node_add_dependency(struct NODE *node, const char *filename)
 	/* set parenttooldep */
 	if(node->cmdline)
 		depnode->parenthastool = 1;
-
+	
+	/* increase dep counter */
+	node->graph->num_deps++;
+		
 	/* return the dependency */
 	return depnode;
 }
@@ -443,37 +455,13 @@ static char bamheader[8] = {
 	0, /*((char*)&bamendianness)[0] */ /* endianness */
 };
 
-static int read_header(FILE *fp)
-{
-	char header[sizeof(bamheader)];
-	if(fread(header, sizeof(header), 1, fp) != 1)
-		return -1;
-	if(memcmp(bamheader, header, sizeof(header)) != 0)
-		return -1;
-	return 0;
-}
-
-static void write_header(FILE *fp)
-{
-	fwrite(bamheader, 1, sizeof(bamheader), fp);
-}
-
-struct CACHENODE
-{
-	RB_ENTRY(CACHENODE) rbentry;
-
-	unsigned id;
-	unsigned hashid;
-	
-	unsigned deps_num;
-	unsigned deps_start;
-};
-
 RB_HEAD(CACHENODERB, CACHENODE);
 
 static int cachenode_cmp(struct CACHENODE *a, struct CACHENODE *b)
 {
-	return a->hashid - b->hashid;
+	if(a->hashid > b->hashid) return 1;
+	if(a->hashid < b->hashid) return -1;
+	return 0;
 }
 
 RB_GENERATE_INTERNAL(CACHENODERB, CACHENODE, rbentry, cachenode_cmp, static)
@@ -487,47 +475,110 @@ void CACHENODE_FUNCTIONREMOVER() /* this is just to get it not to complain about
 	(void)CACHENODERB_RB_MINMAX;
 }
 
+struct CACHE
+{
+	char header[sizeof(bamheader)];
+	
+	unsigned num_nodes;
+	unsigned num_deps;
+	
+	struct CACHENODERB nodetree;
+	
+	struct CACHENODE *nodes;
+	unsigned *deps;
+	char *strings;
+};
 
 #define WRITE_BUFFERSIZE (32*1024)
 #define WRITE_BUFFERNODES (WRITE_BUFFERSIZE/sizeof(struct CACHENODE))
 #define WRITE_BUFFERDEPS (WRITE_BUFFERSIZE/sizeof(unsigned))
 
+#include "platform.h"
+
+/*
+	detect if we can use unix styled io. we do this because fwrite
+	can use it's own buffers and bam already to it's buffering nicely
+	so this will reduce the number of syscalls needed.
+*/
+#ifdef BAM_FAMILY_UNIX
+	#include <fcntl.h>
+	#if defined(O_RDONLY) && defined(O_WRONLY) && defined(O_CREAT) && defined(O_TRUNC)
+		#define USE_UNIX_IO
+	#endif
+#endif
+
+/* setup io */
+#ifdef USE_UNIX_IO
+	#include <sys/types.h>
+	#include <sys/stat.h>
+	#include <unistd.h>
+
+	#define IO_TYPE int
+	#define io_open_read(filename) open(filename, O_RDONLY)
+	#define io_open_write(filename) open(filename, O_WRONLY|O_CREAT|O_TRUNC, 0666)
+	#define io_close(f) close(f)
+	#define io_read(f, data, size) read(f, data, size)
+	#define io_write(f, data, size) write(f, data, size)
+#else
+	#define IO_TYPE FILE*
+	#define io_open_read(filename) fopen(filename, "rb")
+	#define io_open_write(filename) fopen(filename, "wb")
+	#define io_close(f) fclose(f)
+	#define io_read(f, data, size) fread(data, 1, size, f)
+	#define io_write(f, data, size) fwrite(data, 1, size, f)
+#endif
+	
 struct WRITEINFO
 {
-	FILE *fp;
+	IO_TYPE fp;
+	
+	struct GRAPH *graph;
 	
 	union
 	{
 		struct CACHENODE nodes[WRITE_BUFFERNODES];
 		unsigned deps[WRITE_BUFFERDEPS];
+		char strings[WRITE_BUFFERSIZE];
 	} buffers;
 	
 	/* index into nodes or deps */	
 	unsigned index;
 };
 
-static void write_flush_nodes(struct WRITEINFO *info)
+
+static int write_header(struct WRITEINFO *info)
 {
-	fwrite(info->buffers.nodes, info->index, sizeof(struct CACHENODE), info->fp);
-	info->index = 0;
+	/* setup the cache */
+	struct CACHE cache;
+	memset(&cache, 0, sizeof(cache));
+	memcpy(cache.header, bamheader, sizeof(cache.header));
+	cache.num_nodes = info->graph->num_nodes;
+	cache.num_deps = info->graph->num_deps;
+	if(io_write(info->fp, &cache, sizeof(cache)) != sizeof(cache))
+		return -1;
+	return 0;
 }
 
-
-static void write_flush_deps(struct WRITEINFO *info)
+static int write_flush(struct WRITEINFO *info, int elementsize)
 {
-	fwrite(info->buffers.deps, info->index, sizeof(unsigned), info->fp);
+	int size = elementsize*info->index;
+	if(io_write(info->fp, info->buffers.nodes, size) != size)
+		return -1;
 	info->index = 0;
+	return 0;
 }
 
-static void write_nodes(struct WRITEINFO *info, struct GRAPH *graph)
+static int write_nodes(struct WRITEINFO *info)
 {
-	unsigned num_deps;
+	unsigned dep_index;
+	unsigned string_index;
 	
 	struct NODE *node;
-	
+	struct GRAPH *graph = info->graph;
+		
 	/* write the cache nodes */	
-	fwrite(&graph->num_nodes, 1, sizeof(graph->num_nodes), info->fp);
-	num_deps = 0;
+	dep_index = 0;
+	string_index = 0;
 	for(node = graph->first; node; node = node->next)
 	{
 		/* fetch cache node */
@@ -535,54 +586,174 @@ static void write_nodes(struct WRITEINFO *info, struct GRAPH *graph)
 
 		/* count dependencies */
 		struct DEPENDENCY *dep;
+		
+		memset(cachenode, 0, sizeof(cachenode));
+		
 		cachenode->deps_num = 0;
 		for(dep = node->firstdep; dep; dep = dep->next)
 			cachenode->deps_num++;
 		
-		cachenode->id = node->id;
 		cachenode->hashid = node->hashid;
-		cachenode->deps_start = num_deps;
+		cachenode->timestamp = node->timestamp;
+		cachenode->deps = (unsigned*)((long)dep_index);
+		cachenode->filename = (char*)((long)string_index);
 		
-		num_deps += cachenode->deps_num;
+		string_index += node->filename_len;
+		dep_index += cachenode->deps_num;
 		
-		if(info->index == WRITE_BUFFERNODES)
-			write_flush_nodes(info);
+		if(info->index == WRITE_BUFFERNODES && write_flush(info, sizeof(struct CACHENODE)))
+			return -1;
 	}
 
 	/* flush the remainder */
-	if(info->index)
-		write_flush_nodes(info);
+	if(info->index && write_flush(info, sizeof(struct CACHENODE)))
+		return -1;
 
-	/* write the cache nodes deps */	
-	fwrite(&num_deps, 1, sizeof(num_deps), info->fp);
+	/* write the cache nodes deps */
 	for(node = graph->first; node; node = node->next)
 	{
 		struct DEPENDENCY *dep;
 		for(dep = node->firstdep; dep; dep = dep->next)
 		{
 			info->buffers.deps[info->index++] = dep->node->id;
-			if(info->index == WRITE_BUFFERNODES)
-				write_flush_deps(info);
+			if(info->index == WRITE_BUFFERDEPS && write_flush(info, sizeof(unsigned)))
+				return -1;
 		}
 	}
 
 	/* flush the remainder */
-	if(info->index)
-		write_flush_deps(info);
+	if(info->index && write_flush(info, sizeof(unsigned)))
+		return -1;
+		
+	/* write the strings */
+	for(node = graph->first; node; node = node->next)
+	{
+		if(info->index+node->filename_len > sizeof(info->buffers.strings))
+		{
+			if(write_flush(info, sizeof(char)))
+				return -1;
+		}
+		memcpy(info->buffers.strings + info->index, node->filename, node->filename_len);
+		info->index += node->filename_len;
+	}	
+
+	/* flush the remainder */
+	if(info->index && write_flush(info, sizeof(char)))
+		return -1;
+		
+	return 0;
 }
 
-int node_save_graph(const char *filename, struct GRAPH *graph)
+int node_cache_save(const char *filename, struct GRAPH *graph)
 {
 	struct WRITEINFO info;
-	
-	info.fp = fopen(filename, "wb");
+	info.fp = io_open_write(filename);
 	if(!info.fp)
 		return -1;
 	
 	info.index = 0;
-	write_header(info.fp);
-	write_nodes(&info, graph);
+	info.graph = graph;
 	
-	fclose(info.fp);
+	if(write_header(&info) || write_nodes(&info))
+	{
+		/* error occured, trunc the cache file so we don't leave a corrupted file */
+		io_close(info.fp);
+		io_close(io_open_write(filename));
+		return -1;
+	}
+
+	/* close up and return */
+	io_close(info.fp);
+	return 0;
+}
+
+struct CACHE *node_cache_load(const char *filename)
+{
+	long filesize;
+	void *buffer;
+	struct CACHE *cache;
+	int i;
+	size_t itemsread;
+	FILE *fp;
+	
+	/* open file */
+	fp = fopen(filename, "rb");
+	if(!fp)
+		return 0;
+		
+	/* read the whole file */
+	fseek(fp, 0, SEEK_END);
+	filesize = ftell(fp);
+	fseek(fp, 0, SEEK_SET);
+
+	buffer = malloc(filesize);
+	
+	itemsread = fread(buffer, filesize, 1, fp);
+	fclose(fp);
+	
+	/* verify read and headers */
+	cache = (struct CACHE *)buffer;
+	
+	if(	itemsread != 1 ||
+		filesize < sizeof(struct CACHE) ||
+		memcmp(cache->header, bamheader, sizeof(bamheader)) != 0 ||
+		filesize < sizeof(struct CACHE)+cache->num_nodes*sizeof(struct CACHENODE))
+	{
+		/* printf("debug: error in headers\n"); */
+		free(buffer);
+		return 0;
+	}
+	
+	/* setup pointers */
+	cache->nodes = (struct CACHENODE *)(cache+1);
+	cache->deps = (unsigned *)(cache->nodes+cache->num_nodes);
+	cache->strings = (char *)(cache->deps+cache->num_deps);
+	
+	/* build node tree and patch pointers */
+	for(i = 0; i < cache->num_nodes; i++)
+	{
+		cache->nodes[i].filename = cache->strings + (long)cache->nodes[i].filename;
+		cache->nodes[i].deps = cache->deps + (long)cache->nodes[i].deps;
+		RB_INSERT(CACHENODERB, &cache->nodetree, &cache->nodes[i]);
+	}
+	
+	/* done */
+	return cache;
+}
+
+struct CACHENODE *node_cache_find_byindex(struct CACHE *cache, unsigned index)
+{
+	return &cache->nodes[index];
+}
+
+struct CACHENODE *node_cache_find_byhash(struct CACHE *cache, unsigned hashid)
+{
+	struct CACHENODE tempnode;
+	if(!cache)
+		return NULL;
+	tempnode.hashid = hashid;
+	return RB_FIND(CACHENODERB, &cache->nodetree, &tempnode);
+}
+
+int node_cache_do_dependency(struct CONTEXT *context, struct NODE *node)
+{
+	struct CACHENODE *cachenode;
+	struct CACHENODE *depcachenode;
+	int i;
+	
+	/* search the cache */
+	cachenode = node_cache_find_byhash(context->cache, node->hashid);
+	if(cachenode && cachenode->timestamp == node->timestamp)
+	{
+		/* use cached version */
+		for(i = 0; i < cachenode->deps_num; i++)
+		{
+			depcachenode = node_cache_find_byindex(context->cache, cachenode->deps[i]);
+			node_add_dependency(node, depcachenode->filename);
+		}
+		
+		return 1;
+	}
+	
 	return 0;
 }

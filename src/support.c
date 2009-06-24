@@ -106,6 +106,12 @@
 	}
 
 #else
+	#define D_TYPE_HACK
+	/* TODO: detect DT_DIR/DT_UNKNOWN */
+
+#ifdef D_TYPE_HACK
+	#define __USE_BSD
+#endif
 	#include <dirent.h>
 	#include <unistd.h>
 	#include <sys/types.h>
@@ -117,7 +123,9 @@
 	{
 		DIR *dir;
 		struct dirent *entry;
+#ifndef D_TYPE_HACK
 		struct stat info;
+#endif
 		char buffer[1024];
 		char *startpoint;
 		
@@ -144,14 +152,22 @@
 		{
 			/* make the path absolute */
 			strcpy(startpoint, entry->d_name);
-			
-			/* push the string and continue the search */
+
+			/* TODO: support DT_UNKNOWN */
+#ifdef D_TYPE_HACK			
+			/* call the callback */
+			if(entry->d_type == DT_DIR)
+				callback(buffer, 1, user);
+			else
+				callback(buffer, 0, user);
+#else
+			/* do stat to obtain if it's a directory or not */
 			stat(buffer, &info);
-			
 			if(S_ISDIR(info.st_mode))
 				callback(buffer, 1, user);
 			else
 				callback(buffer, 0, user);
+#endif
 		}
 		
 		closedir(dir);
@@ -204,7 +220,7 @@
 #endif
 
 time_t timestamp() { return time(NULL); }
-	
+
 #ifdef BAM_PLATFORM_MACOSX
 	/* Mac OS X version */
 	time_t file_timestamp(const char *filename)

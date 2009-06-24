@@ -1,6 +1,8 @@
 -- just install a better name for the functions and tables
 ScriptArgs = _bam_scriptargs
 Execute = os.execute
+IsString = bam_isstring
+IsTable = bam_istable
 
 --[[@GROUP Common @END]]--
 
@@ -11,7 +13,7 @@ Execute = os.execute
 	err=0 : CheckSettings(NewSettings())
 @END]]--
 function CheckSettings(settings)
-	if type(settings) ~= type({}) or settings._is_settingsobject == nil then
+	if not IsTable(settings) or settings._is_settingsobject == nil then
 		error("expected a settings object, got an " .. type(settings) .. " instead")
 	end
 end
@@ -32,22 +34,44 @@ function CheckVersion(version)
 end
 
 --[[@FUNCTION
-	Flatterns a tree of tables
+	Flattens a tree of tables
 @END]]--
-function FlatternTable(varargtable)
-	function flattern(collection, varargtable)
+function FlattenTable(varargtable)
+	function flatten(collection, varargtable)
 		for i,v in pairs(varargtable) do
-			if type(v) == type({}) then
-				flattern(collection, v)
-			elseif type(v) == type("") then
+			if IsTable(v) then
+				flatten(collection, v)
+			elseif IsString(v) then
 				table.insert(collection, v)
 			end		
 		end
 	end
 
 	local inputs = {}
-	flattern(inputs, varargtable)
+	flatten(inputs, varargtable)
 	return inputs
+end
+
+--[[@FUNCTION
+	
+@END]]--
+function WalkTable(t)
+  return coroutine.wrap(function()
+    return WalkTableImpl(coroutine.yield, t)
+  end)
+end
+
+function WalkTableImpl(func, varargtable)
+	function walk(varargtable)
+		for i,v in pairs(varargtable) do
+			if IsTable(v) then
+				walk(v)
+			elseif IsString(v) then
+				func(v)
+			end		
+		end
+	end
+	walk(varargtable)
 end
 
 --[[@GROUP Path Manipulation @END]]--
@@ -175,7 +199,7 @@ end
 function tbl_to_str(tbl, prefix, postfix)
 	local s = ""
 	for index,value in ipairs(tbl) do
-		if type(value) == type("") then
+		if IsString(value) then
 			s = s .. prefix .. value .. postfix
 		end
 	end
@@ -196,7 +220,7 @@ function NewTable()
 			table.insert(self, v)
 		end
 	end
-
+	
 	return t
 end
 
@@ -204,14 +228,25 @@ function NewFlagTable()
 	local t = NewTable()
 
 	t.ToString = function(self)
+		if self.string_version == self.version then
+			return self.string
+		end
+		
 		local s = ""
 		for key,value in pairs(self) do
 			if type(value) == type("") then
 				s = s .. value .. " "
 			end
 		end
+		
+		self.string = s
+		self.string_version = self.version
+		
 		return s
 	end
+
+	t.string_version = 0
+	t.string = ""
 
 	return t
 end
@@ -346,11 +381,10 @@ CollectDirsRecursive = bam_collectdirsrecursive
 	TODO
 @END]]--
 function Copy(outputdir, ...)
-	local inputs = FlatternTable({...})
 	local outputs = {}
 	
 	-- compile all the files
-	for index, inname in ipairs(inputs) do
+	for inname in WalkTable({...}) do
 		output = Path(outputdir .. "/" .. PathFilename(inname))
 		input = Path(inname)
 
@@ -392,12 +426,11 @@ DefaultTarget = bam_default_target
 	TODO	
 @END]]--
 function PseudoTarget(name, ...)
-	local inputs = FlatternTable({...})
 	local name = Path(name)
 	AddJob(name, "", "")
 	
 	-- all the files
-	for index, inname in pairs(inputs) do
+	for inname in WalkTable({...}) do
 		AddDependency(name, inname)
 	end
 
@@ -1036,15 +1069,12 @@ end)
 --[[@FUNCTION
 	TODO
 @END]]--
+
 function Compile(settings, ...)
 	CheckSettings(settings)
-	
-	local inputs = FlatternTable({...})
 	local outputs = {}
 	
-	-- compile all the files
-	for index, inname in ipairs(inputs) do
-
+	for inname in WalkTable({...}) do
 		-- fetch correct compiler
 		local ext = PathFileExt(inname)
 		local Compiler = settings.filemappings[ext]
@@ -1054,12 +1084,12 @@ function Compile(settings, ...)
 		end
 		
 		local objectfile = Compiler(settings, inname)
-		if type(objectfile) ~= type("") then
+		if not IsString(objectfile) then
 			error("compiler returned a "..type(objectfile).." instead of a string")
 		end
 		table.insert(outputs, objectfile)
 	end
-
+	
 	-- return the output
 	return outputs	
 end
@@ -1093,7 +1123,7 @@ end)
 function Link(settings, output, ...)
 	CheckSettings(settings)
 	
-	local inputs = FlatternTable({...})
+	local inputs = FlattenTable({...})
 
 	output = output .. settings.config_ext .. settings.link.extension
 
@@ -1129,7 +1159,7 @@ end)
 function StaticLibrary(settings, output, ...)
 	CheckSettings(settings)
 	
-	local inputs = FlatternTable({...})
+	local inputs = FlattenTable({...})
 
 	output = output .. settings.config_ext .. settings.lib.extension
 
@@ -1167,7 +1197,7 @@ end)
 function SharedLibrary(settings, output, ...)
 	CheckSettings(settings)
 	
-	local inputs = FlatternTable({...})
+	local inputs = FlattenTable({...})
 
 	output = output .. settings.config_ext .. settings.dll.extension
 	AddJob(output, "dll ".. output, settings.dll.Driver(output, inputs, settings))

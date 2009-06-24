@@ -10,12 +10,14 @@ struct TARGET
 struct CONTEXT
 {
 	lua_State *lua;
+	
 	const char *filename;
 	const char *filename_short;
 	char script_directory[512];
 	
 	struct HEAP *heap;
 	struct GRAPH *graph;
+	struct CACHE *cache;
 
 	struct TARGET *firsttarget;
 	struct NODE *defaulttarget;
@@ -25,6 +27,9 @@ struct CONTEXT
 	volatile int current_cmd_num;
 	int num_commands;
 };
+
+
+
 
 const char *context_get_path(lua_State *L);
 struct CONTEXT *context_get_pointer(lua_State *L);

@@ -95,7 +95,7 @@ static int processline(char *line, char **start, char **end, int *systemheader)
 }
 
 /* dependency calculator for c/c++ preprocessor */
-static int dependency_cpp_run(const char *filename, 
+static int dependency_cpp_run(struct CONTEXT *context, struct NODE *node,
 		int (*callback)(void *, const char *, int), void *userdata)
 {
 	const int debug = 0;
@@ -115,13 +115,25 @@ static int dependency_cpp_run(const char *filename,
 	FILE *file;
 
 	if(debug)
-		printf("cpp-dep: running on %s\n", filename);
+		printf("cpp-dep: running on %s\n", node->filename);
+		
+	if(node->depchecked)
+		return 0;
+	node->depchecked = 1;
+		
+	if(node_cache_do_dependency(context, node))
+	{
+		struct DEPENDENCY *dep;
+		for(dep = node->firstdep; dep; dep = dep->next)
+			dependency_cpp_run(context, dep->node, callback, userdata);
+		return 0;
+	}
 
-	file = fopen(filename, "rb");
+	file = fopen(node->filename, "rb");
 	if(!file)
 		return 0;
 	
-	/* read the whole file */		
+	/* read the whole file */
 	fseek(file, 0, SEEK_END);
 	filesize = ftell(file);
 	fseek(file, 0, SEEK_SET);
@@ -175,10 +187,11 @@ static int dependency_cpp_run(const char *filename,
 	}
 
 	if(debug)
-		printf("cpp-dep: %s=%d lines\n", filename, linecount);
+		printf("cpp-dep: %s=%d lines\n", node->filename, linecount);
 	
 	/* clean up */
 	free(filebuf);
+	
 	return errorcode;
 }
 
@@ -190,6 +203,7 @@ struct CPPDEPPATH
 
 struct CPPDEPINFO
 {
+	struct CONTEXT *context;
 	struct NODE *node;
 	struct CPPDEPPATH *first_path;
 };
@@ -314,15 +328,13 @@ static int dependency_cpp_callback(void *user, const char *filename, int sys)
 	{
 		recurseinfo.first_path = depinfo->first_path;
 		recurseinfo.node = depnode;
-		depnode->depchecked = 1;
-		if(dependency_cpp_run(buf, dependency_cpp_callback, &recurseinfo) != 0)
+		recurseinfo.context = depinfo->context;
+		if(dependency_cpp_run(depinfo->context, depnode, dependency_cpp_callback, &recurseinfo) != 0)
 			return 3;
 	}
 	
 	return 0;
 }
-
-
 
 /* */
 int lf_dependency_cpp(lua_State *L)
@@ -334,7 +346,8 @@ int lf_dependency_cpp(lua_State *L)
 	struct CPPDEPPATH *cur_path;
 	struct CPPDEPPATH *prev_path;
 	int n = lua_gettop(L);
-	int i;
+	const char *string;
+	size_t string_length;
 	
 	if(n != 2)
 	{
@@ -354,13 +367,16 @@ int lf_dependency_cpp(lua_State *L)
 		lua_error(L);
 	}
 	
-	/* no need to do the depenceny stuff if we only going to clean */
-	/* TODO: reintroduce */
-	/* if(option_clean)
-		return 0; */
-	
 	/* fetch context */
 	context = context_get_pointer(L);
+	node = node_find(context->graph, lua_tostring(L,1));
+	
+	/* */
+	if(!node)
+	{
+		lua_pushstring(L, "dependency_cpp: node not found");
+		lua_error(L);
+	}
 	
 	/* create a heap to store the includes paths in */
 	includeheap = mem_create();
@@ -372,18 +388,18 @@ int lf_dependency_cpp(lua_State *L)
 	depinfo.first_path = 0x0;
 	while(lua_next(L, 2))
 	{
-		if(lua_isstring(L,-1))
+		if(lua_type(L,-1) == LUA_TSTRING)
 		{
 			/* allocate the path */
-			i = strlen(lua_tostring(L,-1));
-			cur_path = (struct CPPDEPPATH*)mem_allocate(includeheap, sizeof(struct CPPDEPPATH)+i+2);
+			string = lua_tolstring(L, -1, &string_length);
+			cur_path = (struct CPPDEPPATH*)mem_allocate(includeheap, sizeof(struct CPPDEPPATH)+string_length+2);
 			cur_path->path = (char *)(cur_path+1);
 			cur_path->next = 0x0;
 		
 			/* copy path and terminate with a / */
-			memcpy(cur_path->path, lua_tostring(L,-1), i);
-			cur_path->path[i] = '/';
-			cur_path->path[i+1] = 0;
+			memcpy(cur_path->path, string, string_length);
+			cur_path->path[string_length] = '/';
+			cur_path->path[string_length+1] = 0;
 		
 			/* add it to the chain */
 			if(prev_path)
@@ -396,24 +412,11 @@ int lf_dependency_cpp(lua_State *L)
 		/* pop the value, keep the key */
 		lua_pop(L, 1);
 	}
-
-	/*for(cur_path = depinfo.first_path; cur_path; cur_path = cur_path->next)
-		printf("p: %s\n", cur_path->path);*/
-	
-	/* */
-	node = node_find(context->graph, lua_tostring(L,1));
-	if(!node)
-	{
-		mem_destroy(includeheap);
-		lua_pushstring(L, "dependency_cpp: node not found");
-		lua_error(L);
-	}
 	
 	/* do the dependency walk */
-	/* TODO: caching system */
+	depinfo.context = context;
 	depinfo.node = node;
-	depinfo.node->depchecked = 1;
-	if(dependency_cpp_run(node->filename, dependency_cpp_callback, &depinfo) != 0)
+	if(dependency_cpp_run(context, node, dependency_cpp_callback, &depinfo) != 0)
 	{
 		mem_destroy(includeheap);
 		lua_pushstring(L, "dependency_cpp: error during depencency check");
@@ -422,6 +425,5 @@ int lf_dependency_cpp(lua_State *L)
 
 	/* free the include heap */
 	mem_destroy(includeheap);
-	
 	return 0;
 }

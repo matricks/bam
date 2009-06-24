@@ -53,7 +53,7 @@ end
 function DriverLib_GCC(output, inputs, settings)
 	local e = "ar qc " .. output
 	local e = e .. " " .. tbl_to_str(inputs, '', ' ') .. settings.lib.flags:ToString()
-	ExecuteSilent("rm -f " .. output) -- TODO: remove this
+	--ExecuteSilent("rm -f " .. output) -- TODO: remove this
 	return e
 end
 

@@ -30,18 +30,22 @@
 
 /* why is this needed? -kma
    because of getcwd() -jmb */
-#ifdef BAM_FAMILY_UNIX
+#if defined(BAM_FAMILY_UNIX) || defined(BAM_FAMILY_BEOS)
 #include <unistd.h>
 #endif
-#ifdef BAM_FAMILY_BEOS
-#include <unistd.h>
-#endif
+
 #ifdef BAM_FAMILY_WINDOWS
 #include <direct.h>
 #define getcwd _getcwd /* stupid msvc is calling getcwd non-ISO-C++ conformant */
 #endif
 
 #define DEFAULT_REPORT_STYLE "s"
+
+#ifdef BAM_FAMILY_WINDOWS
+#define CACHE_FILENAME "bamcache.dat"
+#else
+#define CACHE_FILENAME ".bamcache"
+#endif
 
 /* ** */
 static const char *program_name = "bam";
@@ -57,6 +61,7 @@ struct OPTION
 
 /* options passed via the command line */
 static int option_clean = 0;
+static int option_no_cache = 0;
 static int option_verbose = 0;
 static int option_dry = 0;
 static int option_simpleoutput = 0;
@@ -117,6 +122,12 @@ static struct OPTION options[] = {
 		Cleans the specified targets or the default target.
 	@END*/
 	{0, &option_clean			, "-c", "clean"},
+	
+	/*@OPTION No cache ( -n )
+		Do not use cache when building.
+	@END*/
+	{0, &option_no_cache			, "-n", "don't use cache (" CACHE_FILENAME ")"},
+	
 
 	/*@OPTION Verbose ( -v )
 		Prints all commands that are runned when building.
@@ -257,6 +268,25 @@ static int lf_errorfunc(lua_State *L)
 	return 1;
 }
 
+static int lf_istable(lua_State *L)
+{
+	if(lua_type(L,-1) == LUA_TTABLE)
+		lua_pushnumber(L, 1);
+	else
+		lua_pushnil(L);
+	return 1;
+}
+
+static int lf_isstring(lua_State *L)
+{
+	if(lua_type(L,-1) == LUA_TSTRING)
+		lua_pushnumber(L, 1);
+	else
+		lua_pushnil(L);
+	return 1;
+}
+
+
 /*
 	add_job(string output, string label, string command)
 */
@@ -271,7 +301,7 @@ static int lf_add_job(lua_State *L)
 		lua_pushstring(L, "add_job: incorrect number of arguments");
 		lua_error(L);
 	}
-	
+
 	/* fetch contexst from lua */
 	context = context_get_pointer(L);
 
@@ -294,7 +324,7 @@ static int lf_add_job(lua_State *L)
 		lua_pushstring(L, "add_job: unknown error creating node");
 		lua_error(L);
 	}
-	
+
 	return 0;
 }
 
@@ -318,7 +348,7 @@ static int lf_add_dependency(lua_State *L)
 	node = node_find(context->graph, lua_tostring(L,1));
 	if(!node)
 	{
-		char buf[512];
+		char buf[MAX_PATH_LENGTH];
 		sprintf(buf, "add_dep: couldn't find node with name '%s'", lua_tostring(L,1));
 		lua_pushstring(L, buf);
 		lua_error(L);
@@ -436,7 +466,7 @@ static int lf_update_globalstamp(lua_State *L)
 	}
 
 	context = context_get_pointer(L);
-	file_stamp = file_timestamp(lua_tostring(L,1));
+	file_stamp = file_timestamp(lua_tostring(L,1)); /* update global timestamp */
 	
 	if(file_stamp > context->globaltimestamp)
 		context->globaltimestamp = file_stamp;
@@ -977,6 +1007,9 @@ int register_lua_globals(struct CONTEXT *context)
 	lua_register(context->lua, L_FUNCTION_PREFIX"update_globalstamp", lf_update_globalstamp);
 	lua_register(context->lua, L_FUNCTION_PREFIX"loadfile", lf_loadfile);
 
+	lua_register(context->lua, L_FUNCTION_PREFIX"isstring", lf_isstring);
+	lua_register(context->lua, L_FUNCTION_PREFIX"istable", lf_istable);
+
 	/* error handling */
 	lua_register(context->lua, "errorfunc", lf_errorfunc);
 	
@@ -1009,8 +1042,12 @@ int register_lua_globals(struct CONTEXT *context)
 	
 	/* set paths */
 	{
-		char cwd[512];
-		getcwd(cwd, 512);
+		char cwd[MAX_PATH_LENGTH];
+		if(!getcwd(cwd, sizeof(cwd)))
+		{
+			printf("%s: error: couldn't get current working directory\n", program_name);
+			return -1;
+		}
 		
 		lua_pushstring(context->lua, CONTEXT_LUA_PATH);
 		lua_pushstring(context->lua, context->script_directory);
@@ -1117,6 +1154,21 @@ static int lf_panicfunc(lua_State *L)
 	return 0;
 }
 
+
+static void *lua_alloctor(void *ud, void *ptr, size_t osize, size_t nsize)
+{
+	(void)ud; (void)osize;  /* not used */
+	
+	if (nsize == 0)
+	{
+		free(ptr);
+		return NULL;
+	}
+	
+	return realloc(ptr, nsize);
+}
+
+
 /* *** */
 static int bam(const char *scriptfile, const char **targets, int num_targets)
 {
@@ -1146,30 +1198,43 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	
 	/* fetch script directory */
 	{
-		char cwd[512];
-		char path[512];
+		char cwd[MAX_PATH_LENGTH];
+		char path[MAX_PATH_LENGTH];
 
-		getcwd(cwd, 512);
-		if(path_directory(context.filename, path, 512))
+		if(!getcwd(cwd, sizeof(cwd)))
 		{
-			printf("crap error1\n");
-			*((int*)0) = 0;
+			printf("%s: error: couldn't get current working directory\n", program_name);
+			return -1;
 		}
 		
-		if(path_join(cwd, path, context.script_directory, 512))
+		if(path_directory(context.filename, path, sizeof(path)))
 		{
-			printf("crap error2\n");
-			*((int*)0) = 0;
+			printf("%s: error: path too long '%s'\n", program_name, path);
+			return -1;
+		}
+		
+		if(path_join(cwd, path, context.script_directory, sizeof(context.script_directory)))
+		{
+			printf("%s: error: path too long when joining '%s' and '%s'\n", program_name, cwd, path);
+			return -1;
 		}
 	}
 	
 	/* create lua context */
-	context.lua = luaL_newstate();
+	/* HACK: Store the context pointer as the
+		userdata pointer to the allocator to make
+		sure that we have fast access to it. This
+		makes the context_get_pointer call very fast */
+	context.lua = lua_newstate(lua_alloctor, &context);
 	lua_atpanic(context.lua, lf_panicfunc);
 	
 	/* register all functions */
 	if(register_lua_globals(&context) != 0)
 		return 1;
+
+	/* load cache */
+	if(!option_no_cache)
+		context.cache = node_cache_load(CACHE_FILENAME);
 	
 	/* load script */	
 	if(option_verbose)
@@ -1197,8 +1262,9 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 			error = 1;
 	}
 	
-	/* write cache */
-	node_save_graph("bamcache", context.graph);
+	/* save cache */
+	if(!option_no_cache)
+		node_cache_save(CACHE_FILENAME, context.graph);
 
 	/* debug */
 	if(option_debug_nodes)

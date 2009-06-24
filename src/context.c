@@ -14,11 +14,10 @@ const char *CONTEXT_LUA_WORKPATH = "_bam_workpath";
 /* */
 struct CONTEXT *context_get_pointer(lua_State *L)
 {
+	/* HACK: we store the context pointer as the user data to
+		to the allocator for fast access to it */
 	struct CONTEXT *context;
-	lua_pushstring(L, CONTEXT_LUA_CONTEXT_POINTER);
-	lua_gettable(L, LUA_GLOBALSINDEX);
-	context = (struct CONTEXT *)lua_topointer(L, -1);
-	lua_pop(L, 1);
+	lua_getallocf(L, (void **)&context);
 	return context;
 }
 
