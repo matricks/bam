@@ -72,7 +72,7 @@ int path_directory(const char *path, char *directory, int size)
 }
 
 /* normalizes the path, it rewrites the path */
-/* TODO: rewrite this */
+/* TODO: rewrite this, feels too large, should be a simpler way todo it*/
 int path_normalize(char *path)
 {
 	char *dirs[128];
@@ -80,7 +80,6 @@ int path_normalize(char *path)
 	
 	char *writeptr = path;
 	char *fromptr = path;
-
 
 	/* HACK: make sure to handle ./myfile */
 	if(fromptr[0] == '.')
@@ -332,18 +331,6 @@ int lf_path_isnice(lua_State *L)
 	lua_pushnumber(L, path_isnice(path));
 	return 1;
 }
-
-/* TODO: this functions assumes were the path is located */
-/*
-static const char *get_path(lua_State *L)
-{
-	const char *path = 0;
-	lua_pushstring(L, "_bam_path");
-	lua_gettable(L, LUA_GLOBALSINDEX);
-	path = lua_tostring(L, -1);
-	lua_pop(L, 1);
-	return path;
-}*/
 
 int lf_path_fix(lua_State *L)
 {

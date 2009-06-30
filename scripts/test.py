@@ -63,7 +63,7 @@ def test(name, moreflags="", should_fail=0):
 		print " FAILED!"
 		for l in report:
 			print "\t", l,
-		failed_tests += [name]
+		failed_tests += [name + "(returned %d)" % ret]
 	else:
 		print " ok"
 

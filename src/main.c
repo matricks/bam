@@ -1,4 +1,5 @@
-/* TODO: clean up this file and move functions to their own files */
+/* some parts written at high altitudes */
+/* some parts written at the top of the eiffel tower */
 
 /* system includes */
 #include <stdio.h>
@@ -8,21 +9,22 @@
 
 /* lua includes */
 #include <lua.h>
-#include <lualib.h>
-#include <lauxlib.h>
-
-/* UNIX includes. needed? */
-#include <sys/types.h>
-#include <sys/stat.h>
+#include <lualib.h> /* luaL_openlibs */
+#include <lauxlib.h> /* luaL_loadfile */
 
 /* program includes */
 #include "mem.h"
 #include "node.h"
 #include "path.h"
+#include "graph.h"
+#include "build.h"
 #include "support.h"
 #include "dep_cpp.h"
 #include "context.h"
+#include "cache.h"
+#include "luafuncs.h"
 #include "platform.h"
+#include "session.h"
 #include "version.h"
 
 /* internal base.bam file */
@@ -48,7 +50,6 @@
 #endif
 
 /* ** */
-static const char *program_name = "bam";
 #define L_FUNCTION_PREFIX "bam_"
 
 struct OPTION
@@ -62,11 +63,9 @@ struct OPTION
 /* options passed via the command line */
 static int option_clean = 0;
 static int option_no_cache = 0;
-static int option_verbose = 0;
 static int option_dry = 0;
-static int option_simpleoutput = 0;
-static int option_threads = 1;
 static int option_debug_nodes = 0;
+static int option_debug_jobs = 0;
 static int option_debug_buildtime = 0;
 static int option_debug_dirty = 0;
 static int option_debug_dumpinternal = 0;
@@ -78,12 +77,14 @@ static const char *option_report_str = DEFAULT_REPORT_STYLE;
 static const char *option_targets[128] = {0};
 static int option_num_targets = 0;
 
+struct SESSION session = {
+	"bam", /* name */
+	1, /* threads */
+	0 /* 	rest */
+};
+
 static const char *option_scriptargs[128] = {0};
 static int option_num_scriptargs = 0;
-
-static int option_report_color = 0;
-static int option_report_bar = 0;
-static int option_report_steps = 0;
 
 static struct OPTION options[] = {
 	/*@OPTION Targets ( name )
@@ -132,7 +133,7 @@ static struct OPTION options[] = {
 	/*@OPTION Verbose ( -v )
 		Prints all commands that are runned when building.
 	@END*/
-	{0, &option_verbose			, "-v", "verbose"},
+	{0, &session.verbose			, "-v", "verbose"},
 
 	/*@OPTION Threading ( -j N )
 		Sets the number of threads used when building.
@@ -175,6 +176,10 @@ static struct OPTION options[] = {
 	@END*/
 	{0, &option_debug_nodes		, "--debug-nodes", "prints all the nodes with dependencies"},
 
+	/*@OPTION Debug: Dump Jobs ( --debug-jobs )
+	@END*/
+	{0, &option_debug_jobs		, "--debug-jobs", "prints all the jobs that exist"},
+
 	/*@OPTION Debug: Dirty Marking ( --debug-dirty )
 	@END*/
 	{0, &option_debug_dirty		, "--debug-dirty", ""},
@@ -188,781 +193,7 @@ static struct OPTION options[] = {
 	{0, 0, (const char*)0, (const char*)0}
 };
 
-/****/
-static void debug_print_lua_value(lua_State *L, int i)
-{
-	if(lua_type(L,i) == LUA_TNIL)
-		printf("nil");
-	else if(lua_type(L,i) == LUA_TSTRING)
-		printf("'%s'", lua_tostring(L,i));
-	else if(lua_type(L,i) == LUA_TNUMBER)
-		printf("%f", lua_tonumber(L,i));
-	else if(lua_type(L,i) == LUA_TBOOLEAN)
-	{
-		if(lua_toboolean(L,i))
-			printf("true");
-		else
-			printf("false");
-	}
-	else if(lua_type(L,i) == LUA_TTABLE)
-	{
-		printf("{...}");
-	}
-	else
-		printf("%p (%s (%d))", lua_topointer(L,i), lua_typename(L,lua_type(L,i)), lua_type(L,i));
-}
-
-/* error function */
-static int lf_errorfunc(lua_State *L)
-{
-	int depth = 0;
-	int frameskip = 1;
-	lua_Debug frame;
-
-	if(option_report_color)
-		printf("\033[01;31m%s\033[00m\n", lua_tostring(L,-1));
-	else
-		printf("%s\n", lua_tostring(L,-1));
-	
-	printf("stack traceback:\n");
-	
-	while(lua_getstack(L, depth, &frame) == 1)
-	{
-		depth++;
-		
-		lua_getinfo(L, "nlSf", &frame);
-
-		/* check for functions that just report errors. these frames just confuses more then they help */
-		if(frameskip && strcmp(frame.short_src, "[C]") == 0 && frame.currentline == -1)
-			continue;
-		frameskip = 0;
-		
-		/* print stack frame */
-		printf("  %s(%d): %s %s\n", frame.short_src, frame.currentline, frame.name, frame.namewhat);
-		
-		/* print all local variables for the frame */
-		{
-			int i;
-			const char *name = 0;
-			
-			i = 1;
-			while((name = lua_getlocal(L, &frame, i)) != NULL)
-			{
-				printf("    %s = ", name);
-				debug_print_lua_value(L,-1);
-				printf("\n");
-				lua_pop(L,1);
-				i++;
-			}
-			
-			i = 1;
-			while((name = lua_getupvalue(L, -1, i)) != NULL)
-			{
-				/* TODO: parse value as well*/
-				printf("    upvalue: %d %s\n", i-1, name);
-				lua_pop(L,1);
-				i++;
-			}
-		}
-	}
-	return 1;
-}
-
-static int lf_istable(lua_State *L)
-{
-	if(lua_type(L,-1) == LUA_TTABLE)
-		lua_pushnumber(L, 1);
-	else
-		lua_pushnil(L);
-	return 1;
-}
-
-static int lf_isstring(lua_State *L)
-{
-	if(lua_type(L,-1) == LUA_TSTRING)
-		lua_pushnumber(L, 1);
-	else
-		lua_pushnil(L);
-	return 1;
-}
-
-
-/*
-	add_job(string output, string label, string command)
-*/
-static int lf_add_job(lua_State *L)
-{
-	struct NODE *node;
-	struct CONTEXT *context;
-	int n = lua_gettop(L);
-	int i;
-	if(n != 3)
-	{
-		lua_pushstring(L, "add_job: incorrect number of arguments");
-		lua_error(L);
-	}
-
-	/* fetch contexst from lua */
-	context = context_get_pointer(L);
-
-	/* create the node */
-	i = node_create(&node, context->graph, lua_tostring(L,1), lua_tostring(L,2), lua_tostring(L,3));
-	if(i == NODECREATE_NOTNICE)
-	{
-		printf("%s: '%s' is not nice\n", program_name, lua_tostring(L,2));
-		lua_pushstring(L, "add_job: path is not nice");
-		lua_error(L);
-	}
-	else if(i == NODECREATE_EXISTS)
-	{
-		printf("%s: '%s' already exists\n", program_name, lua_tostring(L,2));
-		lua_pushstring(L, "add_job: node already exists");
-		lua_error(L);
-	}
-	else if(i != NODECREATE_OK)
-	{
-		lua_pushstring(L, "add_job: unknown error creating node");
-		lua_error(L);
-	}
-
-	return 0;
-}
-
-/* ********** */
-static int lf_add_dependency(lua_State *L)
-{
-	struct NODE *node;
-	struct CONTEXT *context;
-
-	int n = lua_gettop(L);
-	int i;
-	
-	if(n < 2)
-	{
-		lua_pushstring(L, "add_dep: to few arguments");
-		lua_error(L);
-	}
-
-	context = context_get_pointer(L);
-
-	node = node_find(context->graph, lua_tostring(L,1));
-	if(!node)
-	{
-		char buf[MAX_PATH_LENGTH];
-		sprintf(buf, "add_dep: couldn't find node with name '%s'", lua_tostring(L,1));
-		lua_pushstring(L, buf);
-		lua_error(L);
-	}
-	
-	/* seek deps */
-	for(i = 2; i <= n; ++i)
-	{
-		if(lua_isstring(L,n))
-		{
-			if(!node_add_dependency(node, lua_tostring(L,n)))
-			{
-				lua_pushstring(L, "add_dep: could not add dependency");
-				lua_error(L);
-			}
-		}
-		else
-		{
-			lua_pushstring(L, "add_dep: dependency is not a string");
-			lua_error(L);
-		}
-	}
-	
-	return 0;
-}
-
-/* default_target(string filename) */
-static int lf_default_target(lua_State *L)
-{
-	struct NODE *node;
-	struct CONTEXT *context;
-
-	int n = lua_gettop(L);
-	if(n != 1)
-	{
-		lua_pushstring(L, "default_target: incorrect number of arguments");
-		lua_error(L);
-	}
-	
-	if(!lua_isstring(L,1))
-	{
-		lua_pushstring(L, "default_target: expected string");
-		lua_error(L);
-	}
-
-	/* fetch context from lua */
-	context = context_get_pointer(L);
-
-	/* search for the node */
-	node = node_find(context->graph, lua_tostring(L,1));
-	if(!node)
-	{
-		lua_pushstring(L, "default_target: node not found");
-		lua_error(L);
-	}
-	
-	/* set target */
-	context_default_target(context, node);
-	return 0;
-}
-
-/* add_target(string filename) */
-static int lf_add_target(lua_State *L)
-{
-	struct NODE *node;
-	struct CONTEXT *context;
-
-	int n = lua_gettop(L);
-	if(n != 1)
-	{
-		lua_pushstring(L, "add_target: incorrect number of arguments");
-		lua_error(L);
-	}
-	
-	if(!lua_isstring(L,1))
-	{
-		lua_pushstring(L, "add_target: expected string");
-		lua_error(L);
-	}
-
-	/* fetch context from lua */
-	context = context_get_pointer(L);
-
-	/* search for the node */
-	node = node_find(context->graph, lua_tostring(L,1));
-	if(!node)
-	{
-		lua_pushstring(L, "add_target: node not found");
-		lua_error(L);
-	}
-	
-	/* add target */
-	if(context_add_target(context, node))
-	{
-		lua_pushstring(L, "add_target: target already exists");
-		lua_error(L);
-	}
-	
-	/* we need to save the options some where */
-	return 0;
-}
-
-/* update_globalstamp(string filename) */
-static int lf_update_globalstamp(lua_State *L)
-{
-	struct CONTEXT *context;
-
-	int n = lua_gettop(L);
-	time_t file_stamp;
-	
-	if(n < 1)
-	{
-		lua_pushstring(L, "update_globalstamp: to few arguments");
-		lua_error(L);
-	}
-
-	context = context_get_pointer(L);
-	file_stamp = file_timestamp(lua_tostring(L,1)); /* update global timestamp */
-	
-	if(file_stamp > context->globaltimestamp)
-		context->globaltimestamp = file_stamp;
-	
-	return 0;
-}
-
-
-/* loadfile(filename) */
-static int lf_loadfile(lua_State *L)
-{
-	int n = lua_gettop(L);
-	int ret = 0;
-	
-	if(n < 1)
-	{
-		lua_pushstring(L, "loadfile: to few arguments");
-		lua_error(L);
-	}
-
-	if(option_verbose)
-		printf("%s: reading script from '%s'\n", program_name, lua_tostring(L,1));
-	
-	ret = luaL_loadfile(L, lua_tostring(L,1));
-	if(ret != 0)
-		lua_error(L);
-		
-	return 1;
-}
-
-static void progressbar_clear()
-{
-	printf("                                                 \r");
-}
-
-static void progressbar_draw(struct CONTEXT *context)
-{
-	const int max = 40;
-	int i;
-	int count = (context->current_cmd_num*max)/context->num_commands;
-	int precent = (context->current_cmd_num*100)/context->num_commands;
-
-	if(option_report_color)
-	{
-		printf(" %3d%% \033[01;32m[\033[01;33m", precent);
-		for(i = 0; i < count-1; i++)
-			printf("=");
-		printf(">");
-		for(; i < max; i++)
-			printf(" ");
-		printf("\033[01;32m]\033[00m\r");
-	}
-	else
-	{
-		printf(" %3d%% [", precent);
-		for(i = 0; i < count-1; i++)
-			printf("=");
-		printf(">");
-		for(; i < max; i++)
-			printf(" ");
-		printf("]\r");
-	}
-}
-
-static int run_node(struct CONTEXT *context, struct NODE *node, int thread_id)
-{
-	int ret;
-	
-	if(node->label && node->label[0])
-	{
-		context->current_cmd_num++;
-		
-		if(1)
-		{
-			static const char *format = 0;
-			if(!format)
-			{
-				static char buf[64];
-				int num = 0;
-				int c = context->num_commands;
-				for(; c; c /= 10)
-					num++;
-				
-				if(option_report_color)
-					sprintf(buf, "\033[01;32m[%%%dd/%%%dd] \033[01;36m#%%d\033[00m %%s\n", num, num);
-				else
-					sprintf(buf, "[%%%dd/%%%dd] #%%d %%s\n", num, num);
-				format = buf;
-			}
-			
-			if(option_report_bar)
-				progressbar_clear();
-			if(option_report_steps)
-			{
-				if(option_simpleoutput)
-					printf("%s", node->label);
-				else
-					printf(format, context->current_cmd_num, context->num_commands, thread_id, node->label);
-			}
-		}
-		
-		if(option_report_bar)
-			progressbar_draw(context);
-	}
-	
-	if(option_verbose)
-	{
-		if(option_report_color)
-			printf("\033[01;33m%s\033[00m\n", node->cmdline);
-		else
-			printf("%s\n", node->cmdline);
-	}
-		
-	fflush(stdout);
-	
-	/* execute the command */
-	criticalsection_leave();
-	ret = system(node->cmdline);
-	criticalsection_enter();
-	
-	if(ret)
-	{
-		if(option_report_color)
-			printf("\033[01;31m%s: command returned error %d\033[00m\n", program_name, ret);
-		else
-			printf("%s: command returned error: %d\n", program_name, ret);
-		fflush(stdout);
-	}
-	return ret;
-}
-
-struct THREADINFO
-{
-	int id;
-	struct CONTEXT *context;
-	struct NODE *node; /* the top node */
-	int errorcode;
-};
-
-static int threads_run_callback(struct NODEWALK *walkinfo)
-{
-	struct NODE *node = walkinfo->node;
-	struct THREADINFO *info = (struct THREADINFO *)walkinfo->user;
-	struct DEPENDENCY *dep;
-	int errorcode = 0;
-
-	/* make sure that all deps are done */
-	for(dep = node->firstdep; dep; dep = dep->next)
-	{
-		if(dep->node->dirty && dep->node->workstatus != NODESTATUS_DONE)
-		/*if(dep->node->workstatus != NODESTATUS_DONE)*/
-			return 0;
-	}
-
-	/* if it doesn't have a tool, just mark it as done and continue the search */
-	if(!node->cmdline)
-	{
-		node->workstatus = NODESTATUS_DONE;
-		return 0;
-	}
-	
-	/* mark the node as its in the working */
-	node->workstatus = NODESTATUS_WORKING;
-	
-	/* run the node */
-	if(node->cmdline)
-		errorcode = run_node(info->context, node, info->id+1);
-	
-	/* this node is done, mark it so and return the error code */
-	node->workstatus = NODESTATUS_DONE;
-	return errorcode;
-}
-
-volatile int nothing_done_counter = 0;
-
-static void threads_run(void *u)
-{
-	struct THREADINFO *info = (struct THREADINFO *)u;
-	int flags = NODEWALK_BOTTOMUP|NODEWALK_UNDONE|NODEWALK_QUICK;
-	
-	info->errorcode = 0;
-	
-	/* lock the dependency graph */
-	criticalsection_enter();
-	
-	if(info->node->dirty)
-	{
-		while(1)
-		{
-			info->errorcode = node_walk(info->node, flags, threads_run_callback, info);
-			
-			/* check if we are done */
-			if(info->node->workstatus == NODESTATUS_DONE || info->errorcode != 0)
-				break;
-				
-			/* let the others have some time */
-			criticalsection_leave();
-			threads_yield();
-			criticalsection_enter();
-		}
-	}
-	
-	criticalsection_leave();
-}
-
-static int run(struct CONTEXT *context, struct NODE *node)
-{
-	/* multithreaded */
-	struct THREADINFO info[64];
-	void *threads[64];
-	int i;
-	
-	/* clamp number of threads */
-	if(option_threads > 64) option_threads = 64;
-	else if(option_threads < 1) option_threads = 1;
-	
-	for(i = 0; i < option_threads; i++)
-	{
-		info[i].context = context;
-		info[i].node = node;
-		info[i].id = i;
-		info[i].errorcode = 0;
-	}
-
-	if(option_threads <= 1)
-	{
-		/* no threading, use this thread then */
-		threads_run(&info[0]);
-		if(option_report_bar)
-			progressbar_clear();
-		return info[0].errorcode;
-	}
-	else
-	{
-		/* start threads */
-		for(i = 0; i < option_threads; i++)
-			threads[i] = threads_create(threads_run, &info[i]);
-		
-		/* wait for threads */
-		for(i = 0; i < option_threads; i++)
-			threads_join(threads[i]);
-			
-		if(option_report_bar)
-			progressbar_clear();
-
-		/* check for error codes */		
-		for(i = 0; i < option_threads; i++)
-		{
-			if(info[i].errorcode)
-				return info[i].errorcode;
-		}
-	}
-	return 0;
-}
-
-static int clean_callback(struct NODEWALK *walkinfo)
-{
-	struct NODE *node = walkinfo->node;
-	
-	/* no tool, no processing */
-	if(!node->cmdline)
-		return 0;
-
-	if(node->timestamp)
-	{
-		if(remove(node->filename) == 0)
-			printf("%s: removed '%s'\n", program_name, node->filename);
-	}
-	return 0;
-}
-
-static void clean(struct NODE *node)
-{
-	node_walk(node, NODEWALK_BOTTOMUP|NODEWALK_FORCE, clean_callback, 0);
-}
-
-static int count_jobs_callback(struct NODEWALK *walkinfo)
-{
-	struct NODE *node = walkinfo->node;
-	struct CONTEXT *context = (struct CONTEXT *)walkinfo->user;
-	if(node->cmdline && !node->counted)
-	{
-		node->counted = 1;
-		context->num_commands++;
-	}
-	return 0;
-}
-
-static int count_jobs(struct CONTEXT *context, struct NODE *node)
-{
-	node_walk(node, NODEWALK_BOTTOMUP|NODEWALK_QUICK, count_jobs_callback, context);
-	return 0;
-}
-
-static int dirty_mark_callback(struct NODEWALK *walkinfo)
-{
-	struct NODE *node = walkinfo->node;
-	struct CONTEXT *context = (struct CONTEXT *)walkinfo->user;
-	struct DEPENDENCY *dep;
-	time_t time = timestamp();
-	
-	if(option_debug_dirty)
-		printf("%s: dirty: check on '%s'\n", program_name, node->filename);
-
-	/* check against the global timestamp first */
-	if(node->cmdline && (!node->timestamp || node->timestamp < context->globaltimestamp))
-	{
-		if(option_debug_dirty)
-		{
-			if(!node->timestamp)
-				printf("%s: dirty: \ttimestamp == 0\n", program_name);
-			else
-				printf("%s: dirty: \ttimestamp < globaltimestamp\n", program_name);
-		}
-		node->dirty = 1;
-		return 0;
-	}
-	
-	/* check against all the dependencies */
-	for(dep = node->firstdep; dep; dep = dep->next)
-	{
-		if(node->timestamp > time)
-			printf("%s: WARNING:'%s' comes from the future\n", program_name, node->filename);
-		
-		if(dep->node->dirty)
-		{
-			if(option_debug_dirty)
-				printf("%s: dirty: \tdep '%s' dirty\n", program_name, dep->node->filename);
-			node->dirty = 1;
-			break;
-		}
-		else if(node->timestamp < dep->node->timestamp)
-		{
-			if(node->cmdline)
-			{
-				if(option_debug_dirty)
-					printf("%s: dirty: \tdep '%s' timestamp\n", program_name, dep->node->filename);
-				node->dirty = 1;
-				break;
-			}
-			else /* no cmdline, just propagate the timestamp */
-			{
-				if(option_debug_dirty)
-					printf("%s: dirty: \ttimestamp taken from '%s'\n", program_name, dep->node->filename);
-				node->timestamp = dep->node->timestamp;
-			}
-		}
-	}
-	return 0;
-}
-
-int dirty_mark(struct CONTEXT *context, struct NODE *target)
-{
-	/* TODO: we should have NODEWALK_QUICK here, but then it will fail on circular dependencies */
-	return node_walk(target, NODEWALK_BOTTOMUP|NODEWALK_FORCE, dirty_mark_callback, context);
-}
-
-static int validate_graph_callback(struct NODEWALK *walkinfo)
-{
-	struct NODE *node = walkinfo->node;
-	struct DEPENDENCY *dep;
-	struct NODEWALKPATH *path;
-
-	for(dep = node->firstdep; dep; dep = dep->next)
-	{
-		if(!dep->node->cmdline)
-			continue;
-			
-		for(path = walkinfo->parent; path; path = path->parent)
-		{
-			if(path->node == dep->node)
-			{
-				printf("error: circular dependency found\n");
-				printf("\t%s\n", dep->node->filename);
-				for(path = walkinfo->parent; path; path = path->parent)
-					printf("\t%s\n", path->node->filename);
-				return -1;
-			}
-		}
-	}
-	
-	return 0;
-}
-
-static int validate_target(struct NODE *target)
-{
-	return node_walk(target, NODEWALK_BOTTOMUP|NODEWALK_FORCE, validate_graph_callback, 0x0);
-}
-
-/* do targets */
-static int do_target_pass_setup(struct CONTEXT *context, struct NODE *target)
-{
-	/* validate and dirty mark */
-	/* TODO: these could perhaps be merged to one pass */
-	int error;
-	
-	error = validate_target(target);
-	if(error)
-		return error;
-		
-	error = dirty_mark(context, target);
-	if(error)
-		return error;
-		
-	count_jobs(context, target);
-	return 0;
-}
-
-static int do_target_pass_build(struct CONTEXT *context, struct NODE *target)
-{
-	if(option_clean)
-	{
-		printf("%s: cleaning '%s'\n", program_name, path_filename(target->filename));
-		clean(target);
-		return 0;
-	}
-	else
-	{
-		printf("%s: building '%s'\n", program_name, path_filename(target->filename));
-		return run(context, target);
-	}
-}
-
-static int do_targets_all(struct CONTEXT *context)
-{
-	int error;
-	struct TARGET *target;
-	
-	if(!context->firsttarget)
-	{
-		printf("%s: no targets specified\n", program_name);
-		return -1;
-	}
-	
-	for(target = context->firsttarget; target; target = target->next)
-	{
-		error = do_target_pass_setup(context, target->node);
-		if(error)
-			return error;
-	}
-	
-	for(target = context->firsttarget; target; target = target->next)
-	{
-		error = do_target_pass_build(context, target->node);
-		if(error)
-			return error;
-	}
-	
-	return 0;
-}
-
-static int do_targets_specified(struct CONTEXT *context, const char **targets, int num_targets)
-{
-	int i, error;
-	for(i = 0; i < num_targets; i++)
-	{
-		struct NODE *node = node_find(context->graph, targets[i]);
-		if(!node)
-		{
-			printf("%s: no target named '%s'\n", program_name, targets[i]);
-			return -1;
-		}
-		
-		error = do_target_pass_setup(context, node);
-		if(error)
-			return error;
-	}
-
-	for(i = 0; i < num_targets; i++)
-	{
-		struct NODE *node = node_find(context->graph, targets[i]);
-		error = do_target_pass_build(context, node);
-		if(error)
-			return error;
-	}
-
-	return 0;
-}
-
-static int do_targets_default(struct CONTEXT *context)
-{
-	int error;
-	if(!context->defaulttarget)
-	{
-		printf("%s: no default target\n", program_name);
-		return -1;
-	}
-					
-	error = do_target_pass_setup(context, context->defaulttarget);
-	if(error)
-		return error;
-	return do_target_pass_build(context, context->defaulttarget);
-}
-
-
-const char *internal_base_reader(lua_State *L, void *data, size_t *size)
+static const char *internal_base_reader(lua_State *L, void *data, size_t *size)
 {
 	char **p = (char **)data;
 	if(!*p)
@@ -972,6 +203,13 @@ const char *internal_base_reader(lua_State *L, void *data, size_t *size)
 	data = *p;
 	*p = 0;
 	return data;
+}
+
+
+static void lua_setglobalstring(lua_State *L, const char *field, const char *s)
+{
+	lua_pushstring(L, s);
+	lua_setglobal(L, field);
 }
 
 /* *** */
@@ -985,7 +223,6 @@ int register_lua_globals(struct CONTEXT *context)
 	/* add specific functions */
 	lua_register(context->lua, L_FUNCTION_PREFIX"add_job", lf_add_job);
 	lua_register(context->lua, L_FUNCTION_PREFIX"add_dependency", lf_add_dependency);
-	lua_register(context->lua, L_FUNCTION_PREFIX"add_target", lf_add_target);
 	lua_register(context->lua, L_FUNCTION_PREFIX"default_target", lf_default_target);
 
 	/* path manipulation */
@@ -1045,58 +282,28 @@ int register_lua_globals(struct CONTEXT *context)
 		char cwd[MAX_PATH_LENGTH];
 		if(!getcwd(cwd, sizeof(cwd)))
 		{
-			printf("%s: error: couldn't get current working directory\n", program_name);
+			printf("%s: error: couldn't get current working directory\n", session.name);
 			return -1;
 		}
 		
-		lua_pushstring(context->lua, CONTEXT_LUA_PATH);
-		lua_pushstring(context->lua, context->script_directory);
-		lua_settable(context->lua, LUA_GLOBALSINDEX);
-
-		lua_pushstring(context->lua, CONTEXT_LUA_WORKPATH);
-		lua_pushstring(context->lua, cwd);
-		lua_settable(context->lua, LUA_GLOBALSINDEX);
+		lua_setglobalstring(context->lua, CONTEXT_LUA_PATH, context->script_directory);
+		lua_setglobalstring(context->lua, CONTEXT_LUA_WORKPATH, cwd);
 	}
 
-	/* set context */
-	lua_pushstring(context->lua, CONTEXT_LUA_CONTEXT_POINTER);
-	lua_pushlightuserdata(context->lua, context);
-	lua_settable(context->lua, LUA_GLOBALSINDEX);
-
-	/* set version */
-	lua_pushstring(context->lua, "_bam_version");
-	lua_pushstring(context->lua, BAM_VERSION_STRING);
-	lua_settable(context->lua, LUA_GLOBALSINDEX);
-
-	lua_pushstring(context->lua, "_bam_version_complete");
-	lua_pushstring(context->lua, BAM_VERSION_STRING_COMPLETE);
-	lua_settable(context->lua, LUA_GLOBALSINDEX);
-	
-	/* set family */
-	lua_pushstring(context->lua, "family");
-	lua_pushstring(context->lua, BAM_FAMILY_STRING);
-	lua_settable(context->lua, LUA_GLOBALSINDEX);
-
-	/* set platform */
-	lua_pushstring(context->lua, "platform");
-	lua_pushstring(context->lua, BAM_PLATFORM_STRING);
-	lua_settable(context->lua, LUA_GLOBALSINDEX);
-
-	/* set arch */
-	lua_pushstring(context->lua, "arch");
-	lua_pushstring(context->lua, BAM_ARCH_STRING);
-	lua_settable(context->lua, LUA_GLOBALSINDEX);
-
-	/* set verbosity level */
-	lua_pushstring(context->lua, "verbose");
-	lua_pushnumber(context->lua, option_verbose);
-	lua_settable(context->lua, LUA_GLOBALSINDEX);
+	/* set version, family, platform, arch, verbocity */
+	lua_setglobalstring(context->lua, "_bam_version", BAM_VERSION_STRING);
+	lua_setglobalstring(context->lua, "_bam_version_complete", BAM_VERSION_STRING_COMPLETE);
+	lua_setglobalstring(context->lua, "family", BAM_FAMILY_STRING);
+	lua_setglobalstring(context->lua, "platform", BAM_PLATFORM_STRING);
+	lua_setglobalstring(context->lua, "arch", BAM_ARCH_STRING);
+	lua_pushnumber(context->lua, session.verbose);
+	lua_setglobal(context->lua, "verbose");
 
 	/* load base script */
 	if(option_basescript)
 	{
-		if(option_verbose)
-			printf("%s: reading base script from '%s'\n", program_name, option_basescript);
+		if(session.verbose)
+			printf("%s: reading base script from '%s'\n", session.name, option_basescript);
 		
 		/* push error function to stack */
 		if(luaL_loadfile(context->lua, option_basescript) != 0)
@@ -1120,8 +327,8 @@ int register_lua_globals(struct CONTEXT *context)
 		{
 			p = internal_files[f].content;
 			
-			if(option_verbose)
-				printf("%s: reading internal file '%s'\n", program_name, internal_files[f].filename);
+			if(session.verbose)
+				printf("%s: reading internal file '%s'\n", session.name, internal_files[f].filename);
 		
 			lua_getglobal(context->lua, "errorfunc");
 			
@@ -1130,11 +337,11 @@ int register_lua_globals(struct CONTEXT *context)
 			if(ret != 0)
 			{
 				if(ret == LUA_ERRSYNTAX)
-					printf("%s: syntax error\n", program_name);
+					printf("%s: syntax error\n", session.name);
 				else if(ret == LUA_ERRMEM)
-					printf("%s: memory allocation error\n", program_name);
+					printf("%s: memory allocation error\n", session.name);
 				else
-					printf("%s: unknown error parsing base script\n", program_name);
+					printf("%s: unknown error parsing base script\n", session.name);
 				lf_errorfunc(context->lua);
 				error = 1;
 			}
@@ -1145,15 +352,6 @@ int register_lua_globals(struct CONTEXT *context)
 	
 	return error;
 }
-
-
-static int lf_panicfunc(lua_State *L)
-{
-	printf("%s: PANIC!\n", program_name);
-	*(int*)0 = 0;
-	return 0;
-}
-
 
 static void *lua_alloctor(void *ud, void *ptr, size_t osize, size_t nsize)
 {
@@ -1203,19 +401,19 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 
 		if(!getcwd(cwd, sizeof(cwd)))
 		{
-			printf("%s: error: couldn't get current working directory\n", program_name);
+			printf("%s: error: couldn't get current working directory\n", session.name);
 			return -1;
 		}
 		
 		if(path_directory(context.filename, path, sizeof(path)))
 		{
-			printf("%s: error: path too long '%s'\n", program_name, path);
+			printf("%s: error: path too long '%s'\n", session.name, path);
 			return -1;
 		}
 		
 		if(path_join(cwd, path, context.script_directory, sizeof(context.script_directory)))
 		{
-			printf("%s: error: path too long when joining '%s' and '%s'\n", program_name, cwd, path);
+			printf("%s: error: path too long when joining '%s' and '%s'\n", session.name, cwd, path);
 			return -1;
 		}
 	}
@@ -1234,11 +432,11 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 
 	/* load cache */
 	if(!option_no_cache)
-		context.cache = node_cache_load(CACHE_FILENAME);
+		context.cache = cache_load(CACHE_FILENAME);
 	
 	/* load script */	
-	if(option_verbose)
-		printf("%s: reading script from '%s'\n", program_name, scriptfile);
+	if(session.verbose)
+		printf("%s: reading script from '%s'\n", session.name, scriptfile);
 
 	if(1)
 	{
@@ -1250,11 +448,11 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 		if(ret != 0)
 		{
 			if(ret == LUA_ERRSYNTAX)
-				printf("%s: syntax error\n", program_name);
+				printf("%s: syntax error\n", session.name);
 			else if(ret == LUA_ERRMEM)
-				printf("%s: memory allocation error\n", program_name);
+				printf("%s: memory allocation error\n", session.name);
 			else if(ret == LUA_ERRFILE)
-				printf("%s: error opening '%s'\n", program_name, scriptfile);
+				printf("%s: error opening '%s'\n", session.name, scriptfile);
 			lf_errorfunc(context.lua);
 			error = 1;
 		}
@@ -1264,57 +462,107 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	
 	/* save cache */
 	if(!option_no_cache)
-		node_cache_save(CACHE_FILENAME, context.graph);
+		cache_save(CACHE_FILENAME, context.graph);
 
-	/* debug */
-	if(option_debug_nodes)
+	/* make build target */
 	{
-		/* debug dump all nodes */
-		node_debug_dump(context.graph);
-		report_done = 0;
-	}
-	else if(option_dry)
-	{
-		/* do NADA */
-	}
-	else
-	{
-		/* run */
-		if(error == 0)
+		struct NODE *node;
+		int all_target = 0;
+
+		if(node_create(&context.target, context.graph, "_buildtarget", 0, 0))
+			return -1;
+			
+		if(num_targets)
+		{
+			/* search for all target */
+			for(i = 0; i < num_targets; i++)
+			{
+				if(strcmp(targets[i], "all") == 0)
+				{
+					all_target = 1;
+					break;
+				}
+			}
+		}
+		
+		/* default too all if we have no targets or default target */
+		if(num_targets == 0 && !context.defaulttarget)
+			all_target = 1;
+		
+		if(all_target)
+		{
+			/* build the all target */
+			for(node = context.graph->first; node; node = node->next)
+			{
+				if(!node->isdependedon && node != context.target)
+					node_add_dependency_withnode(context.target, node);
+			}
+		}
+		else
 		{
 			if(num_targets)
 			{
-				/* search for all target */
 				for(i = 0; i < num_targets; i++)
 				{
-					if(strcmp(targets[i], "all") == 0)
+					struct NODE *node = node_find(context.graph, targets[i]);
+					if(!node)
 					{
-						error = do_targets_all(&context);
-						break;
+						printf("%s: target '%s' not found\n", session.name, targets[i]);
+						return -1;
 					}
+					
+					node_add_dependency_withnode(context.target, node);
 				}
-				
-				/* no all target was found */
-				if(i == num_targets)
-					error = do_targets_specified(&context, targets, num_targets);
 			}
 			else
+				node_add_dependency_withnode(context.target, context.defaulttarget);
+
+		}
+	}
+	
+	if(!error)
+	{
+		/* debug */
+		if(option_debug_nodes)
+		{
+			/* debug dump all nodes */
+			node_debug_dump(context.graph);
+			report_done = 0;
+		}
+		else if(option_debug_jobs)
+		{
+			/* debug dump all jobs */
+			error = build_prepare(&context);
+			node_debug_dump_jobs(context.graph);
+			report_done = 0;
+		}
+		else if(option_dry)
+		{
+			/* do NADA */
+		}
+		else
+		{
+			/* run */
+			error = build_prepare(&context);
+			if(!error)
 			{
-				/* just do the default target */
-				error = do_targets_default(&context);
+				if(option_clean)
+					error = build_clean(&context);
+				else
+					error = build_make(&context);
 			}
 		}
 	}
-
+	
 	/* clean up */
 	lua_close(context.lua);
 	mem_destroy(context.heap);
 
 	/* print and return */
 	if(error)
-		printf("%s: error during build\n", program_name);
+		printf("%s: error during build\n", session.name);
 	else if(report_done)
-		printf("%s: done\n", program_name);
+		printf("%s: done\n", session.name);
 
 	/* print build time */
 	if(option_debug_buildtime)
@@ -1334,7 +582,7 @@ static void print_help()
 	printf("bam version " BAM_VERSION_STRING_COMPLETE ". built "__DATE__" "__TIME__" using " LUA_VERSION "\n");
 	printf("by Magnus Auvinen (magnus.auvinen@gmail.com)\n");
 	printf("\n");
-	printf("%s [OPTIONS] [TARGETS]\n", program_name);
+	printf("%s [OPTIONS] [TARGETS]\n", session.name);
 	printf("\n");
 
 	for(j = 0; options[j].sw; j++)
@@ -1347,7 +595,7 @@ static void print_help()
 static void abortsignal(int i)
 {
 	(void)i;
-	printf("%s: signal cought, exiting.\n", program_name);
+	printf("%s: signal cought, exiting.\n", session.name);
 	exit(1);
 }
 
@@ -1366,7 +614,7 @@ static int parse_parameters(int num, char **params)
 				{
 					if(i+1 >= num)
 					{
-						printf("%s: you must supply a argument with %s\n", program_name, options[j].sw);
+						printf("%s: you must supply a argument with %s\n", session.name, options[j].sw);
 						return -1;
 					}
 					
@@ -1386,7 +634,7 @@ static int parse_parameters(int num, char **params)
 			/* check if it's an option, and warn if it could not be found */
 			if(params[i][0] == '-')
 			{
-				printf("%s: unknown switch '%s'\n", program_name, params[i]);
+				printf("%s: unknown switch '%s'\n", session.name, params[i]);
 				return -1;
 			}
 			else
@@ -1431,7 +679,7 @@ static int parse_parameters_str(const char *str)
 				string_parse = 0;
 			else if(*str == 0)
 			{
-				printf("%s: error: unterminated \"\n", program_name);
+				printf("%s: error: unterminated \"\n", session.name);
 				return -1;	
 			}
 			else
@@ -1454,7 +702,7 @@ static int parse_parameters_str(const char *str)
 		
 		if(current == end)
 		{
-			printf("%s: error: argument too long\n", program_name);
+			printf("%s: error: argument too long\n", session.name);
 			return -1;
 		}
 		
@@ -1480,7 +728,7 @@ int main(int argc, char **argv)
 	for(i = 0; argv[0][i]; ++i)
 	{
 		if(argv[0][i] == '/' || argv[0][i] == '\\')
-			program_name = &argv[0][i+1];
+			session.name = &argv[0][i+1];
 	}
 
 	/* get basescript */
@@ -1502,18 +750,18 @@ int main(int argc, char **argv)
 	for(i = 0; option_report_str[i]; i++)
 	{
 		if(option_report_str[i] == 'c')
-			option_report_color = 1;
+			session.report_color = 1;
 		else if(option_report_str[i] == 'b')
-			option_report_bar = 1;
+			session.report_bar = 1;
 		else if(option_report_str[i] == 's')
-			option_report_steps = 1;
+			session.report_steps = 1;
 	}
 	
 	/* convert the threads string */
-	option_threads = atoi(option_threads_str);
-	if(option_threads < 0)
+	session.threads = atoi(option_threads_str);
+	if(session.threads < 0)
 	{
-		printf("%s: invalid number of threads supplied\n", program_name);
+		printf("%s: invalid number of threads supplied\n", session.name);
 		return 1;
 	}
 	
@@ -1540,7 +788,7 @@ int main(int argc, char **argv)
 	/* check if a script exist */
 	if(!file_exist(option_script))
 	{
-		printf("%s: no project named '%s'\n", program_name, option_script);
+		printf("%s: no project named '%s'\n", session.name, option_script);
 		return 1;
 	}
 	

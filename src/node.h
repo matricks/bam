@@ -1,3 +1,6 @@
+#ifndef FILE_NODE_H
+#define FILE_NODE_H
+
 
 /***** dependency graph *******/
 
@@ -17,36 +20,46 @@ struct SCANNER
 	int (*scannerfunc)(struct NODE *, struct SCANNER *info);
 };
 
-/**/
+
+
+/*
+	64 byte on a 32 machine.
+	this should be able to fit inside a cache line
+	or perhaps two in one cache line
+	TODO: these should be allocated cache aligned
+*/
 struct NODE
 {
 	/* *** */
-	struct GRAPH *graph;
-	struct NODE *next;
+	struct GRAPH *graph; /* graph that the node belongs to */
+	struct NODE *next; /* next node in the graph */
 	struct DEPENDENCY *firstdep; /* list of dependencies */
-
-	RB_ENTRY(NODE) rbentry;
-
-	/* filename and the tool to build the resource */
-	unsigned filename_len; /* including zero term */
-	char *filename; /* this contains the filename with the FULLPATH */
 	
+	char *filename; /* this contains the filename with the FULLPATH */
 	char *cmdline; /* command line that should be executed to build this node */
 	char *label; /* what to print when we build this node */
 	
-	struct SCANNER *firstscanner;
+	RB_ENTRY(NODE) rbentry; /* RB-tree entry sorted by hashid */
 
-	unsigned hashid;
+	/* filename and the tool to build the resource */
+	/* unsigned filename_len; */ /* including zero term */
+	unsigned cmdhash; /* hash of the command line for detecting changes */
+	 
+	unsigned hashid; /* hash of the filename/nodename */
 	
-	time_t timestamp;
+	time_t timestamp; /* timestamp of the node, 0 == does not exist */
 	unsigned id; /* used when doing traversal with marking (bitarray) */
 	
-	/* various flags */
-	unsigned dirty:1; /* set if the node has to be rebuilt */
+	unsigned short filename_len; /* length of filename including zero term */
+	unsigned short depth;	/* depth in the graph. used for priority when buliding */
+	
+	/* various flags (4 bytes in the end) */
+	unsigned dirty:8; /* non-zero if the node has to be rebuilt */
 	unsigned depchecked:1; /* set if a dependency checker have processed the file */
 	unsigned cached:1;
 	unsigned parenthastool:1; /* set if a parent has a tool */
 	unsigned counted:1;
+	unsigned isdependedon:1; /* set if someone depends on this node */
 	
 	volatile unsigned workstatus:2; /* 0 = undone, 1 = in the workings, 2 = done*/
 };
@@ -59,6 +72,8 @@ struct CACHENODE
 	unsigned hashid;
 	time_t timestamp;
 	char *filename;
+	
+	unsigned cmdhash;
 	
 	unsigned deps_num;
 	unsigned *deps; /* index id, not hashid */
@@ -86,21 +101,23 @@ struct CONTEXT;
 #define NODEWALK_UNDONE 8
 #define NODEWALK_QUICK 16
 
+/* node dirty status */
+#define NODEDIRTY_NOT 0
+#define NODEDIRTY_CMDHASH 1
+#define NODEDIRTY_DEPDIRTY 2
+#define NODEDIRTY_DEPNEWER 3
+#define NODEDIRTY_GLOBALSTAMP 4
+
+
 /* you destroy graphs by destroying the heap */
 struct GRAPH *node_create_graph(struct HEAP *heap);
 struct HEAP *node_graph_heap(struct GRAPH *graph);
-
-/* cache */
-int node_cache_save(const char *filename, struct GRAPH *graph);
-struct CACHE *node_cache_load(const char *filename);
-struct CACHENODE *node_cache_find_byhash(struct CACHE *cache, unsigned hashid);
-struct CACHENODE *node_cache_find_byindex(struct CACHE *cache, unsigned index);
-int node_cache_do_dependency(struct CONTEXT *context, struct NODE *node);
 
 /* */
 int node_create(struct NODE **node, struct GRAPH *graph, const char *filename, const char *label, const char *cmdline);
 struct NODE *node_find(struct GRAPH *graph, const char *filename);
 struct NODE *node_add_dependency(struct NODE *node, const char *filename);
+struct NODE *node_add_dependency_withnode(struct NODE *node, struct NODE *depnode);
 
 struct NODEWALKPATH
 {
@@ -128,5 +145,8 @@ int node_walk(
 	void *u);
 
 void node_debug_dump(struct GRAPH *graph);
+void node_debug_dump_jobs(struct GRAPH *graph);
 void node_debug_dump_tree(struct NODE *root);
 void node_debug_dump_dot(struct GRAPH *graph, struct NODE *node);
+
+#endif /* FILE_NODE_H */

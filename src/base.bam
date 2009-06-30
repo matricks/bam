@@ -414,7 +414,8 @@ end
 	Specifies ^filename^ as a target. This target will be include when
 	specifying the ^all^ target.
 @END]]--
-Target = bam_add_target
+--Target = bam_add_target
+function Target(s) return s end
 
 --[[@FUNCTION DefaultTarget(filename)
 	Specifies the default target use build when no targets are
@@ -453,6 +454,14 @@ function NewConfig(on_configured_callback)
 	
 	config.options = {}
 	config.settings = NewSettings()
+	
+	config.NewSettings = function(self)
+		local s = NewSettings()
+		for _,v in pairs(self.options) do
+			v:Apply(s)
+		end
+		return s
+	end
 
 	config.Add = function(self, o)
 		table.insert(self.options, o)
@@ -975,18 +984,29 @@ end
 
 --[[@GROUP Job and Dependencies @END]]--
 
---[[@FUNCTION AddJob(output, label, command)
+--[[@FUNCTION AddJob(output, label, command, ...)
 	Adds a job to be done. The ^output^ string specifies the file that
 	will be created by the command line specified in ^command^ string.
-	The ^label^ is printed out before ^command^ is runned.
+	The ^label^ is printed out before ^command^ is runned. You can also
+	add extra parameters for dependencies for the job
 @END]]--
-AddJob = bam_add_job
+-- TODO: Implement this in C
+function AddJob(output, label, command, ...)
+	bam_add_job(output, label, command)
+	AddDependency(output, {...})
+end
 
 --[[@FUNCTION AddDependency(filename, depfilename)
 	Specifies a dependency of a file. The file specified in the
 	^depfilename^ is a dependency of ^filename^.
 @END]]--
-AddDependency = bam_add_dependency
+-- TODO: Implement this in C
+function AddDependency(filename, ...)
+	for f in WalkTable({...}) do
+		bam_add_dependency(filename, f)
+	end
+end
+-- AddDependency = bam_add_dependency
 
 
 function Default_Intermediate_Output(settings, input)

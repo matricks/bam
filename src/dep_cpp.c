@@ -6,6 +6,7 @@
 
 #include "path.h"
 #include "node.h"
+#include "cache.h"
 #include "context.h"
 #include "mem.h"
 #include "support.h"
@@ -121,7 +122,7 @@ static int dependency_cpp_run(struct CONTEXT *context, struct NODE *node,
 		return 0;
 	node->depchecked = 1;
 		
-	if(node_cache_do_dependency(context, node))
+	if(cache_do_dependency(context, node))
 	{
 		struct DEPENDENCY *dep;
 		for(dep = node->firstdep; dep; dep = dep->next)

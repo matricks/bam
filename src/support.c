@@ -429,3 +429,21 @@ int lf_collect(lua_State *L) { return collect(L, COLLECTFLAG_FILES); }
 int lf_collectrecursive(lua_State *L) { return collect(L, COLLECTFLAG_FILES|COLLECTFLAG_RECURSIVE); }
 int lf_collectdirs(lua_State *L) { return collect(L, COLLECTFLAG_DIRS); }
 int lf_collectdirsrecursive(lua_State *L) { return collect(L, COLLECTFLAG_DIRS|COLLECTFLAG_RECURSIVE); }
+
+int lf_istable(lua_State *L)
+{
+	if(lua_type(L,-1) == LUA_TTABLE)
+		lua_pushnumber(L, 1);
+	else
+		lua_pushnil(L);
+	return 1;
+}
+
+int lf_isstring(lua_State *L)
+{
+	if(lua_type(L,-1) == LUA_TSTRING)
+		lua_pushnumber(L, 1);
+	else
+		lua_pushnil(L);
+	return 1;
+}

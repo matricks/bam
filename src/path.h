@@ -1,6 +1,4 @@
 
-#define MAX_PATH_LENGTH 512
-
 /* returns a pointer to the filename, /foo/bar.a -> bar.a */
 extern const char *path_filename(const char *path);
 
