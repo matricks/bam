@@ -410,13 +410,6 @@ end
 
 --[[@GROUP Targets@END]]--
 
---[[@FUNCTION Target(filename) (Redundent?)
-	Specifies ^filename^ as a target. This target will be include when
-	specifying the ^all^ target.
-@END]]--
---Target = bam_add_target
-function Target(s) return s end
-
 --[[@FUNCTION DefaultTarget(filename)
 	Specifies the default target use build when no targets are
 	specified when bam is invoked.
