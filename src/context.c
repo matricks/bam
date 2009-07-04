@@ -35,13 +35,11 @@ const char *context_get_path(lua_State *L)
 	return path;
 }
 
-
 int context_default_target(struct CONTEXT *context, struct NODE *node)
 {
 	context->defaulttarget = node;
 	return 0;
 }
-
 
 static void progressbar_clear()
 {
@@ -79,39 +77,36 @@ static void progressbar_draw(struct CONTEXT *context)
 
 static int run_node(struct CONTEXT *context, struct NODE *node, int thread_id)
 {
+	static const char *format = 0;
 	int ret;
 	
 	if(node->label && node->label[0])
 	{
 		context->current_cmd_num++;
-		
-		if(1)
+	
+		if(!format)
 		{
-			static const char *format = 0;
-			if(!format)
-			{
-				static char buf[64];
-				int num = 0;
-				int c = context->num_commands;
-				for(; c; c /= 10)
-					num++;
-				
-				if(session.report_color)
-					sprintf(buf, "\033[01;32m[%%%dd/%%%dd] \033[01;36m#%%d\033[00m %%s\n", num, num);
-				else
-					sprintf(buf, "[%%%dd/%%%dd] #%%d %%s\n", num, num);
-				format = buf;
-			}
+			static char buf[64];
+			int num = 0;
+			int c = context->num_commands;
+			for(; c; c /= 10)
+				num++;
 			
-			if(session.report_bar)
-				progressbar_clear();
-			if(session.report_steps)
-			{
-				if(session.simpleoutput)
-					printf("%s", node->label);
-				else
-					printf(format, context->current_cmd_num, context->num_commands, thread_id, node->label);
-			}
+			if(session.report_color)
+				sprintf(buf, "\033[01;32m[%%%dd/%%%dd] \033[01;36m#%%d\033[00m %%s\n", num, num);
+			else
+				sprintf(buf, "[%%%dd/%%%dd] #%%d %%s\n", num, num);
+			format = buf;
+		}
+		
+		if(session.report_bar)
+			progressbar_clear();
+		if(session.report_steps)
+		{
+			if(session.simpleoutput)
+				printf("%s", node->label);
+			else
+				printf(format, context->current_cmd_num, context->num_commands, thread_id, node->label);
 		}
 		
 		if(session.report_bar)
@@ -162,7 +157,6 @@ static int threads_run_callback(struct NODEWALK *walkinfo)
 	for(dep = node->firstdep; dep; dep = dep->next)
 	{
 		if(dep->node->dirty && dep->node->workstatus != NODESTATUS_DONE)
-		/*if(dep->node->workstatus != NODESTATUS_DONE)*/
 			return 0;
 	}
 

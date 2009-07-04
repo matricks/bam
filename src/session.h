@@ -1,9 +1,8 @@
 
+/* max path length for bam */
 #define MAX_PATH_LENGTH 512
 
-/*
-	session - holds all the settings for this bam session
-*/
+/* session - holds all the settings for this bam session */
 struct SESSION
 {
 	const char *name;
@@ -15,4 +14,5 @@ struct SESSION
 	int report_steps;
 };
 
+/* global session structure */
 extern struct SESSION session;

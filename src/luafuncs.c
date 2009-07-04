@@ -13,20 +13,14 @@
 #include "path.h"
 #include "session.h"
 
-/*
-	add_job(string output, string label, string command)
-*/
+/* add_job(string output, string label, string command) */
 int lf_add_job(lua_State *L)
 {
 	struct NODE *node;
 	struct CONTEXT *context;
-	int n = lua_gettop(L);
 	int i;
-	if(n != 3)
-	{
-		lua_pushstring(L, "add_job: incorrect number of arguments");
-		lua_error(L);
-	}
+	if(lua_gettop(L) != 3)
+		luaL_error(L, "add_job: incorrect number of arguments");
 
 	/* fetch contexst from lua */
 	context = context_get_pointer(L);
@@ -34,51 +28,31 @@ int lf_add_job(lua_State *L)
 	/* create the node */
 	i = node_create(&node, context->graph, lua_tostring(L,1), lua_tostring(L,2), lua_tostring(L,3));
 	if(i == NODECREATE_NOTNICE)
-	{
-		printf("%s: '%s' is not nice\n", session.name, lua_tostring(L,2));
-		lua_pushstring(L, "add_job: path is not nice");
-		lua_error(L);
-	}
+		luaL_error(L, "add_job: node '%s' is not nice", lua_tostring(L,2));
 	else if(i == NODECREATE_EXISTS)
-	{
-		printf("%s: '%s' already exists\n", session.name, lua_tostring(L,2));
-		lua_pushstring(L, "add_job: node already exists");
-		lua_error(L);
-	}
+		luaL_error(L, "add_job: node '%s' already exists", lua_tostring(L,2));
 	else if(i != NODECREATE_OK)
-	{
-		lua_pushstring(L, "add_job: unknown error creating node");
-		lua_error(L);
-	}
+		luaL_error(L, "add_job: unknown error creating node '%s'", lua_tostring(L,1));
 
 	return 0;
 }
 
-/* ********** */
+/* add_dependency(string node, string dependency) */
 int lf_add_dependency(lua_State *L)
 {
 	struct NODE *node;
 	struct CONTEXT *context;
-
 	int n = lua_gettop(L);
 	int i;
 	
 	if(n < 2)
-	{
-		lua_pushstring(L, "add_dep: to few arguments");
-		lua_error(L);
-	}
+		luaL_error(L, "add_dep: to few arguments");
 
 	context = context_get_pointer(L);
 
 	node = node_find(context->graph, lua_tostring(L,1));
 	if(!node)
-	{
-		char buf[MAX_PATH_LENGTH];
-		sprintf(buf, "add_dep: couldn't find node with name '%s'", lua_tostring(L,1));
-		lua_pushstring(L, buf);
-		lua_error(L);
-	}
+		luaL_error(L, "add_dep: couldn't find node with name '%s'", lua_tostring(L,1));
 	
 	/* seek deps */
 	for(i = 2; i <= n; ++i)
@@ -86,16 +60,10 @@ int lf_add_dependency(lua_State *L)
 		if(lua_isstring(L,n))
 		{
 			if(!node_add_dependency(node, lua_tostring(L,n)))
-			{
-				lua_pushstring(L, "add_dep: could not add dependency");
-				lua_error(L);
-			}
+				luaL_error(L, "add_dep: could not add dependency for node '%s'", lua_tostring(L,1));
 		}
 		else
-		{
-			lua_pushstring(L, "add_dep: dependency is not a string");
-			lua_error(L);
-		}
+			luaL_error(L, "add_dep: dependency is not a string for node '%s'", lua_tostring(L,1));
 	}
 	
 	return 0;
@@ -109,16 +77,10 @@ int lf_default_target(lua_State *L)
 
 	int n = lua_gettop(L);
 	if(n != 1)
-	{
-		lua_pushstring(L, "default_target: incorrect number of arguments");
-		lua_error(L);
-	}
+		luaL_error(L, "default_target: incorrect number of arguments");
 	
 	if(!lua_isstring(L,1))
-	{
-		lua_pushstring(L, "default_target: expected string");
-		lua_error(L);
-	}
+		luaL_error(L, "default_target: expected string");
 
 	/* fetch context from lua */
 	context = context_get_pointer(L);
@@ -126,10 +88,7 @@ int lf_default_target(lua_State *L)
 	/* search for the node */
 	node = node_find(context->graph, lua_tostring(L,1));
 	if(!node)
-	{
-		lua_pushstring(L, "default_target: node not found");
-		lua_error(L);
-	}
+		luaL_error(L, "default_target: node '%s' not found", lua_tostring(L,1));
 	
 	/* set target */
 	context_default_target(context, node);
@@ -140,15 +99,10 @@ int lf_default_target(lua_State *L)
 int lf_update_globalstamp(lua_State *L)
 {
 	struct CONTEXT *context;
-
-	int n = lua_gettop(L);
 	time_t file_stamp;
 	
-	if(n < 1)
-	{
-		lua_pushstring(L, "update_globalstamp: to few arguments");
-		lua_error(L);
-	}
+	if(lua_gettop(L) < 1)
+		luaL_error(L, "update_globalstamp: to few arguments");
 
 	context = context_get_pointer(L);
 	file_stamp = file_timestamp(lua_tostring(L,1)); /* update global timestamp */
@@ -163,22 +117,14 @@ int lf_update_globalstamp(lua_State *L)
 /* loadfile(filename) */
 int lf_loadfile(lua_State *L)
 {
-	int n = lua_gettop(L);
-	int ret = 0;
-	
-	if(n < 1)
-	{
-		lua_pushstring(L, "loadfile: to few arguments");
-		lua_error(L);
-	}
+	if(lua_gettop(L) < 1)
+		luaL_error(L, "loadfile: too few arguments");
 
 	if(session.verbose)
 		printf("%s: reading script from '%s'\n", session.name, lua_tostring(L,1));
 	
-	ret = luaL_loadfile(L, lua_tostring(L,1));
-	if(ret != 0)
+	if(luaL_loadfile(L, lua_tostring(L,1)) != 0)
 		lua_error(L);
-		
 	return 1;
 }
 

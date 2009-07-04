@@ -28,24 +28,20 @@
 /* internal base.bam file */
 #include "internal_base.h"
 
-/* why is this needed? -kma
-   because of getcwd() -jmb */
+/* needed for getcwd */
 #if defined(BAM_FAMILY_UNIX) || defined(BAM_FAMILY_BEOS)
-#include <unistd.h>
+	#include <unistd.h>
 #endif
 
 #ifdef BAM_FAMILY_WINDOWS
-#include <direct.h>
-#define getcwd _getcwd /* stupid msvc is calling getcwd non-ISO-C++ conformant */
+	#include <direct.h>
+	#define getcwd _getcwd /* stupid msvc is calling getcwd non-ISO-C++ conformant */
+	#define CACHE_FILENAME "bamcache.dat"
+#else
+	#define CACHE_FILENAME ".bamcache"
 #endif
 
 #define DEFAULT_REPORT_STYLE "s"
-
-#ifdef BAM_FAMILY_WINDOWS
-#define CACHE_FILENAME "bamcache.dat"
-#else
-#define CACHE_FILENAME ".bamcache"
-#endif
 
 /* ** */
 #define L_FUNCTION_PREFIX "bam_"
@@ -72,15 +68,15 @@ static const char *option_threads_str = "0";
 static const char *option_report_str = DEFAULT_REPORT_STYLE;
 static const char *option_targets[128] = {0};
 static int option_num_targets = 0;
+static const char *option_scriptargs[128] = {0};
+static int option_num_scriptargs = 0;
 
+/* session object */
 struct SESSION session = {
 	"bam", /* name */
 	1, /* threads */
-	0 /* 	rest */
+	0 /* rest */
 };
-
-static const char *option_scriptargs[128] = {0};
-static int option_num_scriptargs = 0;
 
 static struct OPTION options[] = {
 	/*@OPTION Targets ( name )
@@ -333,32 +329,15 @@ static void *lua_alloctor(void *ud, void *ptr, size_t osize, size_t nsize)
 	return realloc(ptr, nsize);
 }
 
-/* *** */
-static int bam(const char *scriptfile, const char **targets, int num_targets)
+
+static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char **targets, int num_targets)
 {
-	struct CONTEXT context;
-	int error = 0;
-	int i;
-	int report_done = 0;
-
-	/* build time */
-	time_t starttime  = time(0x0);
-		
-	/* clean the context structure */
-	memset(&context, 0, sizeof(struct CONTEXT));
-
-	/* create memory heap */
-	context.heap = mem_create();
-	
-	/* create graph */
-	context.graph = node_create_graph(context.heap);
-
 	/* set filename */
-	context.filename = scriptfile;
-	context.filename_short = path_filename(scriptfile);
+	context->filename = scriptfile;
+	context->filename_short = path_filename(scriptfile);
 	
 	/* set global timestamp to the script file */
-	context.globaltimestamp = file_timestamp(scriptfile);
+	context->globaltimestamp = file_timestamp(scriptfile);
 	
 	/* fetch script directory */
 	{
@@ -371,71 +350,69 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 			return -1;
 		}
 		
-		if(path_directory(context.filename, path, sizeof(path)))
+		if(path_directory(context->filename, path, sizeof(path)))
 		{
 			printf("%s: error: path too long '%s'\n", session.name, path);
 			return -1;
 		}
 		
-		if(path_join(cwd, path, context.script_directory, sizeof(context.script_directory)))
+		if(path_join(cwd, path, context->script_directory, sizeof(context->script_directory)))
 		{
 			printf("%s: error: path too long when joining '%s' and '%s'\n", session.name, cwd, path);
 			return -1;
 		}
 	}
 	
-	/* create lua context */
-	/* HACK: Store the context pointer as the
-		userdata pointer to the allocator to make
-		sure that we have fast access to it. This
-		makes the context_get_pointer call very fast */
-	context.lua = lua_newstate(lua_alloctor, &context);
-	lua_atpanic(context.lua, lf_panicfunc);
-	
 	/* register all functions */
-	if(register_lua_globals(&context) != 0)
-		return 1;
+	if(register_lua_globals(context) != 0)
+	{
+		printf("%s: error: registering of lua functions failed\n", session.name);
+		return -1;
+	}
 
-	/* load cache (thread?) */
-	if(option_no_cache == 0)
-		context.cache = cache_load(CACHE_FILENAME);
-	
 	/* load script */	
 	if(session.verbose)
 		printf("%s: reading script from '%s'\n", session.name, scriptfile);
-
-	if(1)
-	{
-		int ret;
-		lua_getglobal(context.lua, "errorfunc");
 		
-		/* push error function to stack */
-		ret = luaL_loadfile(context.lua, scriptfile);
-		if(ret != 0)
-		{
-			if(ret == LUA_ERRSYNTAX)
-				printf("%s: syntax error\n", session.name);
-			else if(ret == LUA_ERRMEM)
-				printf("%s: memory allocation error\n", session.name);
-			else if(ret == LUA_ERRFILE)
-				printf("%s: error opening '%s'\n", session.name, scriptfile);
-			lf_errorfunc(context.lua);
-			error = 1;
-		}
-		else if(lua_pcall(context.lua, 0, LUA_MULTRET, -2) != 0)
-			error = 1;
+	/* push error function to stack and load the script */
+	lua_getglobal(context->lua, "errorfunc");
+	switch(luaL_loadfile(context->lua, scriptfile))
+	{
+		case 0: break;
+		case LUA_ERRSYNTAX:
+			printf("%s: syntax error\n", session.name);
+			lf_errorfunc(context->lua);
+			return -1;
+		case LUA_ERRMEM: 
+			printf("%s: memory allocation error\n", session.name);
+			return -1;
+		case LUA_ERRFILE:
+			printf("%s: error opening '%s'\n", session.name, scriptfile);
+			return -1;
+		default:
+			printf("%s: unknown error\n", session.name);
+			return -1;
 	}
+
+	/* load cache (thread?) */
+	if(option_no_cache == 0)
+		context->cache = cache_load(CACHE_FILENAME);
+	
+	/* call the code chunk */	
+	if(lua_pcall(context->lua, 0, LUA_MULTRET, -2) != 0)
+		return -1;
 	
 	/* save cache (thread?) */
 	if(option_no_cache == 0)
-		cache_save(CACHE_FILENAME, context.graph);
+		cache_save(CACHE_FILENAME, context->graph);
 	
 	/* make build target */
 	{
 		struct NODE *node;
 		int all_target = 0;
+		int i;
 
-		if(node_create(&context.target, context.graph, "_bam_buildtarget", 0, 0))
+		if(node_create(&context->target, context->graph, "_bam_buildtarget", 0, 0))
 			return -1;
 			
 		if(num_targets)
@@ -452,16 +429,16 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 		}
 		
 		/* default too all if we have no targets or default target */
-		if(num_targets == 0 && !context.defaulttarget)
+		if(num_targets == 0 && !context->defaulttarget)
 			all_target = 1;
 		
 		if(all_target)
 		{
 			/* build the all target */
-			for(node = context.graph->first; node; node = node->next)
+			for(node = context->graph->first; node; node = node->next)
 			{
-				if(!node->isdependedon && node != context.target)
-					node_add_dependency_withnode(context.target, node);
+				if(!node->isdependedon && node != context->target)
+					node_add_dependency_withnode(context->target, node);
 			}
 		}
 		else
@@ -470,25 +447,52 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 			{
 				for(i = 0; i < num_targets; i++)
 				{
-					struct NODE *node = node_find(context.graph, targets[i]);
+					struct NODE *node = node_find(context->graph, targets[i]);
 					if(!node)
 					{
 						printf("%s: target '%s' not found\n", session.name, targets[i]);
 						return -1;
 					}
 					
-					node_add_dependency_withnode(context.target, node);
+					node_add_dependency_withnode(context->target, node);
 				}
 			}
 			else
-				node_add_dependency_withnode(context.target, context.defaulttarget);
+				node_add_dependency_withnode(context->target, context->defaulttarget);
 
 		}
 	}
 	
+	/* return success */
+	return 0;
+}
+
+/* *** */
+static int bam(const char *scriptfile, const char **targets, int num_targets)
+{
+	struct CONTEXT context;
+	int error = 0;
+	int report_done = 0;
+
+	/* build time */
+	time_t starttime  = time(0x0);
+	
+	/* zero out and create memory heap, graph */
+	memset(&context, 0, sizeof(struct CONTEXT));
+	context.heap = mem_create();
+	context.graph = node_create_graph(context.heap);
+
+	/* create lua context */
+	/* HACK: Store the context pointer as the userdata pointer to the allocator to make
+		sure that we have fast access to it. This makes the context_get_pointer call very fast */
+	context.lua = lua_newstate(lua_alloctor, &context);
+	lua_atpanic(context.lua, lf_panicfunc);
+	
+	/* do the setup */
+	error = bam_setup(&context, scriptfile, targets, num_targets);
+
 	if(!error)
 	{
-		/* debug */
 		if(option_debug_nodes)
 		{
 			/* debug dump all nodes */
@@ -507,7 +511,7 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 		}
 		else
 		{
-			/* run */
+			/* run build or clean */
 			error = context_build_prepare(&context);
 			if(!error)
 			{
@@ -520,13 +524,13 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 				}
 			}
 		}
-	}
+	}		
 	
 	/* clean up */
 	lua_close(context.lua);
 	mem_destroy(context.heap);
 
-	/* print and return */
+	/* print final report and return */
 	if(error)
 		printf("%s: error during build\n", session.name);
 	else if(report_done)
@@ -542,7 +546,6 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 
 	return error;
 }
-
 
 /* */
 static void print_help()
@@ -610,15 +613,9 @@ static int parse_parameters(int num, char **params)
 			{
 				/* check for = because it indicates if it's a target or script argument */
 				if(strchr(params[i], '='))
-				{
-					option_scriptargs[option_num_scriptargs] = params[i];
-					option_num_scriptargs++;
-				}
+					option_scriptargs[option_num_scriptargs++] = params[i];
 				else
-				{
-					option_targets[option_num_targets] = params[i];
-					option_num_targets++;
-				}
+					option_targets[option_num_targets++] = params[i];
 			}
 		}
 	}
@@ -749,23 +746,14 @@ int main(int argc, char **argv)
 				
 		return 0;
 	}
-		
-	/* check if a script exist */
-	if(!file_exist(option_script))
-	{
-		printf("%s: no project named '%s'\n", session.name, option_script);
-		return 1;
-	}
 	
 	/* init the context */
-	/* TODO: search for a bam file */
 	error = bam(option_script, option_targets, option_num_targets);
 	
 	platform_shutdown();
 
-	/* error could be some high value like 256 */
-	/* seams like this could be clamped down to a */
-	/* unsigned char and not be an error anymore */
+	/* error could be some high value like 256 seams like this could */
+	/* be clamped down to a unsigned char and not be an error anymore */
 	if(error)
 		return 1;
 	return 0;

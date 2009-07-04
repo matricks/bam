@@ -9,21 +9,14 @@
 
 #include "platform.h"
 
-#define PATH_DEBUG(x)
-
-
 #define PATH_SEPARATOR '/'
 
 static unsigned path_is_separator(char c)
 {
 #if defined(BAM_FAMILY_WINDOWS)
-	return c == PATH_SEPARATOR || c == '\\';
-#elif defined(BAM_FAMILY_UNIX)
-	return c == PATH_SEPARATOR;
-	#elif defined(BAM_FAMILY_BEOS)
-	return c == PATH_SEPARATOR;
+	return c == '/' || c == '\\';
 #else
-	#error unsigned path_is_separator(char c) not implemented for this platform
+	return c == '/';
 #endif
 }
 
@@ -93,18 +86,13 @@ int path_normalize(char *path)
 	
 	while(1)
 	{
-		PATH_DEBUG(printf("%d\n", depth));
-		
 		/* append data */
-		PATH_DEBUG(printf("\t appending "));
 		while(*fromptr && !path_is_separator(*fromptr))
 		{
-			PATH_DEBUG(printf("%c", *fromptr));
 			*writeptr = *fromptr;
 			writeptr++;
 			fromptr++;
 		}
-		PATH_DEBUG(printf("\n"));
 		
 		if(fromptr[0] == 0)
 			break; /* done */
@@ -125,7 +113,6 @@ int path_normalize(char *path)
 						if(path_is_separator(fromptr[2]) || fromptr[2] == 0)
 						{
 							/* .. unwind */
-							PATH_DEBUG(printf("\t .. unwind\n"));
 							fromptr += 2;
 							if(depth == 0)
 							{
@@ -145,7 +132,6 @@ int path_normalize(char *path)
 					else if(path_is_separator(fromptr[1]))
 					{
 						/* currentdir, just skip chars */
-						PATH_DEBUG(printf("\t curdir\n"));
 						fromptr += 2;
 					}
 					else if(fromptr[1] == 0)
@@ -167,7 +153,6 @@ int path_normalize(char *path)
 			if(fromptr[0] == 0)
 				break;
 			
-			PATH_DEBUG(printf("\t recurse\n"));
 			dirs[depth] = writeptr;
 			*writeptr = PATH_SEPARATOR;
 			writeptr++;
@@ -177,7 +162,6 @@ int path_normalize(char *path)
 		
 	}
 
-	PATH_DEBUG(printf("\t done\n"));
 	*writeptr = 0;
 	return 0;
 }
@@ -298,18 +282,13 @@ int lf_path_join(lua_State *L)
 	char buffer[1024*2];
 	int n = lua_gettop(L);
 	if(n < 2)
-	{
-		lua_pushstring(L, "path_join: incorrect number of arguments");
-		lua_error(L);
-	}
+		luaL_error(L, "path_join: incorrect number of arguments");
 	
 	if(!path_join(lua_tostring(L, 1), lua_tostring(L, 2), buffer, 2*1024))
 	{
-		printf("path_join: couldn't join\n\t%s\n  and\n\t%s\n",
+		luaL_error(L, "path_join: couldn't join\n\t%s\n  and\n\t%s",
 			lua_tostring(L, 1),
 			lua_tostring(L, 2));
-		lua_pushstring(L, "path_join: error joining paths");
-		lua_error(L);
 	}
 	
 	lua_pushstring(L, buffer);
@@ -322,10 +301,7 @@ int lf_path_isnice(lua_State *L)
 	int n = lua_gettop(L);
 	const char *path = 0;
 	if(n < 1)
-	{
-		lua_pushstring(L, "path_isnice: incorrect number of arguments");
-		lua_error(L);
-	}
+		luaL_error(L, "path_isnice: incorrect number of arguments");
 	
 	path = lua_tostring(L, 1);
 	lua_pushnumber(L, path_isnice(path));
@@ -338,42 +314,25 @@ int lf_path_fix(lua_State *L)
 	const char *path = 0;
 
 	if(n < 1)
-	{
-		lua_pushstring(L, "path_fix: incorrect number of arguments");
-		lua_error(L);
-	}
+		luaL_error(L, "path_fix: incorrect number of arguments");
 	
 	path = lua_tostring(L, 1);
 	if(!path)
-	{
-		lua_pushstring(L, "path_fix: got null-string");
-		lua_error(L);
-	}
+		luaL_error(L, "path_fix: got null-string");
 	
-	/*if(path_isabs(path))*/
+	if(path_isnice(path))
 	{
-		if(path_isnice(path))
-		{
-			/* path is ok */
-			lua_pushstring(L, path);
-		}
-		else
-		{
-			/* normalize and return */
-			char buffer[2*1024];
-			strcpy(buffer, path);
-			path_normalize(buffer);
-			lua_pushstring(L, buffer);
-		}
+		/* path is ok */
+		lua_pushstring(L, path);
 	}
-	/*
 	else
 	{
+		/* normalize and return */
 		char buffer[2*1024];
-		path_join(get_path(L), path, buffer, 2*1024);
+		strcpy(buffer, path);
+		path_normalize(buffer);
 		lua_pushstring(L, buffer);
 	}
-	*/
 	
 	return 1;
 }
@@ -402,18 +361,11 @@ int lf_path_ext(lua_State *L)
 	int n = lua_gettop(L);
 	const char *path = 0;
 	if(n < 1)
-	{
-		lua_pushstring(L, "path_ext: incorrect number of arguments");
-		lua_error(L);
-	}
+		luaL_error(L, "path_ext: incorrect number of arguments");
 	
 	path = lua_tostring(L, 1);
-	
 	if(!path)
-	{
-		lua_pushstring(L, "path_ext: argument is not a string");
-		lua_error(L);
-	}
+		luaL_error(L, "path_ext: argument is not a string");
 		
 	lua_pushstring(L, path_ext(path));
 	return 1;
@@ -443,18 +395,11 @@ int lf_path_path(lua_State *L)
 	int n = lua_gettop(L);
 	const char *path = 0;
 	if(n < 1)
-	{
-		lua_pushstring(L, "path_path: incorrect number of arguments");
-		lua_error(L);
-	}
+		luaL_error(L, "path_path: incorrect number of arguments");
 
 	path = lua_tostring(L, 1);
-		
 	if(!path)
-	{
-		lua_pushstring(L, "path_path: argument is not a string");
-		lua_error(L);
-	}
+		luaL_error(L, "path_path: argument is not a string");
 	
 	/* check if we can take the easy way out */
 	if(path_isnice(path))
@@ -476,18 +421,12 @@ int lf_path_filename(lua_State *L)
 	int n = lua_gettop(L);
 	const char *path = 0;
 	if(n < 1)
-	{
-		lua_pushstring(L, "path_filename: incorrect number of arguments");
-		lua_error(L);
-	}
+		luaL_error(L, "path_filename: incorrect number of arguments");
 
 	path = lua_tostring(L, 1);
 
 	if(!path)
-	{
-		lua_pushstring(L, "path_filename: null name");
-		lua_error(L);
-	}
+		luaL_error(L, "path_filename: null name");
 
 	lua_pushstring(L, path_filename(path));
 	return 1;

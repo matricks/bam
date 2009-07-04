@@ -1,5 +1,4 @@
 #include <stdlib.h>
-#include <stdio.h>
 #include "mem.h"
 
 struct CHUNK
@@ -114,27 +113,4 @@ void *mem_allocate(struct HEAP *heap, int size)
 	}
 	
 	return mem;
-}
-
-void mem_dumpstats(struct HEAP *heap)
-{
-	struct CHUNK *chunk = heap->current;
-	int numchunks = 0;
-	int wasted = 0;
-	int used = 0;
-	int allocated = 0;
-	
-	while(chunk)
-	{
-		numchunks++;
-		allocated += chunk->end - chunk->memory;
-		used += chunk->current - chunk->memory;
-		wasted += chunk->end - chunk->current;
-		chunk = chunk->next;
-	}
-	
-	printf("chunks: %d\n", numchunks);
-	printf("memory allocated: %d\n", allocated	);
-	printf("memory used: %d\n", used);
-	printf("memory wasted: %d\n", wasted);
 }

@@ -8,12 +8,23 @@
 #include "platform.h"
 #include "session.h"
 
+/* buffer sizes */
+#define WRITE_BUFFERSIZE (32*1024)
+#define WRITE_BUFFERNODES (WRITE_BUFFERSIZE/sizeof(struct CACHENODE))
+#define WRITE_BUFFERDEPS (WRITE_BUFFERSIZE/sizeof(unsigned))
 
-/*
-	detect if we can use unix styled io. we do this because fwrite
+/* header info */
+static const unsigned bamendianness = 0x01020304;
+static char bamheader[8] = {
+	'B','A','M',0, /* signature */
+	0,3,			/* version */
+	sizeof(void*), /* pointer size */
+	0, /*((char*)&bamendianness)[0] */ /* TODO: endianness check */
+};
+
+/* 	detect if we can use unix styled io. we do this because fwrite
 	can use it's own buffers and bam already to it's buffering nicely
-	so this will reduce the number of syscalls needed.
-*/
+	so this will reduce the number of syscalls needed. */
 #ifdef BAM_FAMILY_UNIX
 	#include <fcntl.h>
 	#if defined(O_RDONLY) && defined(O_WRONLY) && defined(O_CREAT) && defined(O_TRUNC)
@@ -50,21 +61,7 @@
 	#define io_close(f) fclose(f)
 	#define io_read(f, data, size) fread(data, 1, size, f)
 	#define io_write(f, data, size) fwrite(data, 1, size, f)
-	
-	/*size_t io_size(IOHANDLE)*/
 #endif
-
-
-
-static const unsigned bamendianness = 0x01020304;
-static char bamheader[8] = {
-	'B','A','M',0, /* signature */
-	0,3,			/* version */
-	sizeof(void*), /* pointer size */
-	0, /*((char*)&bamendianness)[0] */ /* endianness */
-};
-
-RB_HEAD(CACHENODERB, CACHENODE);
 
 static int cachenode_cmp(struct CACHENODE *a, struct CACHENODE *b)
 {
@@ -73,15 +70,13 @@ static int cachenode_cmp(struct CACHENODE *a, struct CACHENODE *b)
 	return 0;
 }
 
+RB_HEAD(CACHENODERB, CACHENODE);
 RB_GENERATE_INTERNAL(CACHENODERB, CACHENODE, rbentry, cachenode_cmp, static)
 
 void CACHENODE_FUNCTIONREMOVER() /* this is just to get it not to complain about unused static functions */
 {
-	(void)CACHENODERB_RB_REMOVE;
-	(void)CACHENODERB_RB_NFIND;
-	(void)CACHENODERB_RB_NEXT;
-	(void)CACHENODERB_RB_PREV;
-	(void)CACHENODERB_RB_MINMAX;
+	(void)CACHENODERB_RB_REMOVE; (void)CACHENODERB_RB_NFIND; (void)CACHENODERB_RB_MINMAX;
+	(void)CACHENODERB_RB_NEXT; (void)CACHENODERB_RB_PREV;
 }
 
 struct CACHE
@@ -97,16 +92,10 @@ struct CACHE
 	unsigned *deps;
 	char *strings;
 };
-
-#define WRITE_BUFFERSIZE (32*1024)
-#define WRITE_BUFFERNODES (WRITE_BUFFERSIZE/sizeof(struct CACHENODE))
-#define WRITE_BUFFERDEPS (WRITE_BUFFERSIZE/sizeof(unsigned))
-
 	
 struct WRITEINFO
 {
 	IO_HANDLE fp;
-	
 	struct GRAPH *graph;
 	
 	union
@@ -223,12 +212,12 @@ static int write_nodes(struct WRITEINFO *info)
 int cache_save(const char *filename, struct GRAPH *graph)
 {
 	struct WRITEINFO info;
+	info.index = 0;
+	info.graph = graph;
+
 	info.fp = io_open_write(filename);
 	if(!info.fp)
 		return -1;
-	
-	info.index = 0;
-	info.graph = graph;
 	
 	if(write_header(&info) || write_nodes(&info))
 	{

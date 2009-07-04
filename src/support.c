@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <time.h>
 
-
 #include "platform.h"
 #include "path.h"
 #include "context.h"
@@ -14,17 +13,14 @@
 #endif
 
 #ifdef BAM_FAMILY_WINDOWS
+	/* Windows code */
 	#define WIN32_LEAN_AND_MEAN
 	#define VC_EXTRALEAN
 	#include <windows.h>
 	#include <sys/types.h>
 	#include <sys/stat.h>
 	#include <signal.h>
-
-	/*#define _stat stat*/
 	
-	/* Windows code */
-
 	static void list_directory(const char *path, void (*callback)(const char *filename, int dir, void *user), void *user)
 	{
 		WIN32_FIND_DATA finddata;
@@ -70,25 +66,10 @@
 	}
 
 	static CRITICAL_SECTION criticalsection;
-	void platform_init()
-	{
-		InitializeCriticalSection(&criticalsection);
-	}
-
-	void platform_shutdown()
-	{
-		DeleteCriticalSection(&criticalsection);
-	}
-
-	void criticalsection_enter()
-	{
-		EnterCriticalSection(&criticalsection);
-	}
-
-	void criticalsection_leave()
-	{
-		LeaveCriticalSection(&criticalsection);
-	}
+	void platform_init() { InitializeCriticalSection(&criticalsection); }
+	void platform_shutdown() { DeleteCriticalSection(&criticalsection); }
+	void criticalsection_enter() { EnterCriticalSection(&criticalsection); }
+	void criticalsection_leave() { LeaveCriticalSection(&criticalsection); }
 
 	void *threads_create(void (*threadfunc)(void *), void *u)
 	{
@@ -153,8 +134,8 @@
 			/* make the path absolute */
 			strcpy(startpoint, entry->d_name);
 
-			/* TODO: support DT_UNKNOWN */
 #ifdef D_TYPE_HACK			
+			/* TODO: support DT_UNKNOWN */
 			/* call the callback */
 			if(entry->d_type == DT_DIR)
 				callback(buffer, 1, user);
@@ -183,23 +164,10 @@
 
 	static pthread_mutex_t lock_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-	void platform_init()
-	{
-	}
-
-	void platform_shutdown()
-	{
-	}
-
-	void criticalsection_enter()
-	{
-		pthread_mutex_lock(&lock_mutex);
-	}
-
-	void criticalsection_leave()
-	{
-		pthread_mutex_unlock(&lock_mutex);
-	}
+	void platform_init() {}
+	void platform_shutdown() {}
+	void criticalsection_enter() { pthread_mutex_lock(&lock_mutex); }
+	void criticalsection_leave() { pthread_mutex_unlock(&lock_mutex); }
 
 	void *threads_create(void (*threadfunc)(void *), void *u)
 	{
@@ -398,10 +366,7 @@ static int collect(lua_State *L, int flags)
 	COLLECT_CALLBACK_INFO info;
 	
 	if(n < 1)
-	{
-		lua_pushstring(L, "collect: incorrect number of arguments");
-		lua_error(L);
-	}
+		luaL_error(L, "collect: incorrect number of arguments");
 
 	/* create the table */
 	lua_newtable(L);

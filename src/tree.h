@@ -1,3 +1,12 @@
+/*
+	IMPORTANT!!!!
+	
+	THIS HAS BEEN MODIFIED FROM THE ORIGINAL SOURCE.
+	I've removed the functions that we don't use.
+
+	IMPORTANT!!!!
+*/ 
+
 /*	$NetBSD: tree.h,v 1.8 2004/03/28 19:38:30 provos Exp $	*/
 /*	$OpenBSD: tree.h,v 1.7 2002/10/17 21:51:54 art Exp $	*/
 /* $FreeBSD: src/sys/sys/tree.h,v 1.6.2.1 2008/03/07 22:34:17 jasone Exp $ */
@@ -26,11 +35,6 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-/*
-THIS HAS BEEN MODIFIED FROM THE ORIGINAL SOURCE.
-I've removed the functions that we don't use.
-*/ 
 
 #ifndef	_SYS_TREE_H_
 #define	_SYS_TREE_H_

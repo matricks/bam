@@ -159,6 +159,5 @@ int node_walk(
 void node_debug_dump(struct GRAPH *graph);
 void node_debug_dump_jobs(struct GRAPH *graph);
 void node_debug_dump_tree(struct NODE *root);
-void node_debug_dump_dot(struct GRAPH *graph, struct NODE *node);
 
 #endif /* FILE_NODE_H */

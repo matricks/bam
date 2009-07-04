@@ -4,8 +4,6 @@ void install_signals(void (*abortsignal)(int));
 void platform_init();
 void platform_shutdown();
 
-#define memory_barrier() __sync_synchronize()
-
 void *threads_create(void (*threadfunc)(void *), void *u);
 void threads_join(void *thread);
 void threads_yield();

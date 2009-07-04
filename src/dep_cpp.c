@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include <lua.h>
+#include <lauxlib.h>
 
 #include "path.h"
 #include "node.h"
@@ -10,9 +11,6 @@
 #include "context.h"
 #include "mem.h"
 #include "support.h"
-
-/* this should perhaps be removed */
-static int option_cppdep_includewarnings = 0;
 
 static int processline(char *line, char **start, char **end, int *systemheader)
 {
@@ -91,7 +89,6 @@ static int processline(char *line, char **start, char **end, int *systemheader)
 	}
 	
 	*end = current; 
-
 	return 1;
 }
 
@@ -99,7 +96,6 @@ static int processline(char *line, char **start, char **end, int *systemheader)
 static int dependency_cpp_run(struct CONTEXT *context, struct NODE *node,
 		int (*callback)(void *, const char *, int), void *userdata)
 {
-	const int debug = 0;
 	char *linestart;
 	char *includestart;
 	char *includeend;
@@ -115,9 +111,6 @@ static int dependency_cpp_run(struct CONTEXT *context, struct NODE *node,
 	char *filebufend;
 	FILE *file;
 
-	if(debug)
-		printf("cpp-dep: running on %s\n", node->filename);
-		
 	if(node->depchecked)
 		return 0;
 	node->depchecked = 1;
@@ -175,8 +168,6 @@ static int dependency_cpp_run(struct CONTEXT *context, struct NODE *node,
 		if(processline(linestart, &includestart, &includeend, &systemheader))
 		{
 			*includeend = 0;
-			if(debug) printf("INCLUDE: %s\n", includestart);
-			
 			/* run callback */
 			errorcode = callback(userdata, includestart, systemheader);
 			if(errorcode)
@@ -187,12 +178,8 @@ static int dependency_cpp_run(struct CONTEXT *context, struct NODE *node,
 		}
 	}
 
-	if(debug)
-		printf("cpp-dep: %s=%d lines\n", node->filename, linecount);
-	
-	/* clean up */
+	/* clean up and return*/
 	free(filebuf);
-	
 	return errorcode;
 }
 
@@ -226,7 +213,6 @@ static int dependency_cpp_callback(void *user, const char *filename, int sys)
 	char normal[512];
 	int check_system = sys;
 	int found = 0;
-	int extra_debug = 0;
 	
 	if(!sys)
 	{
@@ -277,20 +263,9 @@ static int dependency_cpp_callback(void *user, const char *filename, int sys)
 				memcpy(buf, cur->path, plen);
 				memcpy(buf+plen, filename, flen+1); /* copy the 0-term aswell */
 				
-				if(extra_debug)
-					printf("\tsearching for %s\n", buf);
-
 				if(file_exist(buf) || node_find(node->graph, buf))
 				{
-					if(option_cppdep_includewarnings && !sys)
-					{
-						printf("dependency_cpp: c++ dependency error. could not find \"%s\" as a relative file but as a system header.\n", filename);
-						return -1;
-					}
-
 					found = 1;
-
-					/* printf("found system header header %s at %s\n", filename, buf); */
 					break;
 				}
 			}
@@ -299,24 +274,12 @@ static int dependency_cpp_callback(void *user, const char *filename, int sys)
 		/* no header found */
 		if(!found)
 		{
-			/* if it was a <system.header> we are just gonna ignore it and hope that it never */
-			/* changes */
-			if(!sys && option_cppdep_includewarnings)
-			{
-				/* not a system header so we gonna bitch about it */
-				char a[] = {'"', '<'};
-				char b[] = {'"', '>'};
-				printf("dependency_cpp: C++ DEPENDENCY WARNING: header not found. %c%s%c\n", a[sys], filename, b[sys]);
-			}
-
 			if(sys)
 				return 0;
 			else
 				memcpy(buf, normal, 512);
 		}
 	}
-
-
 	
 	/* */
 	path_normalize(buf);
@@ -351,22 +314,13 @@ int lf_dependency_cpp(lua_State *L)
 	size_t string_length;
 	
 	if(n != 2)
-	{
-		lua_pushstring(L, "dependency_cpp: incorrect number of arguments");
-		lua_error(L);
-	}
+		luaL_error(L, "dependency_cpp: incorrect number of arguments");
 
 	if(!lua_isstring(L,1))
-	{
-		lua_pushstring(L, "dependency_cpp: expected string");
-		lua_error(L);
-	}
+		luaL_error(L, "dependency_cpp: expected string");
 
 	if(!lua_istable(L,2))
-	{
-		lua_pushstring(L, "dependency_cpp: expected table");
-		lua_error(L);
-	}
+		luaL_error(L, "dependency_cpp: expected table");
 	
 	/* fetch context */
 	context = context_get_pointer(L);
@@ -374,10 +328,7 @@ int lf_dependency_cpp(lua_State *L)
 	
 	/* */
 	if(!node)
-	{
-		lua_pushstring(L, "dependency_cpp: node not found");
-		lua_error(L);
-	}
+		luaL_error(L, "dependency_cpp: node '%s' not found", lua_tostring(L,1));
 	
 	/* create a heap to store the includes paths in */
 	includeheap = mem_create();
@@ -420,8 +371,7 @@ int lf_dependency_cpp(lua_State *L)
 	if(dependency_cpp_run(context, node, dependency_cpp_callback, &depinfo) != 0)
 	{
 		mem_destroy(includeheap);
-		lua_pushstring(L, "dependency_cpp: error during depencency check");
-		lua_error(L);
+		luaL_error(L, "dependency_cpp: error during depencency check");
 	}
 
 	/* free the include heap */

@@ -21,11 +21,8 @@ RB_GENERATE_INTERNAL(NODERB, NODE, rbentry, node_cmp, static)
 
 void NODE_FUNCTIONREMOVER() /* this is just to get it not to complain about unused static functions */
 {
-	(void)NODERB_RB_REMOVE;
-	(void)NODERB_RB_NFIND;
-	(void)NODERB_RB_NEXT;
-	(void)NODERB_RB_PREV;
-	(void)NODERB_RB_MINMAX;
+	(void)NODERB_RB_REMOVE; (void)NODERB_RB_NFIND; (void)NODERB_RB_MINMAX;
+	(void)NODERB_RB_PREV; (void)NODERB_RB_NEXT;
 }
 
 
@@ -38,9 +35,7 @@ static unsigned int string_hash(const char *str)
 	return h;
 }
 
-
-
-/**/
+/* */
 struct GRAPH *node_create_graph(struct HEAP *heap)
 {
 	/* allocate graph structure */
@@ -362,88 +357,4 @@ static int node_debug_dump_tree_r(struct NODEWALK *walkinfo)
 void node_debug_dump_tree(struct NODE *root)
 {
 	node_walk(root, NODEWALK_FORCE|NODEWALK_TOPDOWN, node_debug_dump_tree_r, 0);
-}
-
-/* dumps all nodes to the stdout in dot format (graphviz) */
-static int node_debug_dump_dot_r(struct NODEWALK *walkinfo)
-{
-	struct NODE *node = walkinfo->node;
-	struct DEPENDENCY *dep;
-
-	if(!node->parenthastool && node != walkinfo->user)
-		return 0;
-	
-	if(node->cmdline)
-	{
-		for(dep = node->firstdep; dep; dep = dep->next)
-			printf("\tn%d -> n%d\n", dep->node->id, node->id);
-	}
-		
-	return 0;
-}
-
-void node_debug_dump_dot(struct GRAPH *graph, struct NODE *root_node)
-{
-	printf("digraph G {\n");
-	printf("\tnodesep=.05;");
-	printf("\tconcentrate=true;\n");
-	printf("\tnode[fontsize=8];\n");
-
-	{
-		struct PATH
-		{
-			struct PATH *next;
-			char name[1];
-		};
-
-		struct NODE *node;
-		struct PATH *first = 0;
-		struct PATH *cur;
-		char directory[512];
-		int found;
-
-		for(node = graph->first; node; node = node->next)
-		{
-			if(!node->parenthastool && node != root_node)
-				continue;
-			
-			path_directory(node->filename, directory, sizeof(directory));
-
-			found = 0;
-			for(cur = first; cur; cur = cur->next)
-				if(strcmp(cur->name, directory) == 0)
-				{
-					found = 1;
-					break;
-				}
-
-			if(!found)
-			{
-				cur = (struct PATH*)malloc(sizeof(struct PATH) + strlen(directory));
-				cur->next = first;
-				strcpy(cur->name, directory);
-				first = cur;
-			}
-		}
-
-		for(cur = first; cur; cur = cur->next)
-		{
-			printf("subgraph \"cluster_%s\" {\n", cur->name);
-			for(node = graph->first; node; node = node->next)
-			{
-				if(!node->parenthastool && node != root_node)
-					continue;
-					
-				path_directory(node->filename, directory, sizeof(directory));
-				if(strcmp(directory, cur->name) == 0)
-					printf("\tn%d [label=\"%s\\n%s\"];\n", node->id, path_filename(node->filename), node->cmdline);
-			}
-			
-			printf("}\n");
-			
-		}
-	}
-
-	node_walk(root_node, NODEWALK_FORCE|NODEWALK_BOTTOMUP|NODEWALK_QUICK, node_debug_dump_dot_r, root_node);
-	printf("}\n");	
 }

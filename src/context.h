@@ -21,7 +21,6 @@ struct CONTEXT
 	int num_commands;
 };
 
-
 const char *context_get_path(struct lua_State *L);
 struct CONTEXT *context_get_pointer(struct lua_State *L);
 int context_default_target(struct CONTEXT *context, struct NODE *node);
