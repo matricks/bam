@@ -1,4 +1,4 @@
 s = NewSettings()
 objs = Compile(s, Collect("*.c"))
 PseudoTarget("CORRECT_ONE", Link(s, "correct", objs))
-Target(Link(s, "ERROR", objs))
+Link(s, "ERROR", objs)

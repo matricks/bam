@@ -6,6 +6,9 @@ config:Finalize("config.bam")
 
 s = config:NewSettings()
 
+s.debug = 1
+s.optimize = 0
+
 if s.cc.c_compiler == "gcc" then
 	s.cc.flags:Add("-Wall", "-ansi", "-pedantic", "-O2")
 	s.link.libs:Add("pthread")
@@ -17,7 +20,7 @@ end
 
 txt2c_tool = Link(s, "src/tools/txt2c", Compile(s, "src/tools/txt2c.c"))
 
-base_files = {"src/base.bam", "src/driver_gcc.bam", "src/driver_cl.bam"}
+base_files = {"src/base.lua", "src/driver_gcc.lua", "src/driver_cl.lua"}
 internal_base = "src/internal_base.h"
 AddJob(
 	internal_base, 

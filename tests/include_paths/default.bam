@@ -1,3 +1,0 @@
-s = NewSettings()
-s.cc.includes:Add("dir")
-Target(Link(s, "include_paths", Compile(s, Collect("*.c"))))

@@ -21,7 +21,6 @@ struct SCANNER
 };
 
 
-
 /*
 	64 byte on a 32 machine.
 	this should be able to fit inside a cache line
@@ -64,6 +63,8 @@ struct NODE
 	volatile unsigned workstatus:2; /* 0 = undone, 1 = in the workings, 2 = done*/
 };
 
+RB_HEAD(NODERB, NODE);
+
 /* cache node */
 struct CACHENODE
 {
@@ -79,9 +80,20 @@ struct CACHENODE
 	unsigned *deps; /* index id, not hashid */
 };
 
+/* */
+struct GRAPH
+{
+	struct NODERB nodehash[0x10000];
+	struct NODE *first;
+	struct NODE *last;
+	struct HEAP *heap;
+	
+	/* needed when saving the cache */
+	int num_nodes;
+	int num_deps;
+};
 
 struct HEAP;
-struct GRAPH;
 struct CONTEXT;
 
 /* node status */

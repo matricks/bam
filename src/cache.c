@@ -1,10 +1,12 @@
 #include <string.h> /* memset */
 #include <stdlib.h> /* malloc */
+#include <stdio.h> /* TODO: temp debug, remove */
 
 #include "cache.h"
 #include "context.h"
-#include "graph.h"
+#include "node.h"
 #include "platform.h"
+#include "session.h"
 
 
 /*
@@ -247,7 +249,7 @@ struct CACHE *cache_load(const char *filename)
 	void *buffer;
 	struct CACHE *cache;
 	int i;
-	size_t itemsread;
+	size_t bytesread;
 	
 	IO_HANDLE fp;
 	
@@ -261,18 +263,18 @@ struct CACHE *cache_load(const char *filename)
 
 	buffer = malloc(filesize);
 	
-	itemsread = io_read(fp, buffer, filesize);
+	bytesread = io_read(fp, buffer, filesize);
 	io_close(fp);
 	
 	/* verify read and headers */
 	cache = (struct CACHE *)buffer;
 	
-	if(	itemsread != 1 ||
+	if(	bytesread != filesize ||
 		filesize < sizeof(struct CACHE) ||
 		memcmp(cache->header, bamheader, sizeof(bamheader)) != 0 ||
 		filesize < sizeof(struct CACHE)+cache->num_nodes*sizeof(struct CACHENODE))
 	{
-		/* printf("debug: error in headers\n"); */
+		printf("%s: warning: cache failed to load. not using cache\n", session.name);
 		free(buffer);
 		return 0;
 	}

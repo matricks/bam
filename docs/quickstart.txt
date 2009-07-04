@@ -8,7 +8,6 @@ you started quickly.
 2: source = Collect("src/*.c")
 3: objects = Compile(settings, source)
 4: exe = Link(settings, "my_app", objects)
-5: DefaultTarget(exe)
 }}}}
 
 Line 1 creates a new settings object. This contains all the settings
@@ -23,7 +22,3 @@ table of the object files. See Compile.
 
 Line 4 links the object files to an executable named "my_app", using
 the specified settings. See Link.
-
-Line 5 tells bam that the executable is the default target to build.
-If you invoke bam without specifying what to build, it will use the
-default target. See DefaultTarget.

@@ -9,9 +9,6 @@
 #include "support.h"
 #include "path.h"
 #include "context.h"
-#include "graph.h"
-
-#include "tree.h"
 
 static int node_cmp(struct NODE *a, struct NODE *b)
 {
@@ -337,11 +334,12 @@ void node_debug_dump(struct GRAPH *graph)
 void node_debug_dump_jobs(struct GRAPH *graph)
 {
 	struct NODE *node = graph->first;
-	static const char d[] = " D";
+	static const char *dirtyflag[] = {"--", "CH", "DD", "DN", "GS"};
+	printf("Dirty Depth %-30s   Command\n", "Filename");
 	for(;node;node = node->next)
 	{
 		if(node->cmdline)
-			printf("%c %3d %s   %-15s\n", d[node->dirty], node->depth, node->filename, node->cmdline);
+			printf(" %s    %3d  %-30s   %s\n", dirtyflag[node->dirty], node->depth, node->filename, node->cmdline);
 	}
 }
 

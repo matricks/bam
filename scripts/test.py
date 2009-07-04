@@ -77,7 +77,7 @@ def unittests():
 	
 	tests = []
 	state = 0
-	for line in file('src/base.bam'):
+	for line in file('src/base.lua'):
 		if state == 0:
 			if "@UNITTESTS" in line:
 				state = 1
@@ -105,7 +105,7 @@ def unittests():
 	os.chdir(output_path+"/unit")
 	
 	for test in tests:
-		f = file("default.bam", "w")
+		f = file("bam.lua", "w")
 		if test.catch != None:
 			print >>f, "print(\"CATCH:\", %s)"%(test.line)
 		else:

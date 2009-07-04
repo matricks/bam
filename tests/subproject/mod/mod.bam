@@ -16,4 +16,3 @@ end
 function get_test()
 	return test
 end
-

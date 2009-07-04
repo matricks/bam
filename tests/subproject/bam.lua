@@ -11,4 +11,4 @@ mod.use(s)
 objs = Compile(s, Collect("*.c"))
 print("Error test:", mod.get_test())
 exe = Link(s, "subproj", objs, mod.output)
-Target(exe)
+

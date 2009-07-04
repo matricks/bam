@@ -1,2 +1,0 @@
-s = NewSettings()
-Target(Link(s, "cyclic", Compile(s, Collect("*.c"))))

@@ -16,8 +16,6 @@
 #include "mem.h"
 #include "node.h"
 #include "path.h"
-#include "graph.h"
-#include "build.h"
 #include "support.h"
 #include "dep_cpp.h"
 #include "context.h"
@@ -69,9 +67,9 @@ static int option_debug_jobs = 0;
 static int option_debug_buildtime = 0;
 static int option_debug_dirty = 0;
 static int option_debug_dumpinternal = 0;
+static int option_debug_nointernal = 0;
 static int option_print_help = 0;
-static const char *option_script = "default.bam"; /* -f filename */
-static const char *option_basescript = 0x0; /* -b filename or BAM_BASE */
+static const char *option_script = "bam.lua"; /* -f filename */
 static const char *option_threads_str = "0";
 static const char *option_report_str = DEFAULT_REPORT_STYLE;
 static const char *option_targets[128] = {0};
@@ -104,20 +102,12 @@ static struct OPTION options[] = {
 		TODO
 	@END*/
 
-	/*@OPTION Base File ( -b FILENAME )
-		Base file to use. In normal operation, Bam executes the builtin
-		^base.bam^ during startup before executing the build script
-		itself. This option allows to control that behaviour and
-		loading your own base file if wanted.
-	@END*/
-	{&option_basescript,0		, "-b", "base file to use"},
-
 	/*@OPTION Script File ( -s FILENAME )
 		Bam file to use. In normal operation, Bam executes
-		^default.bam^. This option allows you to specify another bam
+		^bam.lua^. This option allows you to specify another bam
 		file.
 	@END*/
-	{&option_script,0			, "-s", "bam file to use"},
+	{&option_script,0			, "-s", "bam file to use. default is bam.lua"},
 
 	/*@OPTION Clean ( -c )
 		Cleans the specified targets or the default target.
@@ -187,8 +177,13 @@ static struct OPTION options[] = {
 	/*@OPTION Debug: Dump Internal Scripts ( --debug-dump-internal )
 	@END*/
 	{0, &option_debug_dumpinternal		, "--debug-dump-internal", "dumps the internals scripts to stdout"},
-	
-	
+
+
+	/*@OPTION Debug: No Internal ( --debug-no-internal )
+		Disables all the internal scripts that bam loads on startup.
+	@END*/
+	{0, &option_debug_nointernal		, "--debug-no-internal", "don't load internal scripts"},
+		
 	/* terminate list */
 	{0, 0, (const char*)0, (const char*)0}
 };
@@ -300,24 +295,7 @@ int register_lua_globals(struct CONTEXT *context)
 	lua_setglobal(context->lua, "verbose");
 
 	/* load base script */
-	if(option_basescript)
-	{
-		if(session.verbose)
-			printf("%s: reading base script from '%s'\n", session.name, option_basescript);
-		
-		/* push error function to stack */
-		if(luaL_loadfile(context->lua, option_basescript) != 0)
-		{
-			error = 1;
-			lua_error(context->lua);
-		}
-		else if(lua_pcall(context->lua, 0, LUA_MULTRET, -2) != 0)
-		{
-			error = 1;
-			lua_error(context->lua);
-		}
-	}
-	else
+	if(!option_debug_nointernal)
 	{
 		int ret;
 		const char *p;
@@ -365,7 +343,6 @@ static void *lua_alloctor(void *ud, void *ptr, size_t osize, size_t nsize)
 	
 	return realloc(ptr, nsize);
 }
-
 
 /* *** */
 static int bam(const char *scriptfile, const char **targets, int num_targets)
@@ -430,8 +407,8 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	if(register_lua_globals(&context) != 0)
 		return 1;
 
-	/* load cache */
-	if(!option_no_cache)
+	/* load cache (thread?) */
+	if(option_no_cache == 0)
 		context.cache = cache_load(CACHE_FILENAME);
 	
 	/* load script */	
@@ -460,16 +437,16 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 			error = 1;
 	}
 	
-	/* save cache */
-	if(!option_no_cache)
+	/* save cache (thread?) */
+	if(option_no_cache == 0)
 		cache_save(CACHE_FILENAME, context.graph);
-
+	
 	/* make build target */
 	{
 		struct NODE *node;
 		int all_target = 0;
 
-		if(node_create(&context.target, context.graph, "_buildtarget", 0, 0))
+		if(node_create(&context.target, context.graph, "_bam_buildtarget", 0, 0))
 			return -1;
 			
 		if(num_targets)
@@ -532,7 +509,7 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 		else if(option_debug_jobs)
 		{
 			/* debug dump all jobs */
-			error = build_prepare(&context);
+			error = context_build_prepare(&context);
 			node_debug_dump_jobs(context.graph);
 			report_done = 0;
 		}
@@ -543,13 +520,13 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 		else
 		{
 			/* run */
-			error = build_prepare(&context);
+			error = context_build_prepare(&context);
 			if(!error)
 			{
 				if(option_clean)
-					error = build_clean(&context);
+					error = context_build_clean(&context);
 				else
-					error = build_make(&context);
+					error = context_build_make(&context);
 			}
 		}
 	}
@@ -730,10 +707,6 @@ int main(int argc, char **argv)
 		if(argv[0][i] == '/' || argv[0][i] == '\\')
 			session.name = &argv[0][i+1];
 	}
-
-	/* get basescript */
-	if(getenv("BAM_BASESCRIPT"))
-		option_basescript = getenv("BAM_BASESCRIPT");
 
 	/* parse environment parameters */
 	if(getenv("BAM_OPTIONS"))

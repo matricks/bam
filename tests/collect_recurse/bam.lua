@@ -1,7 +1,5 @@
 settings = NewSettings() 
  
-src = Collect("test/*.cpp") -- this path does not exist
+src = CollectRecursive("*.cpp")
 objs = Compile(settings, src) 
 exe = Link(settings, "gc_app", objs) 
- 
-Target(exe) 
