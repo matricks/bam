@@ -64,8 +64,6 @@ static int option_no_cache = 0;
 static int option_dry = 0;
 static int option_debug_nodes = 0;
 static int option_debug_jobs = 0;
-static int option_debug_buildtime = 0;
-static int option_debug_dirty = 0;
 static int option_debug_dumpinternal = 0;
 static int option_debug_nointernal = 0;
 static int option_print_help = 0;
@@ -129,7 +127,7 @@ static struct OPTION options[] = {
 		Sets the number of threads used when building.
 		Set to 0 to disable.
 	@END*/
-	{&option_threads_str,0		, "-j", "sets the number of threads to use. 0 disables threading. (EXPRIMENTAL)"},
+	{&option_threads_str,0		, "-j", "sets the number of threads to use. 0 to disables."},
 
 	/*@OPTION Help ( -h, --help )
 		Prints out a short reference of the command line options and quits
@@ -146,18 +144,14 @@ static struct OPTION options[] = {
 			<li>c</li> - Use ANSI colors.
 		</ul>
 	@END*/
-	{&option_report_str,0		, "-r", "sets report format, b = bar, s = steps, c = color, (default:\"" DEFAULT_REPORT_STYLE "\")"},
+	{&option_report_str,0		, "-r", "set report format (default:" DEFAULT_REPORT_STYLE ")\n"
+		"                       " "    b = bar, s = steps, c = color"},
 
 	/*@OPTION Dry Run ( --dry )
 		Does everything that it normally would do but does not execute any
 		commands.
 	@END*/
 	{0, &option_dry				, "--dry", "dry run"},
-
-	/*@OPTION Debug: Build Time ( --debug-build-time )
-		Prints out the time spent building the targets when done.
-	@END*/
-	{0, &option_debug_buildtime	, "--debug-build-time", "prints the build time"},
 
 	/*@OPTION Debug: Dump Nodes ( --debug-nodes )
 		Dumps all nodes in the dependency graph, their state and their
@@ -170,19 +164,14 @@ static struct OPTION options[] = {
 	@END*/
 	{0, &option_debug_jobs		, "--debug-jobs", "prints all the jobs that exist"},
 
-	/*@OPTION Debug: Dirty Marking ( --debug-dirty )
+	/*@OPTION Debug: Dump Internal Scripts ( --debug-dump-int )
 	@END*/
-	{0, &option_debug_dirty		, "--debug-dirty", ""},
-	
-	/*@OPTION Debug: Dump Internal Scripts ( --debug-dump-internal )
-	@END*/
-	{0, &option_debug_dumpinternal		, "--debug-dump-internal", "dumps the internals scripts to stdout"},
+	{0, &option_debug_dumpinternal		, "--debug-dump-int", "dumps the internals scripts to stdout"},
 
-
-	/*@OPTION Debug: No Internal ( --debug-no-internal )
+	/*@OPTION Debug: No Internal ( --debug-no-int )
 		Disables all the internal scripts that bam loads on startup.
 	@END*/
-	{0, &option_debug_nointernal		, "--debug-no-internal", "don't load internal scripts"},
+	{0, &option_debug_nointernal		, "--debug-no-int", "don't load internal scripts"},
 		
 	/* terminate list */
 	{0, 0, (const char*)0, (const char*)0}
@@ -350,7 +339,7 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	struct CONTEXT context;
 	int error = 0;
 	int i;
-	int report_done = 1;
+	int report_done = 0;
 
 	/* build time */
 	time_t starttime  = time(0x0);
@@ -504,18 +493,17 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 		{
 			/* debug dump all nodes */
 			node_debug_dump(context.graph);
-			report_done = 0;
 		}
 		else if(option_debug_jobs)
 		{
 			/* debug dump all jobs */
 			error = context_build_prepare(&context);
 			node_debug_dump_jobs(context.graph);
-			report_done = 0;
 		}
 		else if(option_dry)
 		{
 			/* do NADA */
+			error = context_build_prepare(&context);
 		}
 		else
 		{
@@ -526,7 +514,10 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 				if(option_clean)
 					error = context_build_clean(&context);
 				else
+				{
 					error = context_build_make(&context);
+					report_done = 1;
+				}
 			}
 		}
 	}
@@ -539,13 +530,14 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	if(error)
 		printf("%s: error during build\n", session.name);
 	else if(report_done)
-		printf("%s: done\n", session.name);
-
-	/* print build time */
-	if(option_debug_buildtime)
 	{
-		time_t s = time(0x0) - starttime;
-		printf("\nbuild time: %d:%.2d\n", (int)(s/60), (int)(s%60));
+		if(context.num_commands == 0)
+			printf("%s: targets are up to date already\n", session.name);
+		else
+		{
+			time_t s = time(0x0) - starttime;
+			printf("%s: done (%d:%.2d)\n", session.name, (int)(s/60), (int)(s%60));
+		}
 	}
 
 	return error;
