@@ -213,14 +213,18 @@ function NewTable()
 		for i,what in ipairs({...}) do
 			table.insert(self, what)
 		end
+		self.version = self.version + 1
 	end
 
 	t.Merge = function(self, source)
 		for k,v in ipairs(source) do
 			table.insert(self, v)
 		end
+		self.version = self.version + 1
 	end
-	
+
+	t.version = 0
+
 	return t
 end
 
@@ -247,6 +251,7 @@ function NewFlagTable()
 
 	t.string_version = 0
 	t.string = ""
+	
 
 	return t
 end
