@@ -41,6 +41,13 @@
 	#define BAM_PLATFORM_STRING "linux"
 #endif
 
+#if defined(__GNU__) || defined(__gnu__)
+	#define BAM_FAMILY_UNIX
+	#define BAM_FAMILY_STRING "unix"
+	#define BAM_PLATFORM_HURD
+	#define BAM_PLATFORM_STRING "gnu"
+#endif
+
 #if defined(MACOSX) || defined(__APPLE__) || defined(__DARWIN__)
 	#define BAM_FAMILY_UNIX
 	#define BAM_FAMILY_STRING "unix"
@@ -72,7 +79,7 @@
 
 
 /* architectures */
-#if defined(i386) || defined(__i386__) || defined(__x86__) || defined(BAM_PLATFORM_WIN32)
+#if defined(i386) || defined(__i386__) || defined(__x86__) || defined(i386_AT386) || defined(BAM_PLATFORM_WIN32)
 	#define BAM_ARCH_IA32
 	#define BAM_ARCH_STRING "ia32"
 #endif
