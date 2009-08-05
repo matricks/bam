@@ -305,10 +305,16 @@ int cache_do_dependency(struct CONTEXT *context, struct NODE *node)
 	struct CACHENODE *depcachenode;
 	int i;
 	
+	/* make sure that we don't check this twice */
+	if(node->depchecked)
+		return 1;
+	
 	/* search the cache */
 	cachenode = cache_find_byhash(context->cache, node->hashid);
 	if(cachenode && cachenode->timestamp == node->timestamp)
 	{
+		node->depchecked = 1;
+		
 		/* use cached version */
 		for(i = 0; i < cachenode->deps_num; i++)
 		{
