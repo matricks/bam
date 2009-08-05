@@ -305,6 +305,8 @@ int cache_do_dependency(struct CONTEXT *context, struct NODE *node)
 	struct CACHENODE *depcachenode;
 	int i;
 	
+	return 0;
+	
 	/* make sure that we don't check this twice */
 	if(node->depchecked)
 		return 1;
