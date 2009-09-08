@@ -61,6 +61,16 @@ static char bamheader[8] = {
 	#define io_close(f) fclose(f)
 	#define io_read(f, data, size) fread(data, 1, size, f)
 	#define io_write(f, data, size) fwrite(data, 1, size, f)
+
+	size_t io_size(IO_HANDLE f)
+	{
+		long current, end;
+		current = ftell(f);
+		fseek(f, 0, SEEK_END);
+		end = ftell(f);
+		fseek(f, current, SEEK_SET);
+		return end;
+	}
 #endif
 
 static int cachenode_cmp(struct CACHENODE *a, struct CACHENODE *b)
@@ -307,14 +317,13 @@ int cache_do_dependency(struct CONTEXT *context, struct NODE *node)
 	
 	return 0;
 	
-	/* make sure that we don't check this twice */
-	if(node->depchecked)
-		return 1;
-	
 	/* search the cache */
 	cachenode = cache_find_byhash(context->cache, node->hashid);
 	if(cachenode && cachenode->timestamp == node->timestamp)
 	{
+		if(node->depchecked)
+			return 1;
+
 		node->depchecked = 1;
 		
 		/* use cached version */
