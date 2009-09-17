@@ -217,3 +217,37 @@ int lf_panicfunc(lua_State *L)
 	return 0;
 }
 
+int lf_mkdir(struct lua_State *L)
+{
+	if(lua_gettop(L) < 1)
+		luaL_error(L, "mkdir: too few arguments");	
+
+	if(!lua_isstring(L,1))
+		luaL_error(L, "mkdir: expected string");
+		
+	if(file_createdir(lua_tostring(L,1)) == 0)
+		lua_pushnumber(L, 1);	
+	else
+		lua_pushnil(L);
+	return 1;
+}
+
+int lf_istable(lua_State *L)
+{
+	if(lua_type(L,-1) == LUA_TTABLE)
+		lua_pushnumber(L, 1);
+	else
+		lua_pushnil(L);
+	return 1;
+}
+
+int lf_isstring(lua_State *L)
+{
+	if(lua_type(L,-1) == LUA_TSTRING)
+		lua_pushnumber(L, 1);
+	else
+		lua_pushnil(L);
+	return 1;
+}
+
+
