@@ -58,6 +58,7 @@ struct OPTION
 static int option_clean = 0;
 static int option_no_cache = 1; /* TODO: Reenable cache, 0; */
 static int option_dry = 0;
+static int option_abort_on_error = 0;
 static int option_debug_nodes = 0;
 static int option_debug_jobs = 0;
 static int option_debug_dumpinternal = 0;
@@ -123,7 +124,13 @@ static struct OPTION options[] = {
 		Sets the number of threads used when building.
 		Set to 0 to disable.
 	@END*/
-	{&option_threads_str,0		, "-j", "sets the number of threads to use. 0 to disables."},
+	{&option_threads_str,0		, "-j", "sets the number of threads to use. 0 to disables"},
+
+	/*@OPTION Abort on error ( -a )
+		Setting this will cause bam to abort the build process when an error has occured.
+		Normally it would continue as far as it can
+	@END*/
+	{0,&option_abort_on_error	, "-a", "abort on error"},
 
 	/*@OPTION Help ( -h, --help )
 		Prints out a short reference of the command line options and quits
@@ -481,6 +488,7 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	memset(&context, 0, sizeof(struct CONTEXT));
 	context.heap = mem_create();
 	context.graph = node_create_graph(context.heap);
+	context.exit_on_error = option_abort_on_error;
 
 	/* create lua context */
 	/* HACK: Store the context pointer as the userdata pointer to the allocator to make

@@ -152,10 +152,20 @@ static int threads_run_callback(struct NODEWALK *walkinfo)
 	struct THREADINFO *info = (struct THREADINFO *)walkinfo->user;
 	struct DEPENDENCY *dep;
 	int errorcode = 0;
+	
+	/* check global error code so we know if we should exit */
+	if(info->context->exit_on_error && info->context->errorcode)
+		return info->context->errorcode;
 
-	/* make sure that all deps are done */
+	/* make sure that all deps are done and propagate broken status */
 	for(dep = node->firstdep; dep; dep = dep->next)
 	{
+		if(dep->node->workstatus == NODESTATUS_BROKEN)
+		{
+			node->workstatus = NODESTATUS_BROKEN;
+			return 0;
+		}
+			
 		if(dep->node->dirty && dep->node->workstatus != NODESTATUS_DONE)
 			return 0;
 	}
@@ -175,8 +185,25 @@ static int threads_run_callback(struct NODEWALK *walkinfo)
 		errorcode = run_node(info->context, node, info->id+1);
 	
 	/* this node is done, mark it so and return the error code */
-	node->workstatus = NODESTATUS_DONE;
+	if(errorcode)
+	{
+		node->workstatus = NODESTATUS_BROKEN;
+		
+		/* set global error code */
+		info->context->errorcode = errorcode;
+	}
+	else
+		node->workstatus = NODESTATUS_DONE;
 	return errorcode;
+}
+
+/* signal handler */
+static volatile int abortrequest = 0;
+static void abortsignal(int i)
+{
+	(void)i;
+	printf("%s: signal cought, waiting for commands to finish.\n", session.name);
+	abortrequest = 1;
 }
 
 static void threads_run(void *u)
@@ -190,16 +217,24 @@ static void threads_run(void *u)
 	/* lock the dependency graph */
 	criticalsection_enter();
 	
+	install_signals(abortsignal);
+	
 	if(target->dirty)
 	{
 		while(1)
 		{
 			info->errorcode = node_walk(target, flags, threads_run_callback, info);
 			
-			/* check if we are done */
-			if(target->workstatus == NODESTATUS_DONE || info->errorcode != 0)
+			if(abortrequest)
 				break;
-				
+
+			/* check if we are done */
+			if(target->workstatus != NODESTATUS_UNDONE)
+				break;
+
+			if(info->context->exit_on_error && info->context->errorcode)
+				break;
+			
 			/* let the others have some time */
 			criticalsection_leave();
 			threads_yield();

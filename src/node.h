@@ -60,7 +60,7 @@ struct NODE
 	unsigned counted:1;
 	unsigned isdependedon:1; /* set if someone depends on this node */
 	
-	volatile unsigned workstatus:2; /* 0 = undone, 1 = in the workings, 2 = done*/
+	volatile unsigned workstatus:2; /* build status of the node, NODESTATUS_* flags */
 };
 
 RB_HEAD(NODERB, NODE);
@@ -100,6 +100,7 @@ struct CONTEXT;
 #define NODESTATUS_UNDONE 0
 #define NODESTATUS_WORKING 1
 #define NODESTATUS_DONE 2
+#define NODESTATUS_BROKEN 3
 
 /* node creation error codes */
 #define NODECREATE_OK 0

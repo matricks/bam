@@ -16,9 +16,11 @@ struct CONTEXT
 	struct NODE *target;
 	
 	time_t globaltimestamp;
-	
-	volatile int current_cmd_num;
+
+	int exit_on_error;
 	int num_commands;
+	volatile int errorcode;
+	volatile int current_cmd_num;
 };
 
 const char *context_get_path(struct lua_State *L);
