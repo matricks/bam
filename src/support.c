@@ -298,18 +298,6 @@ static void collect_callback(const char *filename, int dir, void *user)
 	if(no_pathed[0] == '.' && !(info->flags&COLLECTFLAG_HIDDEN))
 		return;
 
-	/* recurse */
-	if(dir && info->flags&COLLECTFLAG_RECURSIVE)
-	{
-		char recursepath[1024];
-		COLLECT_CALLBACK_INFO recurseinfo = *info;
-		strcpy(recursepath, filename);
-		strcat(recursepath, "/");
-		strcat(recursepath, info->start_str);
-		run_collect(&recurseinfo, recursepath);
-		info->i = recurseinfo.i;
-	}
-
 	/* check end */
 	if(info->end_len > no_pathed_len || strcmp(no_pathed+no_pathed_len-info->end_len, info->end_str))
 		return;
@@ -324,6 +312,18 @@ static void collect_callback(const char *filename, int dir, void *user)
 		lua_pushstring(info->lua, filename);
 		lua_rawseti(info->lua, -2, info->i++);
 	}
+
+	/* recurse */
+	if(dir && info->flags&COLLECTFLAG_RECURSIVE)
+	{
+		char recursepath[1024];
+		COLLECT_CALLBACK_INFO recurseinfo = *info;
+		strcpy(recursepath, filename);
+		strcat(recursepath, "/");
+		strcat(recursepath, info->start_str);
+		run_collect(&recurseinfo, recursepath);
+		info->i = recurseinfo.i;
+	}	
 }
 
 static void run_collect(COLLECT_CALLBACK_INFO *info, const char *input)
