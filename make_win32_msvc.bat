@@ -19,7 +19,7 @@ exit
 call %VSPATH%vsvars32.bat
 
 @cl /D_CRT_SECURE_NO_DEPRECATE /O2 /nologo src/tools/txt2c.c /Fesrc/tools/txt2c.exe
-@src\tools\txt2c src\base.lua src\driver_gcc.lua src\driver_cl.lua > src\internal_base.h
+@src\tools\txt2c src/base.lua src/driver_gcc.lua src/driver_cl.lua > src\internal_base.h
 @cl /D_CRT_SECURE_NO_DEPRECATE /W3 /TC /O2 /nologo /I src/lua src/lua/*.c src/*.c /Febam.exe
 @del *.obj
 
