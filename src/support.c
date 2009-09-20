@@ -298,21 +298,28 @@ static void collect_callback(const char *filename, int dir, void *user)
 	if(no_pathed[0] == '.' && !(info->flags&COLLECTFLAG_HIDDEN))
 		return;
 
-	/* check end */
-	if(info->end_len > no_pathed_len || strcmp(no_pathed+no_pathed_len-info->end_len, info->end_str))
-		return;
-	
-	/* check start */		
-	if(info->start_len && strncmp(no_pathed, info->start_str, info->start_len))
-		return;
-		
-	if((dir && info->flags&COLLECTFLAG_DIRS) || (!dir && info->flags&COLLECTFLAG_FILES))
+	do
 	{
-		/* accepted, push the result */
+		/* check end */
+		if(info->end_len > no_pathed_len || strcmp(no_pathed+no_pathed_len-info->end_len, info->end_str))
+			break;
+
+		/* check start */
+		if(info->start_len && strncmp(no_pathed, info->start_str, info->start_len))
+			break;
+		
+		/* check dir vs search param */
+		if(!dir && info->flags&COLLECTFLAG_DIRS)
+			break;
+		
+		if(dir && info->flags&COLLECTFLAG_FILES)
+			break;
+			
+		/* all criterias met, push the result */
 		lua_pushstring(info->lua, filename);
 		lua_rawseti(info->lua, -2, info->i++);
-	}
-
+	} while(0);
+	
 	/* recurse */
 	if(dir && info->flags&COLLECTFLAG_RECURSIVE)
 	{
