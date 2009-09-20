@@ -1021,8 +1021,8 @@ function InitCommonCCompiler(settings)
 	settings.cc = {}
 	settings.cc.extension = ""
 	settings.cc.path = ""
-	settings.cc.c_compiler = ""
-	settings.cc.cxx_compiler = ""
+	settings.cc.c_exe = ""
+	settings.cc.cxx_exe = ""
 	settings.cc.DriverCTest = DriverNull
 	settings.cc.DriverC = DriverNull
 	settings.cc.DriverCXX = DriverNull
@@ -1123,7 +1123,7 @@ AddTool("link", function (settings)
 	settings.link.Driver = DriverNull
 	settings.link.path = ""
 	settings.link.extension = ""
-	settings.link.linker = "g++"
+	settings.link.exe = ""
 	settings.link.inputflags = ""
 	settings.link.flags = NewFlagTable()
 	settings.link.libs = NewTable()
@@ -1166,6 +1166,7 @@ AddTool("lib", function (settings)
 	settings.lib.Driver = DriverNull
 	settings.lib.extension = ""
 	settings.lib.path = ""
+	settings.lib.exe = ""
 	settings.lib.flags = NewFlagTable()
 	
 	table.lock(settings.lib)
@@ -1197,7 +1198,7 @@ AddTool("dll", function (settings)
 	settings.dll.Driver = DriverNull
 	settings.dll.extension = ""
 	settings.dll.path = ""
-	settings.dll.linker = "g++"
+	settings.dll.exe = ""
 	settings.dll.inputflags = ""
 	settings.dll.flags = NewFlagTable()
 	settings.dll.libs = NewTable()
