@@ -315,8 +315,6 @@ int cache_do_dependency(struct CONTEXT *context, struct NODE *node)
 	struct CACHENODE *depcachenode;
 	int i;
 	
-	return 0;
-	
 	/* search the cache */
 	cachenode = cache_find_byhash(context->cache, node->hashid);
 	if(cachenode && cachenode->timestamp == node->timestamp)
@@ -327,7 +325,7 @@ int cache_do_dependency(struct CONTEXT *context, struct NODE *node)
 		node->depchecked = 1;
 		
 		/* use cached version */
-		for(i = 0; i < cachenode->deps_num; i++)
+		for(i = cachenode->deps_num-1; i >= 0; i--)
 		{
 			depcachenode = cache_find_byindex(context->cache, cachenode->deps[i]);
 			node_add_dependency(node, depcachenode->filename);

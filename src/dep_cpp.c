@@ -111,10 +111,11 @@ static int dependency_cpp_run(struct CONTEXT *context, struct NODE *node,
 	char *filebufend;
 	FILE *file;
 
+	/* don't run depcheck twice */
 	if(node->depchecked)
 		return 0;
-	node->depchecked = 1;
-		
+	
+	/* check if we have the dependencies in the cache frist */
 	if(cache_do_dependency(context, node))
 	{
 		struct DEPENDENCY *dep;
@@ -122,6 +123,9 @@ static int dependency_cpp_run(struct CONTEXT *context, struct NODE *node,
 			dependency_cpp_run(context, dep->node, callback, userdata);
 		return 0;
 	}
+
+	/* mark the node as checked */
+	node->depchecked = 1;
 
 	file = fopen(node->filename, "rb");
 	if(!file)

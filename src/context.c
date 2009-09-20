@@ -163,7 +163,7 @@ static int threads_run_callback(struct NODEWALK *walkinfo)
 		if(dep->node->workstatus == NODESTATUS_BROKEN)
 		{
 			node->workstatus = NODESTATUS_BROKEN;
-			return 0;
+			return info->context->errorcode;
 		}
 			
 		if(dep->node->dirty && dep->node->workstatus != NODESTATUS_DONE)

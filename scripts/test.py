@@ -41,6 +41,20 @@ def copytree(src, dst):
 			print "Can't copy %s to %s: %s" % (`srcname`, `dstname`, str(why))
 
 
+def run_bam(testname, flags):
+	global output_path
+	olddir = os.getcwd()
+	os.chdir(output_path+"/"+testname)
+	
+	p = subprocess.Popen(bam+" "+flags, stdout=subprocess.PIPE, shell=True, stderr=subprocess.STDOUT)
+	report = p.stdout.readlines()
+	p.wait()
+	ret = p.returncode
+	os.chdir(olddir)
+	
+	return (ret, report)
+	
+
 def test(name, moreflags="", should_fail=0):
 	global output_path, failed_tests, tests
 
@@ -66,6 +80,42 @@ def test(name, moreflags="", should_fail=0):
 		failed_tests += [name + "(returned %d)" % ret]
 	else:
 		print " ok"
+
+def difftest(name, flags1, flags2):
+	global failed_tests
+	testname = "difftest: %s '%s' vs '%s': "%(name, flags1, flags2)
+	print testname,
+	ret1, report1 = run_bam(name, flags1)
+	ret2, report2 = run_bam(name, flags2)
+	
+	if ret1:
+		print "FAILED! '%s' returned %d" %(flags1, ret1)
+		failed_tests += [testname]
+		return
+	
+	if ret2:
+		print "FAILED! '%s' returned %d" %(flags2, ret2)
+		failed_tests += [testname]
+		return
+	
+	if len(report1) != len(report2):
+		print "FAILED! %d lines vs %d lines" % (len(report1), len(report2))
+		failed_tests += [testname]
+		return
+	
+	failed = 0
+	for i in xrange(0, len(report1)):
+		if report1[i] != report2[i]:
+			if not failed:
+				print "FAILED!"
+			print "1:", report1[i]
+			print "2:", report2[i]
+			failed += 1
+			
+	if failed:
+		failed_tests += [testname]
+	else:
+		print "ok"
 
 def unittests():
 	class Test:
@@ -164,9 +214,12 @@ unittests()
 
 # run bigger test cases
 test("cyclic")
+difftest("cyclic", "--debug-nodes", "--debug-nodes -n")
 test("include_paths")
+difftest("include_paths", "--debug-nodes", "--debug-nodes -n")
 test("dot.in.dir")
-#test("subproject")
+difftest("dot.in.dir", "--debug-nodes", "--debug-nodes -n")
+
 test("retval", "", 1)
 test("multi_target", "SHOULD_NOT_EXIST", 1)
 test("multi_target", "CORRECT_ONE")

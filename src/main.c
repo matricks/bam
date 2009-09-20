@@ -56,7 +56,7 @@ struct OPTION
 
 /* options passed via the command line */
 static int option_clean = 0;
-static int option_no_cache = 1; /* TODO: Reenable cache, 0; */
+static int option_no_cache = 0;
 static int option_dry = 0;
 static int option_abort_on_error = 0;
 static int option_debug_nodes = 0;
@@ -112,7 +112,7 @@ static struct OPTION options[] = {
 	/*@OPTION No cache ( -n )
 		Do not use cache when building.
 	@END*/
-	/*{0, &option_no_cache			, "-n", "don't use cache (" CACHE_FILENAME ")"},*/
+	{0, &option_no_cache			, "-n", "don't use cache (" CACHE_FILENAME ")"},
 	
 
 	/*@OPTION Verbose ( -v )
