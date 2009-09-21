@@ -1020,7 +1020,6 @@ end
 function InitCommonCCompiler(settings)
 	settings.cc = {}
 	settings.cc.extension = ""
-	settings.cc.path = ""
 	settings.cc.c_exe = ""
 	settings.cc.cxx_exe = ""
 	settings.cc.DriverCTest = DriverNull
@@ -1121,7 +1120,7 @@ end
 AddTool("link", function (settings)
 	settings.link = {}
 	settings.link.Driver = DriverNull
-	settings.link.path = ""
+	settings.link.Output = Default_Intermediate_Output
 	settings.link.extension = ""
 	settings.link.exe = ""
 	settings.link.inputflags = ""
@@ -1143,7 +1142,7 @@ function Link(settings, output, ...)
 	
 	local inputs = FlattenTable({...})
 
-	output = output .. settings.config_ext .. settings.link.extension
+	output = settings.link.Output(settings, output) .. settings.link.extension
 
 	AddJob(output, "link " .. output, settings.link.Driver(output, inputs, settings))
 
@@ -1164,8 +1163,8 @@ end
 AddTool("lib", function (settings)
 	settings.lib = {}
 	settings.lib.Driver = DriverNull
+	settings.lib.Output = Default_Intermediate_Output
 	settings.lib.extension = ""
-	settings.lib.path = ""
 	settings.lib.exe = ""
 	settings.lib.flags = NewFlagTable()
 	
@@ -1180,7 +1179,7 @@ function StaticLibrary(settings, output, ...)
 	
 	local inputs = FlattenTable({...})
 
-	output = output .. settings.config_ext .. settings.lib.extension
+	output = settings.lib.Output(settings, output) .. settings.lib.extension
 
 	AddJob(output, "link " .. output, settings.lib.Driver(output, inputs, settings))
 
@@ -1197,7 +1196,7 @@ AddTool("dll", function (settings)
 	settings.dll = {}
 	settings.dll.Driver = DriverNull
 	settings.dll.extension = ""
-	settings.dll.path = ""
+	settings.dll.Output = Default_Intermediate_Output
 	settings.dll.exe = ""
 	settings.dll.inputflags = ""
 	settings.dll.flags = NewFlagTable()
@@ -1218,7 +1217,7 @@ function SharedLibrary(settings, output, ...)
 	
 	local inputs = FlattenTable({...})
 
-	output = output .. settings.config_ext .. settings.dll.extension
+	output = settings.dll.Output(settings, output) .. settings.dll.extension
 	AddJob(output, "dll ".. output, settings.dll.Driver(output, inputs, settings))
 
 	for index, inname in ipairs(inputs) do

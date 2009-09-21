@@ -28,9 +28,9 @@ int lf_add_job(lua_State *L)
 	/* create the node */
 	i = node_create(&node, context->graph, lua_tostring(L,1), lua_tostring(L,2), lua_tostring(L,3));
 	if(i == NODECREATE_NOTNICE)
-		luaL_error(L, "add_job: node '%s' is not nice", lua_tostring(L,2));
+		luaL_error(L, "add_job: node '%s' is not nice", lua_tostring(L,1));
 	else if(i == NODECREATE_EXISTS)
-		luaL_error(L, "add_job: node '%s' already exists", lua_tostring(L,2));
+		luaL_error(L, "add_job: node '%s' already exists", lua_tostring(L,1));
 	else if(i != NODECREATE_OK)
 		luaL_error(L, "add_job: unknown error creating node '%s'", lua_tostring(L,1));
 
