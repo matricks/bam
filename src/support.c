@@ -13,13 +13,14 @@
 #endif
 
 #ifdef BAM_FAMILY_WINDOWS
-	/* Windows code */
+	/* windows code */
 	#define WIN32_LEAN_AND_MEAN
 	#define VC_EXTRALEAN
 	#include <windows.h>
 	#include <sys/types.h>
 	#include <sys/stat.h>
 	#include <signal.h>
+	#include <direct.h> /* _mkdir */
 	
 	static void list_directory(const char *path, void (*callback)(const char *filename, int dir, void *user), void *user)
 	{
@@ -189,25 +190,37 @@
 
 time_t timestamp() { return time(NULL); }
 
+time_t file_timestamp(const char *filename)
+{
 #ifdef BAM_PLATFORM_MACOSX
 	/* Mac OS X version */
-	time_t file_timestamp(const char *filename)
-	{
 		struct stat s;
 		if(stat(filename, &s) == 0)
 			return s.st_mtimespec.tv_sec;
 		return 0;
-	}
 #else
 	/* NIX and Windows version */
-	time_t file_timestamp(const char *filename)
-	{
-		struct stat s;
-		if(stat(filename, &s) == 0)
-			return s.st_mtime;
-		return 0;
-	}
+	struct stat s;
+	if(stat(filename, &s) == 0)
+		return s.st_mtime;
+	return 0;
 #endif
+}
+
+int file_createdir(const char *path)
+{
+
+#ifdef BAM_FAMILY_WINDOWS
+	return _mkdir(path);
+#else
+	return mkdir(path, 0755);
+#endif
+}
+
+int run_command(const char *cmd)
+{
+	return system(cmd);
+}
 
 /* general */
 int file_exist(const char *filename)
@@ -401,8 +414,3 @@ int lf_collect(lua_State *L) { return collect(L, COLLECTFLAG_FILES); }
 int lf_collectrecursive(lua_State *L) { return collect(L, COLLECTFLAG_FILES|COLLECTFLAG_RECURSIVE); }
 int lf_collectdirs(lua_State *L) { return collect(L, COLLECTFLAG_DIRS); }
 int lf_collectdirsrecursive(lua_State *L) { return collect(L, COLLECTFLAG_DIRS|COLLECTFLAG_RECURSIVE); }
-
-int file_createdir(const char *path)
-{
-	return mkdir(path, 0755);
-}

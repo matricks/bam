@@ -1,5 +1,6 @@
 
 void install_signals(void (*abortsignal)(int));
+int run_command(const char *cmd);
 
 void platform_init();
 void platform_shutdown();

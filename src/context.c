@@ -125,7 +125,7 @@ static int run_node(struct CONTEXT *context, struct NODE *node, int thread_id)
 	
 	/* execute the command */
 	criticalsection_leave();
-	ret = system(node->cmdline);
+	ret = run_command(node->cmdline);
 	criticalsection_enter();
 	
 	if(ret)
