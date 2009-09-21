@@ -244,10 +244,10 @@ int cache_save(const char *filename, struct GRAPH *graph)
 
 struct CACHE *cache_load(const char *filename)
 {
-	long filesize;
+	unsigned long filesize;
 	void *buffer;
 	struct CACHE *cache;
-	int i;
+	unsigned i;
 	size_t bytesread;
 	
 	IO_HANDLE fp;
