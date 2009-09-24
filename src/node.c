@@ -164,6 +164,11 @@ struct NODE *node_add_dependency_withnode(struct NODE *node, struct NODE *depnod
 		return (struct NODE*)0x0;
 	}
 	
+	/* check if we are already dependent on this node */
+	for(dep = node->firstdep; dep; dep = dep->next)
+		if(dep->node->hashid == depnode->hashid)
+			return depnode;
+	
 	/* create dependency */
 	dep = (struct DEPENDENCY *)mem_allocate(node->graph->heap, sizeof(struct DEPENDENCY));
 	dep->node = depnode;
@@ -330,6 +335,7 @@ void node_debug_dump_jobs(struct GRAPH *graph)
 {
 	struct NODE *node = graph->first;
 	static const char *dirtyflag[] = {"--", "CH", "DD", "DN", "GS"};
+	printf("CH = Command hash dirty, DD = Dependency dirty, DN = Dependency is newer, GS = Global stamp is newer");
 	printf("Dirty Depth %-30s   Command\n", "Filename");
 	for(;node;node = node->next)
 	{

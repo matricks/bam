@@ -341,6 +341,11 @@ static void *lua_alloctor(void *ud, void *ptr, size_t osize, size_t nsize)
 
 static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char **targets, int num_targets)
 {
+	/* */	
+	if(session.verbose)
+		printf("%s: setup started\n", session.name);
+	
+	
 	/* set filename */
 	context->filename = scriptfile;
 	context->filename_short = path_filename(scriptfile);
@@ -414,6 +419,10 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 	/* save cache (thread?) */
 	if(option_no_cache == 0)
 		cache_save(CACHE_FILENAME, context->graph);
+
+	/* */	
+	if(session.verbose)
+		printf("%s: making build target\n", session.name);
 	
 	/* make build target */
 	{
@@ -472,6 +481,11 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 		}
 	}
 	
+	/* */	
+	if(session.verbose)
+		printf("%s: setup done\n", session.name);
+	
+	
 	/* return success */
 	return 0;
 }
@@ -491,6 +505,7 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	context.heap = mem_create();
 	context.graph = node_create_graph(context.heap);
 	context.exit_on_error = option_abort_on_error;
+	context.buildtime = timestamp();
 
 	/* create lua context */
 	/* HACK: Store the context pointer as the userdata pointer to the allocator to make

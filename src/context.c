@@ -323,8 +323,6 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 	struct DEPENDENCY *dep;
 	struct NODEWALKPATH *path;
 	
-	time_t time = timestamp();
-	
 	if(node->depth < walkinfo->depth)
 		node->depth = walkinfo->depth;
 	
@@ -350,7 +348,7 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 	for(dep = node->firstdep; dep; dep = dep->next)
 	{
 		/* time sanity check */
-		if(node->timestamp > time)
+		if(node->timestamp > context->buildtime)
 			printf("%s: WARNING:'%s' comes from the future\n", session.name, node->filename);
 
 		/* do circular action dependency checking */
@@ -398,6 +396,7 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 	graph validation and job counting */
 int context_build_prepare(struct CONTEXT *context)
 {
-	/* TODO: we should have NODEWALK_QUICK here, but then it will fail on circular dependencies */
+	/* TODO: we should have NODEWALK_QUICK here, but then it will fail on circular dependencies.
+		this slows down the operation quite much, we should find a better way of doing this.*/
 	return node_walk(context->target, NODEWALK_BOTTOMUP|NODEWALK_FORCE, build_prepare_callback, context);
 }

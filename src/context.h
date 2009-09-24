@@ -16,6 +16,7 @@ struct CONTEXT
 	struct NODE *target;
 	
 	time_t globaltimestamp;
+	time_t buildtime;
 
 	int exit_on_error;
 	int num_commands;
