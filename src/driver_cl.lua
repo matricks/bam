@@ -61,7 +61,7 @@ function DriverLink_CL(output, inputs, settings)
 	local libpaths = tbl_to_str(settings.link.libpath, "/libpath:\"", "\" ")
 	local exe = str_replace(settings.link.exe, "/", "\\")
 	if settings.debug > 0 then flags = flags .. "/DEBUG " end
-	local exec = exe .. ' /nologo /incremental:no ' .. flags .. libpaths .. libs .. " /OUT:" .. output .. " " .. input
+	local exec = exe .. " /nologo /incremental:no /OUT:" .. output .. " " .. flags .. libpaths .. libs .. " " .. input
 	return exec
 end
 

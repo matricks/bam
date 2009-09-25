@@ -95,6 +95,7 @@ function SetDriversGCC(settings)
 	end
 	
 	if settings.lib then
+		settings.lib.prefix = "lib"
 		settings.lib.extension = ".a"
 		settings.lib.exe = "ar"
 		settings.lib.Driver = DriverLib_GCC

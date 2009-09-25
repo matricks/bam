@@ -323,6 +323,8 @@ function NewSettings()
 
 	settings.config_name = ""
 	settings.config_ext = ""
+	settings.labelprefix = ""
+	
 	settings.debug = 1
 	settings.optimize = 0
 	
@@ -1040,7 +1042,7 @@ function CCompiler(settings, input)
 	local outname = settings.cc.Output(settings, input) .. settings.cc.extension
 	AddJob(
 		outname,
-		"c " .. input,
+		settings.labelprefix .. "c " .. input,
 		settings.cc.DriverC(outname, input, settings)
 	)	
 	AddDependency(outname, input)
@@ -1052,7 +1054,7 @@ function CXXCompiler(settings, input)
 	local outname = settings.cc.Output(settings, input) .. settings.cc.extension
 	AddJob(
 		outname,
-		"c++ " .. input,
+		settings.labelprefix .. "c++ " .. input,
 		settings.cc.DriverCXX(outname, input, settings)
 	)	
 	AddDependency(outname, input)
@@ -1144,7 +1146,7 @@ function Link(settings, output, ...)
 
 	output = settings.link.Output(settings, output) .. settings.link.extension
 
-	AddJob(output, "link " .. output, settings.link.Driver(output, inputs, settings))
+	AddJob(output, settings.labelprefix .. "link " .. output, settings.link.Driver(output, inputs, settings))
 
 	-- all the files
 	for index, inname in ipairs(inputs) do
@@ -1164,6 +1166,7 @@ AddTool("lib", function (settings)
 	settings.lib = {}
 	settings.lib.Driver = DriverNull
 	settings.lib.Output = Default_Intermediate_Output
+	settings.lib.prefix = ""
 	settings.lib.extension = ""
 	settings.lib.exe = ""
 	settings.lib.flags = NewFlagTable()
@@ -1179,9 +1182,9 @@ function StaticLibrary(settings, output, ...)
 	
 	local inputs = FlattenTable({...})
 
-	output = settings.lib.Output(settings, output) .. settings.lib.extension
+	output = settings.lib.Output(settings, PathPath(output) .. "/" .. settings.lib.prefix .. PathFilename(output)) .. settings.lib.extension
 
-	AddJob(output, "link " .. output, settings.lib.Driver(output, inputs, settings))
+	AddJob(output, settings.labelprefix .. "link " .. output, settings.lib.Driver(output, inputs, settings))
 
 	for index, inname in ipairs(inputs) do
 		AddDependency(output, inname)
@@ -1218,7 +1221,7 @@ function SharedLibrary(settings, output, ...)
 	local inputs = FlattenTable({...})
 
 	output = settings.dll.Output(settings, output) .. settings.dll.extension
-	AddJob(output, "dll ".. output, settings.dll.Driver(output, inputs, settings))
+	AddJob(output, settings.labelprefix .. "dll ".. output, settings.dll.Driver(output, inputs, settings))
 
 	for index, inname in ipairs(inputs) do
 		AddDependency(output, inname)
