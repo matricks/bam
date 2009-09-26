@@ -58,6 +58,7 @@ struct OPTION
 static int option_clean = 0;
 static int option_no_cache = 0;
 static int option_dry = 0;
+static int option_dependent = 0;
 static int option_abort_on_error = 0;
 static int option_debug_nodes = 0;
 static int option_debug_jobs = 0;
@@ -108,6 +109,12 @@ static struct OPTION options[] = {
 		Cleans the specified targets or the default target.
 	@END*/
 	{0, &option_clean			, "-c", "clean"},
+
+	/*@OPTION Dependent build ( -d )
+		Builds all targets that are dependent on the given targets.
+		If no targets are given this option doesn't do anything.
+	@END*/
+	{0, &option_dependent			, "-d", "build targets that is dependent given targets"},
 	
 	/*@OPTION No cache ( -n )
 		Do not use cache when building.
@@ -338,7 +345,6 @@ static void *lua_alloctor(void *ud, void *ptr, size_t osize, size_t nsize)
 	return realloc(ptr, nsize);
 }
 
-
 static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char **targets, int num_targets)
 {
 	/* */	
@@ -472,7 +478,16 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 						return -1;
 					}
 					
-					node_add_dependency_withnode(context->target, node);
+					if(option_dependent)
+					{
+						/* TODO: this should perhaps do a reverse walk up in the tree to
+							find all dependent node with commandline */
+						struct NODELINK *parent;
+						for(parent = node->firstparent; parent; parent = parent->next)
+							node_add_dependency_withnode(context->target, parent->node);
+					}
+					else
+						node_add_dependency_withnode(context->target, node);
 				}
 			}
 			else

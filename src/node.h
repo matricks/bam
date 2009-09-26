@@ -23,6 +23,8 @@ struct SCANNER
 
 /*
 	a node in the dependency graph
+	NOTE: when adding variables to this structure, remember to add
+		initilization of those variables in node_create().
 	TODO: these should be allocated cache aligned, and padded to 64 byte?
 */
 struct NODE
