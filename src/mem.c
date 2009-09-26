@@ -43,9 +43,6 @@ static void *mem_allocate_from_chunk(struct CHUNK *chunk, int size)
 {
 	char *mem;
 	
-	/* align the size to the size of a pointer */
-	size = (size+sizeof(void*)-1)&(~(sizeof(void*)-1));
-	
 	/* check if we need can fit the allocation */
 	if(chunk->current + size > chunk->end)
 		return (void*)0x0;
@@ -87,6 +84,9 @@ void mem_destroy(struct HEAP *heap)
 void *mem_allocate(struct HEAP *heap, int size)
 {
 	char *mem;
+	
+	/* align the size to the size of a pointer */
+	size = (size+sizeof(void*)-1)&(~(sizeof(void*)-1));
 
 	/* try to allocate from current chunk */
 	mem = (char *)mem_allocate_from_chunk(heap->current, size);
