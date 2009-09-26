@@ -41,6 +41,7 @@ static char bamheader[8] = {
 	#define IO_HANDLE int
 	#define io_open_read(filename) open(filename, O_RDONLY)
 	#define io_open_write(filename) open(filename, O_WRONLY|O_CREAT|O_TRUNC, 0666)
+	#define io_valid(f) ((f) != -1)
 	#define io_close(f) close(f)
 	#define io_read(f, data, size) read(f, data, size)
 	#define io_write(f, data, size) write(f, data, size)
@@ -48,8 +49,13 @@ static char bamheader[8] = {
 	size_t io_size(IO_HANDLE f)
 	{
 		struct stat s;
-		fstat(f, &s);
-		return s.st_size;
+		if(!fstat(f, &s))
+			return s.st_size;
+		else
+		{
+			perror("fstat");
+			return 0;
+		}
 	}
 	
 #else
@@ -58,6 +64,7 @@ static char bamheader[8] = {
 	#define IO_HANDLE FILE*
 	#define io_open_read(filename) fopen(filename, "rb")
 	#define io_open_write(filename) fopen(filename, "wb")
+	#define io_valid(f) (f)
 	#define io_close(f) fclose(f)
 	#define io_read(f, data, size) fread(data, 1, size, f)
 	#define io_write(f, data, size) fwrite(data, 1, size, f)
@@ -226,7 +233,7 @@ int cache_save(const char *filename, struct GRAPH *graph)
 	info.graph = graph;
 
 	info.fp = io_open_write(filename);
-	if(!info.fp)
+	if(!io_valid(info.fp))
 		return -1;
 	
 	if(write_header(&info) || write_nodes(&info))
@@ -254,7 +261,7 @@ struct CACHE *cache_load(const char *filename)
 	
 	/* open file */
 	fp = io_open_read(filename);
-	if(!fp)
+	if(!io_valid(fp))
 		return 0;
 		
 	/* read the whole file */
