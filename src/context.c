@@ -150,7 +150,7 @@ static int threads_run_callback(struct NODEWALK *walkinfo)
 {
 	struct NODE *node = walkinfo->node;
 	struct THREADINFO *info = (struct THREADINFO *)walkinfo->user;
-	struct DEPENDENCY *dep;
+	struct NODELINK *dep;
 	int errorcode = 0;
 	
 	/* check global error code so we know if we should exit */
@@ -320,17 +320,25 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 	struct NODE *node = walkinfo->node;
 	struct CONTEXT *context = (struct CONTEXT *)walkinfo->user;
 	struct CACHENODE *cachenode;
-	struct DEPENDENCY *dep;
+	struct NODELINK *dep;
+	struct NODELINK *parent;
 	struct NODEWALKPATH *path;
+
+	time_t oldtimestamp = node->timestamp; /* to keep track of if this node changes */
+	int olddirty = node->dirty;
 	
 	if(node->depth < walkinfo->depth)
 		node->depth = walkinfo->depth;
+
+	/* time sanity check */
+	if(node->timestamp > context->buildtime)
+		printf("%s: WARNING:'%s' comes from the future\n", session.name, node->filename);
 	
 	if(node->cmdline)
 	{
 		/* dirty checking, check against cmdhash and global timestamp first */
 		if(!node->timestamp)
-			node->dirty = 1;
+			node->dirty = NODEDIRTY_MISSING;
 		else
 		{
 			cachenode = cache_find_byhash(context->cache, node->hashid);
@@ -347,10 +355,6 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 	/* check against all the dependencies */
 	for(dep = node->firstdep; dep; dep = dep->next)
 	{
-		/* time sanity check */
-		if(node->timestamp > context->buildtime)
-			printf("%s: WARNING:'%s' comes from the future\n", session.name, node->filename);
-
 		/* do circular action dependency checking */
 		if(dep->node->cmdline)
 		{
@@ -388,6 +392,14 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 		node->counted = 1;
 		context->num_commands++;
 	}
+	
+	/* check if we should revisit it's parents to
+		propagate the dirty state and timestamp */
+	if(olddirty != node->dirty || oldtimestamp != node->timestamp)
+	{
+		for(parent = node->firstparent; parent; parent = parent->next)
+			node_walk_revisit(walkinfo, parent->node);
+	}
 
 	return 0;
 }
@@ -396,7 +408,9 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 	graph validation and job counting */
 int context_build_prepare(struct CONTEXT *context)
 {
-	/* TODO: we should have NODEWALK_QUICK here, but then it will fail on circular dependencies.
-		this slows down the operation quite much, we should find a better way of doing this.*/
-	return node_walk(context->target, NODEWALK_BOTTOMUP|NODEWALK_FORCE, build_prepare_callback, context);
+	/* revisit is used here to solve the problems
+		where we have circular dependencies */
+	return node_walk(context->target,
+		NODEWALK_BOTTOMUP|NODEWALK_FORCE|NODEWALK_REVISIT,
+		build_prepare_callback, context);
 }

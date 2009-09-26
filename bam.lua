@@ -1,4 +1,4 @@
-CheckVersion("0.3")
+CheckVersion("0.4")
 
 config = NewConfig()
 config:Add(OptCCompiler("cc"))

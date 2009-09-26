@@ -8,10 +8,10 @@
 #include "tree.h"
 
 /**/
-struct DEPENDENCY
+struct NODELINK
 {
 	struct NODE *node;
-	struct DEPENDENCY *next;
+	struct NODELINK *next;
 };
 
 struct SCANNER
@@ -22,17 +22,16 @@ struct SCANNER
 
 
 /*
-	64 byte on a 32 machine.
-	this should be able to fit inside a cache line
-	or perhaps two in one cache line
-	TODO: these should be allocated cache aligned
+	a node in the dependency graph
+	TODO: these should be allocated cache aligned, and padded to 64 byte?
 */
 struct NODE
 {
 	/* *** */
 	struct GRAPH *graph; /* graph that the node belongs to */
 	struct NODE *next; /* next node in the graph */
-	struct DEPENDENCY *firstdep; /* list of dependencies */
+	struct NODELINK *firstdep; /* list of dependencies */
+	struct NODELINK *firstparent; /* list of parents */
 	
 	char *filename; /* this contains the filename with the FULLPATH */
 	char *cmdline; /* command line that should be executed to build this node */
@@ -97,29 +96,33 @@ struct HEAP;
 struct CONTEXT;
 
 /* node status */
-#define NODESTATUS_UNDONE 0
-#define NODESTATUS_WORKING 1
-#define NODESTATUS_DONE 2
-#define NODESTATUS_BROKEN 3
+#define NODESTATUS_UNDONE 0   /* node needs build */
+#define NODESTATUS_WORKING 1  /* a thread is working on this node */
+#define NODESTATUS_DONE 2     /* node built successfully */
+#define NODESTATUS_BROKEN 3   /* node tool reported an error or a dependency is broken */
 
 /* node creation error codes */
 #define NODECREATE_OK 0
-#define NODECREATE_EXISTS 1
-#define NODECREATE_NOTNICE 2
+#define NODECREATE_EXISTS 1  /* the node already exists */
+#define NODECREATE_NOTNICE 2 /* the path is not normalized */
 
 /* node walk flags */
-#define NODEWALK_FORCE 1
-#define NODEWALK_TOPDOWN 2
-#define NODEWALK_BOTTOMUP 4
-#define NODEWALK_UNDONE 8
-#define NODEWALK_QUICK 16
+#define NODEWALK_FORCE 1    /* skips dirty checks and*/
+#define NODEWALK_TOPDOWN 2  /* callbacks are done top down */
+#define NODEWALK_BOTTOMUP 4 /* callbacks are done bottom up */
+#define NODEWALK_UNDONE 8   /* causes checking of the undone flag, does not decend if it's set */
+#define NODEWALK_QUICK 16   /* never visit the same node twice */
+#define NODEWALK_REVISIT (32|NODEWALK_QUICK) /* will do a quick pass and revisits all nodes thats
+	have been marked by node_walk_revisit(). path info won't be available when revisiting nodes */
 
 /* node dirty status */
+/* make sure to update node_debug_dump_jobs() when changing these */
 #define NODEDIRTY_NOT 0
-#define NODEDIRTY_CMDHASH 1
-#define NODEDIRTY_DEPDIRTY 2
-#define NODEDIRTY_DEPNEWER 3
-#define NODEDIRTY_GLOBALSTAMP 4
+#define NODEDIRTY_MISSING 1     /* the output file is missing */
+#define NODEDIRTY_CMDHASH 2     /* the command doesn't match the one in the cache */
+#define NODEDIRTY_DEPDIRTY 3    /* one of the dependencies is dirty */
+#define NODEDIRTY_DEPNEWER 4    /* one of the dependencies is newer */
+#define NODEDIRTY_GLOBALSTAMP 5 /* the globaltimestamp is newer */
 
 
 /* you destroy graphs by destroying the heap */
@@ -138,25 +141,44 @@ struct NODEWALKPATH
 	struct NODE *node;
 };
 
-struct NODEWALK
+struct NODEWALKREVISIT
 {
 	struct NODE *node;
-	void *user;
-	
-	struct NODEWALKPATH *parent;
-	
-	unsigned depth;
-	int flags;
-	int (*callback)(struct NODEWALK *);
-	unsigned char *mark;
+	struct NODEWALKREVISIT *next;
 };
 
+struct NODEWALK
+{
+	int flags; /* flags for this node walk */
+	struct NODE *node; /* current visiting node */
+
+	/* path that we reached this node by (not available during revisit due to activation) */
+	struct NODEWALKPATH *parent;
+	unsigned depth;
+	
+	void *user;
+	int (*callback)(struct NODEWALK *); /* function that is called for each visited node */
+	
+	unsigned char *mark; /* bits for mark and sweep */
+
+	int revisiting; /* set to 1 if we are doing revisits */
+	struct NODEWALKREVISIT *firstrevisit;
+	struct NODEWALKREVISIT *revisits;
+};
+
+/* walks though the dependency tree with the set options and calling callback()
+	on each node it visites */
 int node_walk(
 	struct NODE *node,
 	int flags,
 	int (*callback)(struct NODEWALK *info),
 	void *u);
 
+/* marks a node for revisit, only works if NODEWALK_REVISIT flags
+	was specified to node_walk */
+void node_walk_revisit(struct NODEWALK *walk, struct NODE *node);
+
+/* node debug dump functions */
 void node_debug_dump(struct GRAPH *graph);
 void node_debug_dump_jobs(struct GRAPH *graph);
 void node_debug_dump_tree(struct NODE *root);

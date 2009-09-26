@@ -92,6 +92,22 @@ static int processline(char *line, char **start, char **end, int *systemheader)
 	return 1;
 }
 
+struct CACHERUNINFO
+{
+	struct CONTEXT *context;
+	int (*callback)(void *, const char *, int);
+	void *userdata;
+};
+
+static int dependency_cpp_run(struct CONTEXT *context, struct NODE *node,
+		int (*callback)(void *, const char *, int), void *userdata);
+
+static void cachehit_callback(struct NODE *node, void *user)
+{
+	struct CACHERUNINFO *info = (struct CACHERUNINFO *)user;
+	dependency_cpp_run(info->context, node, info->callback, info->userdata);
+}
+
 /* dependency calculator for c/c++ preprocessor */
 static int dependency_cpp_run(struct CONTEXT *context, struct NODE *node,
 		int (*callback)(void *, const char *, int), void *userdata)
@@ -110,19 +126,18 @@ static int dependency_cpp_run(struct CONTEXT *context, struct NODE *node,
 	char *filebufcur;
 	char *filebufend;
 	FILE *file;
+	struct CACHERUNINFO cacheinfo;
 
 	/* don't run depcheck twice */
 	if(node->depchecked)
 		return 0;
 	
 	/* check if we have the dependencies in the cache frist */
-	if(cache_do_dependency(context, node))
-	{
-		struct DEPENDENCY *dep;
-		for(dep = node->firstdep; dep; dep = dep->next)
-			dependency_cpp_run(context, dep->node, callback, userdata);
+	cacheinfo.context = context;
+	cacheinfo.callback = callback;
+	cacheinfo.userdata = userdata;
+	if(cache_do_dependency(context, node, cachehit_callback, &cacheinfo))
 		return 0;
-	}
 
 	/* mark the node as checked */
 	node->depchecked = 1;
@@ -229,10 +244,15 @@ static int dependency_cpp_callback(void *user, const char *filename, int sys)
 				break;
 			flen--;
 		}
-		
-		memcpy(buf, node->filename, flen+1);
-		memcpy(buf+flen+1, filename, flen2);
-		buf[flen+flen2+1] = 0;
+
+		if(flen == 0)
+			memcpy(buf, filename, flen2+1);
+		else
+		{
+			memcpy(buf, node->filename, flen+1);
+			memcpy(buf+flen+1, filename, flen2);
+			buf[flen+flen2+1] = 0;
+		}
 		
 		if(!file_exist(buf) && !node_find(node->graph, filename))
 		{

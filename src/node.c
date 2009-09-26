@@ -82,7 +82,7 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 	node->depth = 0;
 	node->id = graph->num_nodes++;
 	node->timestamp = file_timestamp(filename);
-	node->firstdep = (struct DEPENDENCY*)0x0;
+	node->firstdep = (struct NODELINK*)0x0;
 	
 	/* set filename */
 	node->filename_len = strlen(filename)+1;
@@ -155,7 +155,8 @@ struct NODE *node_get(struct GRAPH *graph, const char *filename)
 
 struct NODE *node_add_dependency_withnode(struct NODE *node, struct NODE *depnode)
 {
-	struct DEPENDENCY *dep;
+	struct NODELINK *dep;
+	struct NODELINK *parent;
 	
 	/* make sure that the node doesn't try to depend on it self */
 	if(depnode == node)
@@ -169,13 +170,17 @@ struct NODE *node_add_dependency_withnode(struct NODE *node, struct NODE *depnod
 		if(dep->node->hashid == depnode->hashid)
 			return depnode;
 	
-	/* create dependency */
-	dep = (struct DEPENDENCY *)mem_allocate(node->graph->heap, sizeof(struct DEPENDENCY));
+	/* create and add dependency link */
+	dep = (struct NODELINK *)mem_allocate(node->graph->heap, sizeof(struct NODELINK));
 	dep->node = depnode;
-	
-	/* add the dependency to the node */
 	dep->next = node->firstdep;
 	node->firstdep = dep;
+	
+	/* create and add parent link */
+	parent = (struct NODELINK *)mem_allocate(node->graph->heap, sizeof(struct NODELINK));
+	parent->node = node;
+	parent->next = depnode->firstparent;
+	depnode->firstparent = parent;
 	
 	/* set depnode flags */
 	if(node->cmdline)
@@ -220,7 +225,7 @@ static int node_walk_r(
 	struct NODE *node)
 {
 	/* we should detect changes here before we run */
-	struct DEPENDENCY *dep;
+	struct NODELINK *dep;
 	struct NODEWALKPATH path;
 	int result = 0;
 	int needrebuild = 0;
@@ -284,6 +289,35 @@ static int node_walk_r(
 	return result;
 }
 
+/* walks through all the active nodes that needs a recheck */
+static int node_walk_do_revisits(struct NODEWALK *walk)
+{
+	int result;
+	struct NODE *node;
+	
+	/* no parent or depth info is available */
+	walk->parent = NULL;
+	walk->depth = 0;
+	walk->revisiting = 1;
+
+	while(walk->firstrevisit)
+	{
+		/* pop from the list */
+		node = walk->firstrevisit->node;
+		walk->firstrevisit->node = NULL;
+		walk->firstrevisit = walk->firstrevisit->next;
+		
+		/* issue the call */
+		walk->node = node;
+		result = walk->callback(walk);
+		if(result)
+			return result;
+	}
+	
+	/* return success */
+	return 0;
+}
+
 int node_walk(
 	struct NODE *node,
 	int flags,
@@ -299,26 +333,63 @@ int node_walk(
 	walk.callback = callback;
 	walk.user = u;
 	walk.parent = 0;
+	walk.revisiting = 0;
+	walk.firstrevisit = NULL;
+	walk.revisits = NULL;
 
 	/* allocate and clear mark and sweep array */
 	walk.mark = bitarray_allocate(node->graph->num_nodes);
 	bitarray_zeroall(walk.mark, node->graph->num_nodes);
+	
+	/* allocate memory for activation */
+	if(flags&NODEWALK_REVISIT)
+	{
+		walk.revisits = malloc(sizeof(struct NODEWALKREVISIT)*node->graph->num_nodes);
+		memset(walk.revisits, 0, sizeof(struct NODEWALKREVISIT)*node->graph->num_nodes);
+	}
 
 	/* do the walk */
 	result = node_walk_r(&walk, node);
+	
+	/* do the walk of all active elements, if we don't have an error */
+	if(flags&NODEWALK_REVISIT && !result)
+	{
+		node_walk_do_revisits(&walk);
+		free(walk.revisits);
+	}
 
 	/* free the array and return */
 	bitarray_free(walk.mark);
 	return result;
 }
 
+void node_walk_revisit(struct NODEWALK *walk, struct NODE *node)
+{
+	struct NODEWALKREVISIT *revisit = &walk->revisits[node->id];
+	
+	/* check if node already marked for revisit */
+	if(revisit->node)
+		return;
+	
+	/* no need to revisit the node if there is a visit to be done for it */
+	/* TODO: the necessarily of this check is unknown. should check some larger builds to see
+			if it helps any substantial amount. */
+	if(!walk->revisiting && !bitarray_value(walk->mark, node->id))
+		return;
+	
+	/* insert the node to the nodes to revisit */
+	revisit->node = node;
+	revisit->next = walk->firstrevisit;
+	walk->firstrevisit = revisit;
+}
+
 /* dumps all nodes to the stdout */
 void node_debug_dump(struct GRAPH *graph)
 {
 	struct NODE *node = graph->first;
-	struct DEPENDENCY *dep;
+	struct NODELINK *link;
 	const char *tool;
-	/*const char *workstatus = "UWD";*/
+	
 	for(;node;node = node->next)
 	{
 		static const char d[] = " D";
@@ -326,16 +397,19 @@ void node_debug_dump(struct GRAPH *graph)
 		if(node->cmdline)
 			tool = node->cmdline;
 		printf("%08x %c   %s   %-15s\n", (unsigned)node->timestamp, d[node->dirty], node->filename, tool);
-		for(dep = node->firstdep; dep; dep = dep->next)
-			printf("%08x %c      %s\n", (unsigned)dep->node->timestamp, d[dep->node->dirty], dep->node->filename);
+		for(link = node->firstdep; link; link = link->next)
+			printf("%08x %c      D %s\n", (unsigned)link->node->timestamp, d[link->node->dirty], link->node->filename);
+		for(link = node->firstparent; link; link = link->next)
+			printf("%08x %c      P %s\n", (unsigned)link->node->timestamp, d[link->node->dirty], link->node->filename);
 	}
 }
 
 void node_debug_dump_jobs(struct GRAPH *graph)
 {
 	struct NODE *node = graph->first;
-	static const char *dirtyflag[] = {"--", "CH", "DD", "DN", "GS"};
-	printf("CH = Command hash dirty, DD = Dependency dirty, DN = Dependency is newer, GS = Global stamp is newer");
+	static const char *dirtyflag[] = {"--", "MI", "CH", "DD", "DN", "GS"};
+	printf("MI = Missing CH = Command hash dirty, DD = Dependency dirty\n");
+	printf("DN = Dependency is newer, GS = Global stamp is newer\n");
 	printf("Dirty Depth %-30s   Command\n", "Filename");
 	for(;node;node = node->next)
 	{

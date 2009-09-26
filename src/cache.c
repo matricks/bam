@@ -159,7 +159,7 @@ static int write_nodes(struct WRITEINFO *info)
 		struct CACHENODE *cachenode = &info->buffers.nodes[info->index++];
 
 		/* count dependencies */
-		struct DEPENDENCY *dep;
+		struct NODELINK *dep;
 		
 		memset(cachenode, 0, sizeof(cachenode));
 		
@@ -187,7 +187,7 @@ static int write_nodes(struct WRITEINFO *info)
 	/* write the cache nodes deps */
 	for(node = graph->first; node; node = node->next)
 	{
-		struct DEPENDENCY *dep;
+		struct NODELINK *dep;
 		for(dep = node->firstdep; dep; dep = dep->next)
 		{
 			info->buffers.deps[info->index++] = dep->node->id;
@@ -309,7 +309,11 @@ struct CACHENODE *cache_find_byhash(struct CACHE *cache, unsigned hashid)
 	return RB_FIND(CACHENODERB, &cache->nodetree, &tempnode);
 }
 
-int cache_do_dependency(struct CONTEXT *context, struct NODE *node)
+int cache_do_dependency(
+	struct CONTEXT *context,
+	struct NODE *node,
+	void (*callback)(struct NODE *node, void *user),
+	void *user)
 {
 	struct CACHENODE *cachenode;
 	struct CACHENODE *depcachenode;
@@ -328,7 +332,7 @@ int cache_do_dependency(struct CONTEXT *context, struct NODE *node)
 		for(i = cachenode->deps_num-1; i >= 0; i--)
 		{
 			depcachenode = cache_find_byindex(context->cache, cachenode->deps[i]);
-			node_add_dependency(node, depcachenode->filename);
+			callback(node_add_dependency(node, depcachenode->filename), user);
 		}
 		
 		return 1;

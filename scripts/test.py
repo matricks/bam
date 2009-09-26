@@ -108,8 +108,8 @@ def difftest(name, flags1, flags2):
 		if report1[i] != report2[i]:
 			if not failed:
 				print "FAILED!"
-			print "1:", report1[i]
-			print "2:", report2[i]
+			print "1:", report1[i].strip()
+			print "2:", report2[i].strip()
 			failed += 1
 			
 	if failed:
