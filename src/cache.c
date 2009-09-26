@@ -124,7 +124,7 @@ static int write_header(struct WRITEINFO *info)
 {
 	/* setup the cache */
 	struct CACHE cache;
-	memset(&cache, 0, sizeof(struct CACHENODE));
+	memset(&cache, 0, sizeof(struct CACHE));
 	memcpy(cache.header, bamheader, sizeof(cache.header));
 	cache.num_nodes = info->graph->num_nodes;
 	cache.num_deps = info->graph->num_deps;
