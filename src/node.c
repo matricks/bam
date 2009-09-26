@@ -44,10 +44,8 @@ struct GRAPH *node_create_graph(struct HEAP *heap)
 		return (struct GRAPH *)0x0;
 
 	/* init */
+	memset(graph, 0, sizeof(struct GRAPH));
 	graph->heap = heap;
-	graph->num_nodes = 0;
-	graph->first = (struct NODE*)0x0;
-	memset(graph->nodehash, 0, sizeof(struct NODE*)*0x10000);
 	return graph; 
 }
 
@@ -83,6 +81,7 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 	node->id = graph->num_nodes++;
 	node->timestamp = file_timestamp(filename);
 	node->firstdep = (struct NODELINK*)0x0;
+	node->firstparent = (struct NODELINK*)0x0;
 	
 	/* set filename */
 	node->filename_len = strlen(filename)+1;
