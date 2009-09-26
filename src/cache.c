@@ -124,7 +124,7 @@ static int write_header(struct WRITEINFO *info)
 {
 	/* setup the cache */
 	struct CACHE cache;
-	memset(&cache, 0, sizeof(cache));
+	memset(&cache, 0, sizeof(struct CACHENODE));
 	memcpy(cache.header, bamheader, sizeof(cache.header));
 	cache.num_nodes = info->graph->num_nodes;
 	cache.num_deps = info->graph->num_deps;
@@ -161,7 +161,7 @@ static int write_nodes(struct WRITEINFO *info)
 		/* count dependencies */
 		struct NODELINK *dep;
 		
-		memset(cachenode, 0, sizeof(cachenode));
+		memset(cachenode, 0, sizeof(struct CACHENODE));
 		
 		cachenode->deps_num = 0;
 		for(dep = node->firstdep; dep; dep = dep->next)
