@@ -1,6 +1,5 @@
 #include <string.h> /* memset */
 #include <stdlib.h> /* malloc */
-#include <stdio.h> /* TODO: temp debug, remove */
 
 #include "cache.h"
 #include "context.h"
@@ -17,7 +16,7 @@
 static const unsigned bamendianness = 0x01020304;
 static char bamheader[8] = {
 	'B','A','M',0, /* signature */
-	0,3,			/* version */
+	0,3,           /* version */
 	sizeof(void*), /* pointer size */
 	0, /*((char*)&bamendianness)[0] */ /* TODO: endianness check */
 };
