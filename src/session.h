@@ -5,6 +5,7 @@
 /* session - holds all the settings for this bam session */
 struct SESSION
 {
+	const char *exe;
 	const char *name;
 	int threads;
 	int verbose;

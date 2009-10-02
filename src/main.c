@@ -14,6 +14,7 @@
 
 /* program includes */
 #include "mem.h"
+#include "filters.h"
 #include "node.h"
 #include "path.h"
 #include "support.h"
@@ -60,10 +61,12 @@ static int option_no_cache = 0;
 static int option_dry = 0;
 static int option_dependent = 0;
 static int option_abort_on_error = 0;
+
 static int option_debug_nodes = 0;
 static int option_debug_jobs = 0;
 static int option_debug_dumpinternal = 0;
 static int option_debug_nointernal = 0;
+
 static int option_print_help = 0;
 static const char *option_script = "bam.lua"; /* -f filename */
 static const char *option_threads_str = "0";
@@ -73,8 +76,11 @@ static int option_num_targets = 0;
 static const char *option_scriptargs[128] = {0};
 static int option_num_scriptargs = 0;
 
+static const char *option_filter_matchfirst = 0;
+
 /* session object */
 struct SESSION session = {
+	"bam",  /* exe */
 	"bam", /* name */
 	1, /* threads */
 	0 /* rest */
@@ -162,7 +168,11 @@ static struct OPTION options[] = {
 		commands.
 	@END*/
 	{0, &option_dry				, "--dry", "dry run"},
-
+	
+	/*@OPTION Filter: Match First ( --filter-matchfirst STR )
+	@END*/
+	{&option_filter_matchfirst,0, "--filter-matchfirst", "filter: matches the first input and skips it"},
+	
 	/*@OPTION Debug: Dump Nodes ( --debug-nodes )
 		Dumps all nodes in the dependency graph, their state and their
 		dependent nodes. This is useful if you are writing your own
@@ -292,6 +302,7 @@ int register_lua_globals(struct CONTEXT *context)
 	lua_setglobalstring(context->lua, "family", BAM_FAMILY_STRING);
 	lua_setglobalstring(context->lua, "platform", BAM_PLATFORM_STRING);
 	lua_setglobalstring(context->lua, "arch", BAM_ARCH_STRING);
+	lua_setglobalstring(context->lua, "_bam_exe", session.exe);
 	lua_pushnumber(context->lua, session.verbose);
 	lua_setglobal(context->lua, "verbose");
 
@@ -730,6 +741,9 @@ int main(int argc, char **argv)
 	install_signals(abortsignal);
 	platform_init();
 
+	/* set exe */
+	session.exe = argv[0];
+
 	/* fetch program name, if we can */
 	for(i = 0; argv[0][i]; ++i)
 	{
@@ -747,6 +761,12 @@ int main(int argc, char **argv)
 	/* parse commandline parameters */
 	if(parse_parameters(argc-1, argv+1))
 		return -1;
+		
+	/* check for filters */
+	if(option_filter_matchfirst)
+	{
+		return filter_matchfirst(option_filter_matchfirst);
+	}
 		
 	/* parse the report str */
 	for(i = 0; option_report_str[i]; i++)

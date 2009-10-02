@@ -13,7 +13,7 @@ function compile_c_cxx_cl(output, input, settings, label)
 	end
 	if settings.debug > 0 then flags = flags .. "/Od /MTd /Zi /D \"_DEBUG\" " end
 	if settings.optimize > 0 then flags = flags .. "/Ox /Ot /MT /D \"NDEBUG\" " end
-	local exec = exe .. ' /nologo /D_CRT_SECURE_NO_DEPRECATE /c ' .. flags .. input .. " " .. incs .. defs .. " /Fo" .. output
+	local exec = exe .. " /nologo /D_CRT_SECURE_NO_DEPRECATE /c " .. flags .. input .. " " .. incs .. defs .. " /Fo" .. output .. " |" .. _bam_exe .. " --filter-matchfirst " .. PathFilename(input)
 	return exec
 end
 

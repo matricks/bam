@@ -209,7 +209,6 @@ time_t file_timestamp(const char *filename)
 
 int file_createdir(const char *path)
 {
-
 #ifdef BAM_FAMILY_WINDOWS
 	return _mkdir(path);
 #else
@@ -219,7 +218,29 @@ int file_createdir(const char *path)
 
 int run_command(const char *cmd)
 {
-	return system(cmd);
+#ifdef BAM_FAMILY_WINDOWS
+	/* running several commands in parallel on windows will mix the output
+		from the commands so you can't read the output */
+	FILE *fp = _popen(cmd, "r");
+
+	if(!fp)
+		return -1;
+
+	while(1)
+	{
+		char buffer[1024*4];
+		size_t num_bytes = fread(buffer, 1, sizeof(buffer), fp);
+		if(num_bytes <= 0)
+			break;
+		criticalsection_enter();
+		fwrite(buffer, 1, num_bytes, stdout);
+		criticalsection_leave();
+	}
+	
+	return _pclose(fp);
+#else
+	return system(fp);
+#endif
 }
 
 /* general */
