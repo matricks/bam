@@ -1,0 +1,20 @@
+digraph {
+	size ="6,6";
+	app [label="app\n< gcc obj1.o obj2.o -o app >"]
+	obj1o [label="src1.o\n< gcc -c src1.c -o obj1.o >"];
+	obj2o [label="src2.o\n< gcc -c src2.c -o obj2.o >"];
+	src1c [label="src1.c"];
+	src2c [label="src2.c"];
+	header1h [label="header1.h"];
+	header2h [label="header2.h"];
+	sharedh [label="shared.h"];
+	obj1o -> app;
+	obj2o -> app;
+	src1c -> obj1o;
+	src2c -> obj2o;
+	header1h -> src1c;
+	header2h -> src1c;
+	header2h -> sharedh;
+	sharedh -> src1c;
+	sharedh -> src2c;
+}
