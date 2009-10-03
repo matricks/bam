@@ -8,20 +8,34 @@ going to add the jobs and dependencies by hand. We assume that we are
 running under a Unix like operating system with GCC as tool chain for
 sake of simplicity.
 
+@GROUP Dependency Graph @END
+
+At the core of Bam there is a dependency graphs that tells one files
+are dependent on other files. This graph is used to figure out what
+order to build the target.
+
+Here is a simple graph over and application called ^app^ which has the
+^src1.c^, ^src2.c^, ^header1.h^, ^header2.h^ and ^shared.h^ files.
+
+!IMG depgraph.png
+
+The commands encased in brackets are the commands that is executed in
+order to build that node.
+
 @GROUP Jobs @END
 
 A job is a command line that needs to be executed to generate an output
 file. All actions results in a series of jobs being added to the node
 graph.
 
-To compile ^myapp.c^ into ^myapp.o^ we simply add this to our bam file:
+To compile ^src1.c^ into ^obj1.o^ we simply add this to our bam file:
 
 {{{{
-AddJob("myapp.o", "compiling myapp.c", "gcc -c myapp.c -o myapp.o")
+AddJob("obj1.o", "compiling src1.c", "gcc -c src1.c -o obj1.o")
 }}}}
 
-Bam now knows that inorder to get ^myapp.o^, it must run
-^"gcc -c myapp.c -o myapp.o"^. It will print ^"compiling myapp.c"^ when
+Bam now knows that inorder to get ^obj1.o^, it must run
+^"gcc -c src1.c -o obj1.o"^. It will print ^"compiling app.c"^ when
 this is happening as a nice indicator instead of spewing out the whole
 command line that it ran. See [AddJob] for a complete reference of the
 function.
@@ -30,42 +44,48 @@ Now that we can compile our object, we need to link it as well. To link
 the application, we add this to our bam file:
 
 {{{{
-AddJob("myapp", "linking myapp", "gcc myapp.o -o myapp")
+AddJob("app", "linking app", "gcc obj1.o obj2.o -o app")
 }}}}
 
-Bam now knows that inorder to get ^myapp^, it must run
-^"gcc myapp.o -o myapp"^.
+Bam now knows that inorder to get ^app^, it must run
+^"gcc obj1.o obj2.o -o app"^.
 
 We can now build our application by running these commands from a
 shell:
 
 {{{{
-# bam myapp.o
-# bam myapp
+# bam obj1.o
+# bam obj2.o
+# bam app
 }}}}
 
-We must run both commands because Bam does not yet know that it needs
-to build ^myapp.o^ before it can build ^myapp^. This is where dependencies
+We must run all three commands because Bam does not yet know that it needs
+to build ^obj1.o^ and ^obj2.o^ before it can build ^app^. This is where dependencies
 comes in.
 
 @GROUP Dependencies @END
 
-To tell Bam that ^myapp^ needs ^myapp.o^, we simply add a dependency. This
+To tell Bam that ^app^ needs ^obj1.o^ and ^obj2.o^, we simply add a dependency. This
 is done with the AddDependency function like this:
 
 {{{{
-AddDependency("myapp", "myapp.o")
-AddDependency("myapp.o", "myapp.c")
+AddDependency("app", "obj1.o", "obj2.o")
+AddDependency("obj1.o", "src1.c")
+AddDependency("obj2.o", "src2.c")
+AddDependency("src1.c", "header1.h", "header2.h", "shared.h")
+AddDependency("src2.c", "shared.h")
+AddDependency("shared.h", "header2.h")
 }}}}
 
-This tells Bam that ^myapp^ needs ^myapp.o^ inorder to build. We also
-added ^myapp.c^ as a dependency for ^myapp.o^. This will make sure that
-bam rebuilds ^myapp.o^ when ^myapp.c^ changes. See [AddDependency] for
-a complete reference of the function.
+This tells Bam that ^app^ needs ^obj1.o^ and ^obj2.o^ inorder to build. We also
+added the source files as dependencies for the object files. This will make sure that
+bam rebuilds ^obj1.o^ when ^src1.c^ changes. Also, we added the dependencies for the
+source and header files so Bam can figure out want needs to be built if one of those
+changes. See [AddDependency] for a complete reference of the function.
 
 @GROUP All Together @END
 
-TODO: Some nice text about this
+Here is an example of it all working together.
 
 {{{{
 AddJob("myapp.o", "compiling myapp.c", "gcc -c myapp.c -o myapp.o")
@@ -74,6 +94,8 @@ AddDependency("myapp", "myapp.o")
 AddDependency("myapp.o", "myapp.c")
 DefaultTarget("myapp")
 }}}}
+
+There is also a shortcut that you can use 
 
 @GROUP Examples @END
 

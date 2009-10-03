@@ -1,2 +1,2 @@
 #!/bin/sh
-fgrep -n TODO src/*.c src/*.bam
+fgrep -n TODO src/*.c src/*.lua

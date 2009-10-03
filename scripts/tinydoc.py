@@ -170,6 +170,7 @@ class HTMLOutput(Output):
 		body = re.sub('\[(?P<ident>[^\]]+)\]', '<a href="#\g<ident>">\g<ident></a>', body)
 		body = re.sub('{{{{', '<pre>', body)
 		body = re.sub('}}}}', '</pre>', body)
+		body = re.sub('!IMG (?P<filename>.+)', '<img src="\g<filename>"/>', body)
 		body = re.sub('\n\n', '</p><p>', body)
 		body = '<p class="body">' + body + '</p>\n'
 		return body

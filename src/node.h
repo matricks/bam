@@ -20,7 +20,6 @@ struct SCANNER
 	int (*scannerfunc)(struct NODE *, struct SCANNER *info);
 };
 
-
 /*
 	a node in the dependency graph
 	NOTE: when adding variables to this structure, remember to add
@@ -36,6 +35,7 @@ struct NODE
 	struct NODELINK *firstparent; /* list of parents */
 	
 	char *filename; /* this contains the filename with the FULLPATH */
+	
 	char *cmdline; /* command line that should be executed to build this node */
 	char *label; /* what to print when we build this node */
 	

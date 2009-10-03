@@ -1,5 +1,6 @@
 #include <string.h> /* memset */
 #include <stdlib.h> /* malloc */
+#include <stdio.h> /* printf */
 
 #include "cache.h"
 #include "context.h"

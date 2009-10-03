@@ -9,12 +9,12 @@ s = config:NewSettings()
 s.debug = 1
 s.optimize = 0
 
-if s.cc.c_compiler == "gcc" then
+if s.cc.c_exe == "gcc" then
 	s.cc.flags:Add("-Wall", "-ansi", "-pedantic", "-O2")
 	s.link.libs:Add("pthread")
 end
 
-if s.cc.c_compiler == "cl" then
+if s.cc.c_exe == "cl" then
 
 end
 

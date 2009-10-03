@@ -239,7 +239,7 @@ int run_command(const char *cmd)
 	
 	return _pclose(fp);
 #else
-	return system(fp);
+	return system(cmd);
 #endif
 }
 

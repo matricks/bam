@@ -14,7 +14,7 @@
 
 /* program includes */
 #include "mem.h"
-#include "filters.h"
+/*#include "filters.h"*/
 #include "node.h"
 #include "path.h"
 #include "support.h"
@@ -68,6 +68,7 @@ static int option_debug_dumpinternal = 0;
 static int option_debug_nointernal = 0;
 
 static int option_print_help = 0;
+static const char *option_cache = CACHE_FILENAME; /* -k filename*/
 static const char *option_script = "bam.lua"; /* -f filename */
 static const char *option_threads_str = "0";
 static const char *option_report_str = DEFAULT_REPORT_STYLE;
@@ -101,7 +102,7 @@ static struct OPTION options[] = {
 	@END*/
 
 	/*@OPTION Script Arguments ( name=value )
-		TODO
+		TODO: Add documentation
 	@END*/
 
 	/*@OPTION Script File ( -s FILENAME )
@@ -122,20 +123,24 @@ static struct OPTION options[] = {
 	@END*/
 	{0, &option_dependent			, "-d", "build targets that is dependent given targets"},
 	
+	/*@OPTION Cache ( -k FILENAME )
+		Specifies what cache file to use instead of the default.
+	@END*/
+	{&option_cache,0					, "-k", "use cache (" CACHE_FILENAME ")"},
+
 	/*@OPTION No cache ( -n )
 		Do not use cache when building.
 	@END*/
 	{0, &option_no_cache			, "-n", "don't use cache (" CACHE_FILENAME ")"},
 	
-
 	/*@OPTION Verbose ( -v )
 		Prints all commands that are runned when building.
 	@END*/
 	{0, &session.verbose			, "-v", "verbose"},
 
 	/*@OPTION Threading ( -j N )
-		Sets the number of threads used when building.
-		Set to 0 to disable.
+		Sets the number of threads used when building. A good value for N is
+		the same number as logical cores on the machine. Set to 0 to disable.
 	@END*/
 	{&option_threads_str,0		, "-j", "sets the number of threads to use. 0 to disables"},
 
@@ -427,7 +432,7 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 
 	/* load cache (thread?) */
 	if(option_no_cache == 0)
-		context->cache = cache_load(CACHE_FILENAME);
+		context->cache = cache_load(option_cache);
 	
 	/* call the code chunk */	
 	if(lua_pcall(context->lua, 0, LUA_MULTRET, -2) != 0)
@@ -435,7 +440,7 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 	
 	/* save cache (thread?) */
 	if(option_no_cache == 0)
-		cache_save(CACHE_FILENAME, context->graph);
+		cache_save(option_cache, context->graph);
 
 	/* */	
 	if(session.verbose)
@@ -765,7 +770,7 @@ int main(int argc, char **argv)
 	/* check for filters */
 	if(option_filter_matchfirst)
 	{
-		return filter_matchfirst(option_filter_matchfirst);
+		/*return filter_matchfirst(option_filter_matchfirst);*/
 	}
 		
 	/* parse the report str */

@@ -1,12 +1,13 @@
 @GROUP Unix-like Systems with GCC (Linux, *BSD, Mac OS X) @END
 
-Building Bam is easy and have very few dependencies. Make sure
-that you have GCC and pthreads installed and run this command:
+Building bam is easy and have very few dependencies. Make sure
+that you have GCC and the pthreads library installed and
+run this command:
 
 {{{{sh make_unix.sh}}}}
 
-This will build bam with optimizations turned on. If you want a
-debug version of bam, you can invoke the script like this:
+This will build Bam with optimizations turned on. If you want a
+debug version of Bam, you can invoke the script like this:
 
 {{{{sh make_unix.sh -O0 -g}}}}
 
@@ -25,7 +26,9 @@ cmd.exe and press enter. Then navigate to the Bam directory and type this:
 
 The batch file will automaticly detect the Visual C++ version and setup
 the compile environment and then build an optimized version of Bam. You
-should find the exe in the base directory of Bam.
+should find the exe in the base directory of Bam. If it fails to detect
+Visual C++ you should have a shortcut in the start-menu for a Visual C++
+command-line that setups the compile environment.
 
 To build with MinGW, make sure that you have a correct build
 environment setup in a console and then run this:

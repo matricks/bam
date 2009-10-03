@@ -3,6 +3,7 @@ ScriptArgs = _bam_scriptargs
 Execute = os.execute
 IsString = bam_isstring
 IsTable = bam_istable
+MakeDirectory = bam_mkdir
 
 --[[@GROUP Common @END]]--
 
@@ -385,7 +386,7 @@ CollectDirsRecursive = bam_collectdirsrecursive
 
 -- Copy -
 --[[@FUNCTION
-	TODO
+	e
 @END]]--
 function Copy(outputdir, ...)
 	local outputs = {}
@@ -612,7 +613,8 @@ function _execute_silent_win(command) return os.execute(command .. " >nul 2>&1")
 function _execute_silent_unix(command) return os.execute(command .. " >/dev/null 2>/dev/null") end
 
 --[[@FUNCTION ExecuteSilent(command)
-	TODO
+	Executes a command in the shell and returns the error code. It supresses stdout and stderr
+	of that command.
 @END]]--
 
 if family == "windows" then
@@ -775,6 +777,7 @@ function OptString(name, default_value, desc)
 	o.desc = desc
 	return o
 end
+
 -- Find Compiler --------------------------------------
 --[[@FUNCTION
 	TODO
@@ -988,7 +991,19 @@ end
 	Adds a job to be done. The ^output^ string specifies the file that
 	will be created by the command line specified in ^command^ string.
 	The ^label^ is printed out before ^command^ is runned. You can also
-	add extra parameters for dependencies for the job
+	add extra parameters, those will become for dependencies for the job.
+	{{{{
+		AddJob("myapp.o", "compiling myapp.c", "gcc -c myapp.c -o myapp.o")
+		AddDependency("myapp.o", "myapp.c")
+	}}}}
+	This is the same as this:
+	{{{{
+		AddJob("myapp.o", "compiling myapp.c", "gcc -c myapp.c -o myapp.o", "myapp.c")
+	}}}}
+	You can also add several dependencies at once like this:
+	{{{{
+		AddJob("myapp", "linking myapp", "gcc myapp1.o myapp2.o -o myapp.o", {"myapp1.o", "myapp1.o"})
+	}}}}
 @END]]--
 -- TODO: Implement this in C
 function AddJob(output, label, command, ...)
@@ -996,9 +1011,9 @@ function AddJob(output, label, command, ...)
 	AddDependency(output, {...})
 end
 
---[[@FUNCTION AddDependency(filename, depfilename)
-	Specifies a dependency of a file. The file specified in the
-	^depfilename^ is a dependency of ^filename^.
+--[[@FUNCTION AddDependency(filename, ...)
+	Adds dependencies to a job. The files specified in the argument list gets added.
+	Strings and nested tables of strings are accepted.
 @END]]--
 -- TODO: Implement this in C
 function AddDependency(filename, ...)
