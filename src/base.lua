@@ -1021,7 +1021,16 @@ function AddDependency(filename, ...)
 		bam_add_dependency(filename, f)
 	end
 end
--- AddDependency = bam_add_dependency
+
+--[[@FUNCTION AddDependencySearch(filename, paths, dependencies)
+@END]]--
+AddDependencySearch = bam_add_dependency_search
+--[[
+function AddDependencySearch(filename, paths, ...)
+	bam_add_dependency_search(filename, paths, ...)
+	AddDependency(output, {...})
+end]]--
+
 
 
 function Default_Intermediate_Output(settings, input)
@@ -1138,6 +1147,7 @@ AddTool("link", function (settings)
 	settings.link = {}
 	settings.link.Driver = DriverNull
 	settings.link.Output = Default_Intermediate_Output
+	settings.link.LibMangle = function(name) error("no LibMangle function set") end
 	settings.link.extension = ""
 	settings.link.exe = ""
 	settings.link.inputflags = ""
@@ -1171,6 +1181,20 @@ function Link(settings, output, ...)
 	for index, inname in ipairs(settings.link.extrafiles) do
 		AddDependency(output, inname)
 	end
+	
+	-- add the libaries
+	local libs = {}
+	local paths = {}
+	
+	for index, inname in ipairs(settings.link.libs) do
+		table.insert(libs, settings.lib.prefix .. inname .. settings.lib.extension)
+	end
+
+	for index, inname in ipairs(settings.link.libpath) do
+		table.insert(paths, inname)
+	end
+	
+	AddDependencySearch(output, paths, libs)
 
 	return output
 end

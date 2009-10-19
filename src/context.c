@@ -312,7 +312,7 @@ static int build_clean_callback(struct NODEWALK *walkinfo)
 
 int context_build_clean(struct CONTEXT *context)
 {
-	return node_walk(context->target, NODEWALK_BOTTOMUP|NODEWALK_FORCE, build_clean_callback, 0);
+	return node_walk(context->target, NODEWALK_BOTTOMUP|NODEWALK_FORCE|NODEWALK_QUICK, build_clean_callback, 0);
 }
 
 static int build_prepare_callback(struct NODEWALK *walkinfo)

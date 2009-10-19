@@ -218,9 +218,7 @@ int file_createdir(const char *path)
 
 int run_command(const char *cmd)
 {
-#ifdef BAM_FAMILY_WINDOWS
-	/* running several commands in parallel on windows will mix the output
-		from the commands so you can't read the output */
+/*#ifdef BAM_FAMILY_WINDOWS
 	FILE *fp = _popen(cmd, "r");
 
 	if(!fp)
@@ -238,9 +236,9 @@ int run_command(const char *cmd)
 	}
 	
 	return _pclose(fp);
-#else
+#else*/
 	return system(cmd);
-#endif
+/*#endif*/
 }
 
 /* general */

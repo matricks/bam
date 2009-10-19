@@ -1,5 +1,20 @@
 #include <time.h>
 
+struct STRINGLIST
+{
+	struct STRINGLIST *next;
+	const char *str;
+	size_t len;
+};
+
+struct LOOKUP
+{
+	struct LOOKUP *next;
+	struct NODE *node;
+	struct STRINGLIST *firstdep;
+	struct STRINGLIST *firstpath;
+};
+
 struct CONTEXT
 {
 	struct lua_State *lua;
@@ -8,12 +23,17 @@ struct CONTEXT
 	const char *filename_short;
 	char script_directory[512];
 	
-	struct HEAP *heap;
+	struct HEAP *graphheap;
 	struct GRAPH *graph;
 	struct CACHE *cache;
 
 	struct NODE *defaulttarget;
 	struct NODE *target;
+
+	/* this heap is used for dependency lookups that has to happen after we 
+		parsed the whole file */
+	struct HEAP *lookupheap;
+	struct LOOKUP *firstlookup;
 	
 	time_t globaltimestamp;
 	time_t buildtime;

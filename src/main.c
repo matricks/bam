@@ -14,7 +14,7 @@
 
 /* program includes */
 #include "mem.h"
-/*#include "filters.h"*/
+#include "filters.h"
 #include "node.h"
 #include "path.h"
 #include "support.h"
@@ -232,6 +232,7 @@ int register_lua_globals(struct CONTEXT *context)
 	/* add specific functions */
 	lua_register(context->lua, L_FUNCTION_PREFIX"add_job", lf_add_job);
 	lua_register(context->lua, L_FUNCTION_PREFIX"add_dependency", lf_add_dependency);
+	lua_register(context->lua, L_FUNCTION_PREFIX"add_dependency_search", lf_add_dependency_search);
 	lua_register(context->lua, L_FUNCTION_PREFIX"default_target", lf_default_target);
 
 	/* path manipulation */
@@ -361,12 +362,64 @@ static void *lua_alloctor(void *ud, void *ptr, size_t osize, size_t nsize)
 	return realloc(ptr, nsize);
 }
 
+/* this functions takes the whole deferred lookup list and searches for the file */
+static int lookup_deferred_searches(struct CONTEXT *context)
+{
+	struct LOOKUP *lookup;
+	struct STRINGLIST *dep;
+	struct STRINGLIST *path;
+	struct NODE *depnode;
+	char buffer[MAX_PATH_LENGTH];
+	size_t total;
+	
+	for(lookup = context->firstlookup; lookup; lookup = lookup->next)
+	{
+		for(dep = lookup->firstdep; dep; dep = dep->next)
+		{
+			for(path = lookup->firstpath; path; path = path->next)
+			{
+				/* +1 for the extra / */
+				total = dep->len+path->len+1;
+				
+				/* +1 for null */
+				if(total+1 >= MAX_PATH_LENGTH)
+				{
+					printf("%s: error: '%s/%s' is longer then %d", session.name, path->str, dep->str, MAX_PATH_LENGTH);
+					return -1;
+				}
+
+				/* build the path, "%s/%s" */
+				memcpy(buffer, path->str, path->len);
+				buffer[path->len] = '/';
+				memcpy(buffer+path->len+1, dep->str, dep->len);
+				buffer[total] = 0;
+				
+				/* search up the node and add it if we need */
+				depnode = node_find(context->graph, buffer);
+				if(depnode)
+				{
+					node_add_dependency_withnode(lookup->node, depnode);
+					break;
+				}
+				
+				/* check if it exists on the disk */
+				if(file_exist(buffer))
+				{
+					node_add_dependency(lookup->node, buffer);
+					break;
+				}
+			}
+		}
+	}
+	
+	return 0;
+}
+
 static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char **targets, int num_targets)
 {
 	/* */	
 	if(session.verbose)
 		printf("%s: setup started\n", session.name);
-	
 	
 	/* set filename */
 	context->filename = scriptfile;
@@ -433,9 +486,13 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 	/* load cache (thread?) */
 	if(option_no_cache == 0)
 		context->cache = cache_load(option_cache);
-	
+
 	/* call the code chunk */	
 	if(lua_pcall(context->lua, 0, LUA_MULTRET, -2) != 0)
+		return -1;
+	
+	/* process deferred lookups */
+	if(lookup_deferred_searches(context) != 0)
 		return -1;
 	
 	/* save cache (thread?) */
@@ -533,8 +590,9 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	
 	/* zero out and create memory heap, graph */
 	memset(&context, 0, sizeof(struct CONTEXT));
-	context.heap = mem_create();
-	context.graph = node_create_graph(context.heap);
+	context.graphheap = mem_create();
+	context.lookupheap = mem_create();
+	context.graph = node_create_graph(context.graphheap);
 	context.exit_on_error = option_abort_on_error;
 	context.buildtime = timestamp();
 
@@ -547,6 +605,10 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	/* do the setup */
 	error = bam_setup(&context, scriptfile, targets, num_targets);
 
+	/* done with the loopup heap */
+	mem_destroy(context.lookupheap);
+
+	/* do actions if we don't have any errors */
 	if(!error)
 	{
 		if(option_debug_nodes)
@@ -584,7 +646,7 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	
 	/* clean up */
 	lua_close(context.lua);
-	mem_destroy(context.heap);
+	mem_destroy(context.graphheap);
 
 	/* print final report and return */
 	if(error)
@@ -769,9 +831,7 @@ int main(int argc, char **argv)
 		
 	/* check for filters */
 	if(option_filter_matchfirst)
-	{
-		/*return filter_matchfirst(option_filter_matchfirst);*/
-	}
+		return filter_matchfirst(option_filter_matchfirst);
 		
 	/* parse the report str */
 	for(i = 0; option_report_str[i]; i++)
