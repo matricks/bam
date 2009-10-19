@@ -146,12 +146,17 @@ struct THREADINFO
 	int errorcode;
 };
 
+
 static int threads_run_callback(struct NODEWALK *walkinfo)
 {
 	struct NODE *node = walkinfo->node;
 	struct THREADINFO *info = (struct THREADINFO *)walkinfo->user;
 	struct NODELINK *dep;
 	int errorcode = 0;
+	
+	/* check for aborts */
+	if(session.abort)
+		return -1;
 	
 	/* check global error code so we know if we should exit */
 	if(info->context->exit_on_error && info->context->errorcode)
@@ -193,17 +198,12 @@ static int threads_run_callback(struct NODEWALK *walkinfo)
 		info->context->errorcode = errorcode;
 	}
 	else
+	{
+		/* node is done, update the cache hash we we don't have to rebuild this one */
 		node->workstatus = NODESTATUS_DONE;
+		node->cachehash = node->cmdhash;
+	}
 	return errorcode;
-}
-
-/* signal handler */
-static volatile int abortrequest = 0;
-static void abortsignal(int i)
-{
-	(void)i;
-	printf("%s: signal cought, waiting for commands to finish.\n", session.name);
-	abortrequest = 1;
 }
 
 static void threads_run(void *u)
@@ -217,7 +217,7 @@ static void threads_run(void *u)
 	/* lock the dependency graph */
 	criticalsection_enter();
 	
-	install_signals(abortsignal);
+	install_abort_signal();
 	
 	if(target->dirty)
 	{
@@ -225,7 +225,7 @@ static void threads_run(void *u)
 		{
 			info->errorcode = node_walk(target, flags, threads_run_callback, info);
 			
-			if(abortrequest)
+			if(session.abort)
 				break;
 
 			/* check if we are done */
@@ -344,7 +344,8 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 			cachenode = cache_find_byhash(context->cache, node->hashid);
 			if(cachenode)
 			{
-				if(cachenode->cmdhash != node->cmdhash)
+				node->cachehash = cachenode->cmdhash;
+				if(node->cachehash != node->cmdhash)
 					node->dirty = NODEDIRTY_CMDHASH;
 			}
 			else if(node->timestamp < context->globaltimestamp)

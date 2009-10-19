@@ -78,6 +78,8 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 	node = (struct NODE *)mem_allocate(graph->heap, sizeof(struct NODE));
 	node->graph = graph;
 	node->depth = 0;
+	node->cmdhash = 0;
+	node->cachehash = 0;
 	node->id = graph->num_nodes++;
 	node->timestamp = file_timestamp(filename);
 	node->firstdep = (struct NODELINK*)0x0;
@@ -106,6 +108,7 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 		node->cmdline = (char *)mem_allocate(graph->heap, sn);
 		memcpy(node->cmdline, cmdline, sn);
 		node->cmdhash = string_hash(cmdline);
+		node->cachehash = node->cmdhash;
 	}
 		
 	/* add to hashed tree */

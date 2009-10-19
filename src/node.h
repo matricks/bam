@@ -44,6 +44,7 @@ struct NODE
 	/* filename and the tool to build the resource */
 	/* unsigned filename_len; */ /* including zero term */
 	unsigned cmdhash; /* hash of the command line for detecting changes */
+	unsigned cachehash; /* hash that should be written to the cache */
 	 
 	unsigned hashid; /* hash of the filename/nodename */
 	

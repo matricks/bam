@@ -175,7 +175,7 @@ static int write_nodes(struct WRITEINFO *info)
 			cachenode->deps_num++;
 		
 		cachenode->hashid = node->hashid;
-		cachenode->cmdhash = node->cmdhash;
+		cachenode->cmdhash = node->cachehash;
 		cachenode->timestamp = node->timestamp;
 		cachenode->deps = (unsigned*)((long)dep_index);
 		cachenode->filename = (char*)((long)string_index);

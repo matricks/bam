@@ -483,10 +483,6 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 			return -1;
 	}
 
-	/* load cache (thread?) */
-	if(option_no_cache == 0)
-		context->cache = cache_load(option_cache);
-
 	/* call the code chunk */	
 	if(lua_pcall(context->lua, 0, LUA_MULTRET, -2) != 0)
 		return -1;
@@ -495,10 +491,6 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 	if(lookup_deferred_searches(context) != 0)
 		return -1;
 	
-	/* save cache (thread?) */
-	if(option_no_cache == 0)
-		cache_save(option_cache, context->graph);
-
 	/* */	
 	if(session.verbose)
 		printf("%s: making build target\n", session.name);
@@ -601,7 +593,12 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 		sure that we have fast access to it. This makes the context_get_pointer call very fast */
 	context.lua = lua_newstate(lua_alloctor, &context);
 	lua_atpanic(context.lua, lf_panicfunc);
-	
+
+
+	/* load cache (thread?) */
+	if(option_no_cache == 0)
+		context.cache = cache_load(option_cache);
+
 	/* do the setup */
 	error = bam_setup(&context, scriptfile, targets, num_targets);
 
@@ -643,6 +640,10 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 			}
 		}
 	}		
+
+	/* save cache (thread?) */
+	if(option_no_cache == 0)
+		cache_save(option_cache, context.graph);
 	
 	/* clean up */
 	lua_close(context.lua);
@@ -665,6 +666,22 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	return error;
 }
 
+
+
+/* signal handler */
+static void abortsignal(int i)
+{
+	(void)i;
+	printf("%s: signal cought, waiting for jobs to finish\n", session.name);
+	session.abort = 1;
+}
+
+
+void install_abort_signal()
+{
+	install_signals(abortsignal);
+}
+
 /* */
 static void print_help()
 {
@@ -679,14 +696,6 @@ static void print_help()
 		printf("  %-20s %s\n", options[j].sw, options[j].desc);
 
 	printf("\n");
-}
-
-/* signal handler */
-static void abortsignal(int i)
-{
-	(void)i;
-	printf("%s: signal cought, exiting.\n", session.name);
-	exit(1);
 }
 
 static int parse_parameters(int num, char **params)
@@ -805,7 +814,6 @@ int main(int argc, char **argv)
 	int i, error;
 
 	/* init platform */
-	install_signals(abortsignal);
 	platform_init();
 
 	/* set exe */
