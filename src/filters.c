@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h> /* strncmp, memcpy */
 
 /* global buffer for filtering */
 static char buffer[1024*4];
