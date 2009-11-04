@@ -14,9 +14,11 @@ if s.cc.c_exe == "gcc" then
 	s.link.libs:Add("pthread")
 end
 
-if s.cc.c_exe == "cl" thenasdf
+if s.cc.c_exe == "cl" then
 
 end
+
+asdasd.asd.asd.sdf = nil
 
 txt2c_tool = Link(s, "src/tools/txt2c", Compile(s, "src/tools/txt2c.c"))
 

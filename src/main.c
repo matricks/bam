@@ -345,7 +345,8 @@ int register_lua_globals(struct CONTEXT *context)
 				lf_errorfunc(context->lua);
 				
 				if(ret == LUA_ERRSYNTAX)
-					printf("%s: syntax error (-bt and -l for more detail)\n", session.name);
+				{
+				}
 				else if(ret == LUA_ERRMEM)
 					printf("%s: memory allocation error\n", session.name);
 				else
@@ -482,7 +483,6 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 		case 0: break;
 		case LUA_ERRSYNTAX:
 			lf_errorfunc(context->lua);
-			printf("%s: syntax error (-bt for more detail)\n", session.name);
 			return -1;
 		case LUA_ERRMEM: 
 			printf("%s: memory allocation error\n", session.name);
@@ -497,7 +497,10 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 
 	/* call the code chunk */	
 	if(lua_pcall(context->lua, 0, LUA_MULTRET, -2) != 0)
+	{
+		printf("%s: script error (-bt for more detail)\n", session.name);
 		return -1;
+	}
 	
 	/* process deferred lookups */
 	if(lookup_deferred_searches(context) != 0)
