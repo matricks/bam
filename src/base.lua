@@ -4,6 +4,7 @@ Execute = os.execute
 IsString = bam_isstring
 IsTable = bam_istable
 MakeDirectory = bam_mkdir
+Exist = bam_fileexist
 
 --[[@GROUP Common @END]]--
 
@@ -84,12 +85,15 @@ end
 	catch="" : Path("/")
 	catch="/b.c/file.ext" : Path("/a/../b.c/./file.ext")
 	catch="/b.c" : Path("/a/../b.c/./")
+	catch="../../b.c" : Path("../../a/../b.c/./")
+	catch="../path/file.name.ext" : Path("../test/../path/file.name.ext")
 @END]]--
 --[[@FUNCTION Path(str)
 	Normalizes the path in ^str^ by removing ".." and "." from it
 
 	{{{{
 	Path("test/./path/../file.name.ext") -- Returns "test/file.name.ext"
+	Path("../test/../path/file.name.ext") -- Returns "../path/file.name.ext"
 	}}}}
 @END]]--
 Path = bam_path_fix

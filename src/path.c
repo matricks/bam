@@ -65,104 +65,86 @@ int path_directory(const char *path, char *directory, int size)
 }
 
 /* normalizes the path, it rewrites the path */
-/* TODO: rewrite this, feels too large, should be a simpler way todo it*/
 int path_normalize(char *path)
 {
 	char *dirs[128];
 	int depth = 0;
+	char *dstptr = path;
+	char *srcptr = path;
 	
-	char *writeptr = path;
-	char *fromptr = path;
-
-	/* HACK: make sure to handle ./myfile */
-	if(fromptr[0] == '.')
-	{
-		if(path_is_separator(fromptr[1]))
-			fromptr += 2;
-		else if(fromptr[1] == '.' && path_is_separator(fromptr[2]))
-			fromptr += 3;
-	}
-
+	/* add the start */
+	dirs[0] = path;
+	depth++;
 	
 	while(1)
 	{
-		/* append data */
-		while(*fromptr && !path_is_separator(*fromptr))
+		if(srcptr[0] == '.')
 		{
-			*writeptr = *fromptr;
-			writeptr++;
-			fromptr++;
-		}
-		
-		if(fromptr[0] == 0)
-			break; /* done */
-		else
-		{
-			fromptr++;
-			while(1)
+			if(path_is_separator(srcptr[1]))
 			{
-				if(fromptr[0] == 0)
-					break;
-				else if(path_is_separator(fromptr[0]))
-					fromptr++;
-				else if(fromptr[0] == '.')
+				/* "./" case, just skip the data */
+				srcptr += 2;
+			}
+			else if(srcptr[1] == '.')
+			{
+				if(path_is_separator(srcptr[2]))
 				{
-					if(fromptr[1] == '.')
+					/* "../" case */
+					if(depth == 1)
 					{
-						/* prev dir */
-						if(path_is_separator(fromptr[2]) || fromptr[2] == 0)
-						{
-							/* .. unwind */
-							fromptr += 2;
-							if(depth == 0)
-							{
-								/* restart */
-								writeptr = path;
-							}
-							else
-							{
-								/* unwind */
-								depth--;
-								writeptr = dirs[depth];
-							}
-						}
-						else
-							break;
-					}
-					else if(path_is_separator(fromptr[1]))
-					{
-						/* currentdir, just skip chars */
-						fromptr += 2;
-					}
-					else if(fromptr[1] == 0)
-					{
-						fromptr++;
-						break;
+						/* case where we are at the start so append ../ to the start of the string */
+						dstptr[0] = '.';
+						dstptr[1] = '.';
+						dstptr[2] = '/';
+						dstptr += 3;
+						srcptr += 3;
+						
+						dirs[0] = dstptr;
 					}
 					else
 					{
-						fromptr += 2;
+						/* normal case where we are in the middle like "a/b/../c" */
+						depth--;
+						dstptr = dirs[depth-1];
+						srcptr += 3;
 					}
 				}
 				else
 				{
-					break;
+					/* "..?" case */
+					return -1;
 				}
 			}
-			
-			if(fromptr[0] == 0)
-				break;
-			
-			dirs[depth] = writeptr;
-			*writeptr = PATH_SEPARATOR;
-			writeptr++;
-			
-			depth++;
 		}
-		
+		else
+		{
+			/* search for separator */
+			while(!path_is_separator(srcptr[0]) && srcptr[0])
+				*dstptr++ = *srcptr++;
+			
+			if(srcptr[0] == 0)
+			{
+				/* end of string, zero terminate and return, strip ending '/' if it exists */
+				if(dstptr != path && dstptr[-1] == '/')
+					dstptr[-1] = 0;
+				dstptr[0] = 0;
+				return 0;
+			}
+			else if(path_is_separator(srcptr[0]))
+			{
+				/* store the point of this directory */
+				*dstptr++ = *srcptr++;
+				dirs[depth] = dstptr;
+				depth++;
+			}
+			else
+			{
+				/* non reachable case */
+				return -1;
+			}
+		}
 	}
-
-	*writeptr = 0;
+	
 	return 0;
 }
 
@@ -188,21 +170,25 @@ int path_isabs(const char *path)
 /* is it absolute and normalized? */
 int path_isnice(const char *path)
 {
-	/* check to see that its absolute */
-	/*if (!path_isabs(path))
-		return 0;*/
-		
-	if(path[0] == '.')
+	/* check for initial "../../" */
+	while(path[0] == '.')
 	{
-		if(path[1] == '/')
-			return 0;
 		if(path[1] == '.')
 		{
-			if(path[2] == '/')
+			if(path_is_separator(path[2]))
+			{
+				/* found "../" case */
+				path += 3;
+			}
+			else
 				return 0;
 		}
+		else if(path_is_separator(path[1]))
+			return 0;
+		else
+			break;
 	}
-
+	
 	while(path[0])
 	{
 		if(path_is_separator(path[0]))

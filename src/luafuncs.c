@@ -298,6 +298,22 @@ int lf_mkdir(struct lua_State *L)
 	return 1;
 }
 
+
+int lf_fileexist(struct lua_State *L)
+{
+	if(lua_gettop(L) < 1)
+		luaL_error(L, "fileexist: too few arguments");	
+
+	if(!lua_isstring(L,1))
+		luaL_error(L, "fileexist: expected string");
+		
+	if(file_exist(lua_tostring(L,1)))
+		lua_pushnumber(L, 1);	
+	else
+		lua_pushnil(L);
+	return 1;
+}
+
 int lf_istable(lua_State *L)
 {
 	if(lua_type(L,-1) == LUA_TTABLE)
