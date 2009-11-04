@@ -14,7 +14,7 @@ if s.cc.c_exe == "gcc" then
 	s.link.libs:Add("pthread")
 end
 
-if s.cc.c_exe == "cl" then
+if s.cc.c_exe == "cl" thenasdf
 
 end
 

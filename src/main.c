@@ -61,7 +61,6 @@ static int option_no_cache = 1;
 static int option_dry = 0;
 static int option_dependent = 0;
 static int option_abort_on_error = 0;
-
 static int option_debug_nodes = 0;
 static int option_debug_jobs = 0;
 static int option_debug_dumpinternal = 0;
@@ -137,6 +136,16 @@ static struct OPTION options[] = {
 		Prints all commands that are runned when building.
 	@END*/
 	{0, &session.verbose			, "-v", "verbose"},
+
+	/*@OPTION Script Backtrace ( -bt )
+		Prints backtrace when there is a script error
+	@END*/
+	{0, &session.lua_backtrace		, "-bt", "lua backtrace"},
+
+	/*@OPTION Script Locals ( -l )
+		Prints local and up values in the backtrace when there is a script error
+	@END*/
+	{0, &session.lua_locals		, "-l", "lua locals"},
 
 	/*@OPTION Threading ( -j N )
 		Sets the number of threads used when building. A good value for N is
@@ -333,13 +342,15 @@ int register_lua_globals(struct CONTEXT *context)
 			ret = lua_load(context->lua, internal_base_reader, &p, internal_files[f].filename);
 			if(ret != 0)
 			{
+				lf_errorfunc(context->lua);
+				
 				if(ret == LUA_ERRSYNTAX)
-					printf("%s: syntax error\n", session.name);
+					printf("%s: syntax error (-bt and -l for more detail)\n", session.name);
 				else if(ret == LUA_ERRMEM)
 					printf("%s: memory allocation error\n", session.name);
 				else
 					printf("%s: unknown error parsing base script\n", session.name);
-				lf_errorfunc(context->lua);
+					
 				error = 1;
 			}
 			else if(lua_pcall(context->lua, 0, LUA_MULTRET, -2) != 0)
@@ -470,8 +481,8 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 	{
 		case 0: break;
 		case LUA_ERRSYNTAX:
-			printf("%s: syntax error\n", session.name);
 			lf_errorfunc(context->lua);
+			printf("%s: syntax error (-bt for more detail)\n", session.name);
 			return -1;
 		case LUA_ERRMEM: 
 			printf("%s: memory allocation error\n", session.name);
@@ -575,7 +586,8 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 static int bam(const char *scriptfile, const char **targets, int num_targets)
 {
 	struct CONTEXT context;
-	int error = 0;
+	int build_error = 0;
+	int setup_error = 0;
 	int report_done = 0;
 
 	/* build time */
@@ -601,13 +613,13 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 		context.cache = cache_load(option_cache);
 
 	/* do the setup */
-	error = bam_setup(&context, scriptfile, targets, num_targets);
+	setup_error = bam_setup(&context, scriptfile, targets, num_targets);
 
 	/* done with the loopup heap */
 	mem_destroy(context.lookupheap);
 
 	/* do actions if we don't have any errors */
-	if(!error)
+	if(!setup_error)
 	{
 		if(option_debug_nodes)
 		{
@@ -617,25 +629,25 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 		else if(option_debug_jobs)
 		{
 			/* debug dump all jobs */
-			error = context_build_prepare(&context);
+			build_error = context_build_prepare(&context);
 			node_debug_dump_jobs(context.graph);
 		}
 		else if(option_dry)
 		{
 			/* do NADA */
-			error = context_build_prepare(&context);
+			build_error = context_build_prepare(&context);
 		}
 		else
 		{
 			/* run build or clean */
-			error = context_build_prepare(&context);
-			if(!error)
+			build_error = context_build_prepare(&context);
+			if(!build_error)
 			{
 				if(option_clean)
-					error = context_build_clean(&context);
+					build_error = context_build_clean(&context);
 				else
 				{
-					error = context_build_make(&context);
+					build_error = context_build_make(&context);
 					report_done = 1;
 				}
 			}
@@ -651,7 +663,12 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	mem_destroy(context.graphheap);
 
 	/* print final report and return */
-	if(error)
+	if(setup_error)
+	{
+		/* no error message on setup error, it reports fine itself */
+		return setup_error;
+	}
+	else if(build_error)
 		printf("%s: error during build\n", session.name);
 	else if(report_done)
 	{
@@ -664,7 +681,7 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 		}
 	}
 
-	return error;
+	return build_error;
 }
 
 

@@ -232,47 +232,51 @@ int lf_errorfunc(lua_State *L)
 	else
 		printf("%s\n", lua_tostring(L,-1));
 	
-	printf("stack traceback:\n");
-	
-	while(lua_getstack(L, depth, &frame) == 1)
+	if(session.lua_backtrace)
 	{
-		depth++;
-		
-		lua_getinfo(L, "nlSf", &frame);
-
-		/* check for functions that just report errors. these frames just confuses more then they help */
-		if(frameskip && strcmp(frame.short_src, "[C]") == 0 && frame.currentline == -1)
-			continue;
-		frameskip = 0;
-		
-		/* print stack frame */
-		printf("  %s(%d): %s %s\n", frame.short_src, frame.currentline, frame.name, frame.namewhat);
-		
-		/* print all local variables for the frame */
+		printf("backtrace:\n");
+		while(lua_getstack(L, depth, &frame) == 1)
 		{
-			int i;
-			const char *name = 0;
+			depth++;
 			
-			i = 1;
-			while((name = lua_getlocal(L, &frame, i)) != NULL)
-			{
-				printf("    %s = ", name);
-				debug_print_lua_value(L,-1);
-				printf("\n");
-				lua_pop(L,1);
-				i++;
-			}
+			lua_getinfo(L, "nlSf", &frame);
+
+			/* check for functions that just report errors. these frames just confuses more then they help */
+			if(frameskip && strcmp(frame.short_src, "[C]") == 0 && frame.currentline == -1)
+				continue;
+			frameskip = 0;
 			
-			i = 1;
-			while((name = lua_getupvalue(L, -1, i)) != NULL)
+			/* print stack frame */
+			printf("  %s(%d): %s %s\n", frame.short_src, frame.currentline, frame.name, frame.namewhat);
+			
+			/* print all local variables for the frame */
+			if(session.lua_locals)
 			{
-				printf("    upvalue #%d: %s ", i-1, name);
-				debug_print_lua_value(L, -1);
-				lua_pop(L,1);
-				i++;
+				int i;
+				const char *name = 0;
+				
+				i = 1;
+				while((name = lua_getlocal(L, &frame, i)) != NULL)
+				{
+					printf("    %s = ", name);
+					debug_print_lua_value(L,-1);
+					printf("\n");
+					lua_pop(L,1);
+					i++;
+				}
+				
+				i = 1;
+				while((name = lua_getupvalue(L, -1, i)) != NULL)
+				{
+					printf("    upvalue #%d: %s ", i-1, name);
+					debug_print_lua_value(L, -1);
+					lua_pop(L,1);
+					i++;
+				}
 			}
 		}
 	}
+	
 	return 1;
 }
 

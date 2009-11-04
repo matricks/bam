@@ -10,6 +10,10 @@ struct SESSION
 	int threads;
 	int verbose;
 	int simpleoutput;
+
+	int lua_backtrace;
+	int lua_locals;
+	
 	int report_color;
 	int report_bar;
 	int report_steps;
