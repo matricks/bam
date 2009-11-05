@@ -99,6 +99,17 @@ end
 Path = bam_path_fix
 
 -- [TODO: Should be in C]
+-- [TODO: Add tests]
+function PathJoin(base, add)
+	if string.len(base) == 0 then
+		return add
+	elseif	string.sub(base, -1) == "/" then
+		return base .. add
+	end
+	return base .. "/" .. add
+end
+
+-- [TODO: Should be in C]
 --[[@UNITTESTS
 	err=1: PathBase(nil)
 	err=1: PathBase({})
