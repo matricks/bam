@@ -50,9 +50,8 @@ end
 ------------------------ LIB GCC DRIVER ------------------------
 
 function DriverLib_GCC(output, inputs, settings)
-	local e = settings.lib.exe .. " qc " .. output
+	local e = settings.lib.exe .. " rcu " .. output
 	local e = e .. " " .. tbl_to_str(inputs, '', ' ') .. settings.lib.flags:ToString()
-	--ExecuteSilent("rm -f " .. output) -- TODO: remove this
 	return e
 end
 

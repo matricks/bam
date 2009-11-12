@@ -1238,7 +1238,7 @@ function StaticLibrary(settings, output, ...)
 
 	output = settings.lib.Output(settings, PathJoin(PathPath(output), settings.lib.prefix .. PathFilename(output))) .. settings.lib.extension
 
-	AddJob(output, settings.labelprefix .. "link " .. output, settings.lib.Driver(output, inputs, settings))
+	AddJob(output, settings.labelprefix .. "lib " .. output, settings.lib.Driver(output, inputs, settings))
 
 	for index, inname in ipairs(inputs) do
 		AddDependency(output, inname)
