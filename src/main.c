@@ -375,13 +375,35 @@ static void *lua_alloctor(void *ud, void *ptr, size_t osize, size_t nsize)
 	return realloc(ptr, nsize);
 }
 
+static int lookup_checkpath(struct CONTEXT *context, struct NODE *node, const char *path)
+{
+	struct NODE *depnode;
+
+				
+	/* search up the node and add it if we need */
+	depnode = node_find(context->graph, path);
+	if(depnode)
+	{
+		node_add_dependency_withnode(node, depnode);
+		return 1;
+	}
+	
+	/* check if it exists on the disk */
+	if(file_exist(path))
+	{
+		node_add_dependency(node, path);
+		return 1;
+	}
+	
+	return 0;
+}
+
 /* this functions takes the whole deferred lookup list and searches for the file */
 static int lookup_deferred_searches(struct CONTEXT *context)
 {
 	struct LOOKUP *lookup;
 	struct STRINGLIST *dep;
 	struct STRINGLIST *path;
-	struct NODE *depnode;
 	char buffer[MAX_PATH_LENGTH];
 	size_t total;
 	
@@ -389,6 +411,11 @@ static int lookup_deferred_searches(struct CONTEXT *context)
 	{
 		for(dep = lookup->firstdep; dep; dep = dep->next)
 		{
+			/* check the current directory */
+			if(lookup_checkpath(context, lookup->node, dep->str))
+				continue;
+
+			/* check all the other directories */
 			for(path = lookup->firstpath; path; path = path->next)
 			{
 				/* +1 for the extra / */
@@ -407,20 +434,8 @@ static int lookup_deferred_searches(struct CONTEXT *context)
 				memcpy(buffer+path->len+1, dep->str, dep->len);
 				buffer[total] = 0;
 				
-				/* search up the node and add it if we need */
-				depnode = node_find(context->graph, buffer);
-				if(depnode)
-				{
-					node_add_dependency_withnode(lookup->node, depnode);
+				if(lookup_checkpath(context, lookup->node, buffer))
 					break;
-				}
-				
-				/* check if it exists on the disk */
-				if(file_exist(buffer))
-				{
-					node_add_dependency(lookup->node, buffer);
-					break;
-				}
 			}
 		}
 	}

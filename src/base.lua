@@ -1236,7 +1236,7 @@ function StaticLibrary(settings, output, ...)
 	
 	local inputs = FlattenTable({...})
 
-	output = settings.lib.Output(settings, PathPath(output) .. "/" .. settings.lib.prefix .. PathFilename(output)) .. settings.lib.extension
+	output = settings.lib.Output(settings, PathJoin(PathPath(output), settings.lib.prefix .. PathFilename(output))) .. settings.lib.extension
 
 	AddJob(output, settings.labelprefix .. "link " .. output, settings.lib.Driver(output, inputs, settings))
 
