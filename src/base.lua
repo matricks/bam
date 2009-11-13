@@ -412,17 +412,19 @@ function Copy(outputdir, ...)
 		input = Path(inname)
 
 		local copy_command = "cp"
+		local copy_append = ""
 		local srcfile = input
 		local dstfile = output
 		if family == "windows" then
-			copy_command = "copy"
+			copy_command = "copy /b" -- binary copy
+			copy_append = " >nul 2>&1" -- suppress output
 			srcfile = str_replace(srcfile, "/", "\\")
 			dstfile = str_replace(dstfile, "/", "\\")
 		end
 
 		AddJob(output,
 			"copy " .. input .. " -> " .. output,
-			copy_command .. " " .. input .. " " .. output)
+			copy_command .. " " .. srcfile .. " " .. dstfile .. copy_append)
 
 		AddDependency(output, input)
 		table.insert(outputs, output)
