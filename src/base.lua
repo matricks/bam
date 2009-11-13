@@ -426,6 +426,8 @@ function Copy(outputdir, ...)
 			"copy " .. input .. " -> " .. output,
 			copy_command .. " " .. srcfile .. " " .. dstfile .. copy_append)
 
+		-- make sure that the files timestamps are updated correctly
+		bam_set_touch(output)
 		AddDependency(output, input)
 		table.insert(outputs, output)
 	end

@@ -19,6 +19,7 @@
 	#include <windows.h>
 	#include <sys/types.h>
 	#include <sys/stat.h>
+	#include <sys/utime.h>
 	#include <signal.h>
 	#include <direct.h> /* _mkdir */
 	
@@ -99,6 +100,7 @@
 	#include <sys/types.h>
 	#include <sys/signal.h>
 	#include <sys/stat.h>
+	#include <utime.h>
 	#include <pthread.h>
 
 	static void list_directory(const char *path, void (*callback)(const char *filename, int dir, void *user), void *user)
@@ -198,8 +200,9 @@ time_t file_timestamp(const char *filename)
 		if(stat(filename, &s) == 0)
 			return s.st_mtimespec.tv_sec;
 		return 0;
-#else
-	/* NIX and Windows version */
+
+#else		
+	/* *NIX version and windows version*/
 	struct stat s;
 	if(stat(filename, &s) == 0)
 		return s.st_mtime;
@@ -213,6 +216,15 @@ int file_createdir(const char *path)
 	return _mkdir(path);
 #else
 	return mkdir(path, 0755);
+#endif
+}
+
+void file_touch(const char *filename)
+{
+#ifdef BAM_FAMILY_WINDOWS
+	_utime(filename, NULL);
+#else
+	utime(filename, NULL);
 #endif
 }
 

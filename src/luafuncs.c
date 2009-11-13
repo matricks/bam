@@ -70,6 +70,21 @@ int lf_add_dependency(lua_State *L)
 	return 0;
 }
 
+int lf_set_touch(struct lua_State *L)
+{
+	struct NODE *node;
+	
+	if(lua_gettop(L) < 1)
+		luaL_error(L, "set_touch: to few arguments");
+
+	node = node_find(context_get_pointer(L)->graph, lua_tostring(L,1));
+	if(!node)
+		luaL_error(L, "set_touch: couldn't find node with name '%s'", lua_tostring(L,1));
+		
+	node->touch = 1;
+	return 0;
+}
+
 
 static void build_stringlist(lua_State *L, struct HEAP *heap, struct STRINGLIST **first, int tableindex)
 {

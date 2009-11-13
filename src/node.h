@@ -22,8 +22,8 @@ struct SCANNER
 
 /*
 	a node in the dependency graph
-	NOTE: when adding variables to this structure, remember to add
-		initilization of those variables in node_create().
+	NOTE: when adding variables to this structure, they will all be set
+		to zero when created by node_create().
 	TODO: these should be allocated cache aligned, and padded to 64 byte?
 */
 struct NODE
@@ -61,6 +61,7 @@ struct NODE
 	unsigned parenthastool:1; /* set if a parent has a tool */
 	unsigned counted:1;
 	unsigned isdependedon:1; /* set if someone depends on this node */
+	unsigned touch:1; /* when built, touch the output file as well */
 	
 	volatile unsigned workstatus:2; /* build status of the node, NODESTATUS_* flags */
 };

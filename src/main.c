@@ -67,6 +67,7 @@ static int option_debug_dumpinternal = 0;
 static int option_debug_nointernal = 0;
 
 static int option_print_help = 0;
+
 static const char *option_cache = CACHE_FILENAME; /* -k filename*/
 static const char *option_script = "bam.lua"; /* -f filename */
 static const char *option_threads_str = "0";
@@ -242,6 +243,7 @@ int register_lua_globals(struct CONTEXT *context)
 	lua_register(context->lua, L_FUNCTION_PREFIX"add_job", lf_add_job);
 	lua_register(context->lua, L_FUNCTION_PREFIX"add_dependency", lf_add_dependency);
 	lua_register(context->lua, L_FUNCTION_PREFIX"add_dependency_search", lf_add_dependency_search);
+	lua_register(context->lua, L_FUNCTION_PREFIX"set_touch", lf_set_touch);
 	lua_register(context->lua, L_FUNCTION_PREFIX"default_target", lf_default_target);
 
 	/* path manipulation */

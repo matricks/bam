@@ -126,6 +126,8 @@ static int run_node(struct CONTEXT *context, struct NODE *node, int thread_id)
 	/* execute the command */
 	criticalsection_leave();
 	ret = run_command(node->cmdline);
+	if(ret == 0)
+		file_touch(node->filename);
 	criticalsection_enter();
 	
 	if(ret)

@@ -16,3 +16,4 @@ time_t timestamp();
 time_t file_timestamp(const char *filename);
 int file_exist(const char *filename);
 int file_createdir(const char *path);
+void file_touch(const char *filename);

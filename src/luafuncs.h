@@ -3,6 +3,7 @@
 int lf_add_job(struct lua_State *L);
 int lf_add_dependency(struct lua_State *L);
 int lf_add_dependency_search(struct lua_State *L);
+int lf_set_touch(struct lua_State *L);
 int lf_default_target(struct lua_State *L);
 int lf_update_globalstamp(struct lua_State *L);
 

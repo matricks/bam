@@ -76,14 +76,11 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 	
 	/* allocate and set pointers */
 	node = (struct NODE *)mem_allocate(graph->heap, sizeof(struct NODE));
+	memset(node, 0, sizeof(struct NODE));
+	
 	node->graph = graph;
-	node->depth = 0;
-	node->cmdhash = 0;
-	node->cachehash = 0;
 	node->id = graph->num_nodes++;
 	node->timestamp = file_timestamp(filename);
-	node->firstdep = (struct NODELINK*)0x0;
-	node->firstparent = (struct NODELINK*)0x0;
 	
 	/* set filename */
 	node->filename_len = strlen(filename)+1;
@@ -92,7 +89,6 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 	node->hashid = string_hash(filename);
 
 	/* set label line */
-	node->label = 0;
 	if(label && label[0])
 	{
 		sn = strlen(label)+1;
@@ -101,7 +97,6 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 	}
 
 	/* set cmdline line */
-	node->cmdline = 0;
 	if(cmdline && cmdline[0])
 	{
 		sn = strlen(cmdline)+1;
@@ -119,15 +114,6 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 	else graph->first = node;
 	node->next = 0;
 	graph->last = node;
-	
-	/* zero out flags */
-	node->dirty = 0;
-	node->depchecked = 0;
-	node->cached = 0;
-	node->parenthastool = 0;
-	node->counted = 0;
-	node->isdependedon = 0;
-	node->workstatus = NODESTATUS_UNDONE;
 	
 	/* return new node */
 	*nodeptr = node;
