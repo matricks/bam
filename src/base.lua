@@ -99,13 +99,29 @@ end
 Path = bam_path_fix
 
 -- [TODO: Should be in C]
--- [TODO: Add tests]
+--[[@UNITTESTS
+	catch="a/b" : PathJoin("a/b", "")
+	catch="a/b" : PathJoin("a/b/", "")
+	catch="a/b" : PathJoin("a", "b")
+	catch="a" : PathJoin("", "a")
+	catch="a/b" : PathJoin("", "a/b")
+@END]]--
 function PathJoin(base, add)
 	if string.len(base) == 0 then
 		return add
-	elseif	string.sub(base, -1) == "/" then
+	end
+	
+	if string.sub(base, -1) == "/" then
+		if string.len(add) == 0 then
+			return string.sub(base, 0, string.len(base)-1)
+		end
 		return base .. add
 	end
+	
+	if string.len(add) == 0 then
+		return base
+	end
+	
 	return base .. "/" .. add
 end
 
