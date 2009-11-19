@@ -377,23 +377,25 @@ static void *lua_alloctor(void *ud, void *ptr, size_t osize, size_t nsize)
 	return realloc(ptr, nsize);
 }
 
+/* returns 0 on no find, 1 on find and -1 on error */
 static int lookup_checkpath(struct CONTEXT *context, struct NODE *node, const char *path)
 {
 	struct NODE *depnode;
 
-				
 	/* search up the node and add it if we need */
 	depnode = node_find(context->graph, path);
 	if(depnode)
 	{
-		node_add_dependency_withnode(node, depnode);
+		if(!node_add_dependency_withnode(node, depnode))
+			return -1;
 		return 1;
 	}
 	
 	/* check if it exists on the disk */
 	if(file_exist(path))
 	{
-		node_add_dependency(node, path);
+		if(!node_add_dependency(node, path))
+			return -1;
 		return 1;
 	}
 	
@@ -408,14 +410,18 @@ static int lookup_deferred_searches(struct CONTEXT *context)
 	struct STRINGLIST *path;
 	char buffer[MAX_PATH_LENGTH];
 	size_t total;
+	int result;
 	
 	for(lookup = context->firstlookup; lookup; lookup = lookup->next)
 	{
 		for(dep = lookup->firstdep; dep; dep = dep->next)
 		{
 			/* check the current directory */
-			if(lookup_checkpath(context, lookup->node, dep->str))
+			result = lookup_checkpath(context, lookup->node, dep->str);
+			if(result == 1)
 				continue;
+			if(result == -1)
+				return -1;
 
 			/* check all the other directories */
 			for(path = lookup->firstpath; path; path = path->next)
@@ -436,8 +442,11 @@ static int lookup_deferred_searches(struct CONTEXT *context)
 				memcpy(buffer+path->len+1, dep->str, dep->len);
 				buffer[total] = 0;
 				
-				if(lookup_checkpath(context, lookup->node, buffer))
+				result = lookup_checkpath(context, lookup->node, buffer);
+				if(result == 1)
 					break;
+				if(result == -1)
+					return -1;
 			}
 		}
 	}
@@ -559,7 +568,10 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 			for(node = context->graph->first; node; node = node->next)
 			{
 				if(!node->isdependedon && node != context->target)
-					node_add_dependency_withnode(context->target, node);
+				{
+					if(!node_add_dependency_withnode(context->target, node))
+						return -1;
+				}
 			}
 		}
 		else
@@ -581,14 +593,24 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 							find all dependent node with commandline */
 						struct NODELINK *parent;
 						for(parent = node->firstparent; parent; parent = parent->next)
-							node_add_dependency_withnode(context->target, parent->node);
+						{
+							if(!node_add_dependency_withnode(context->target, parent->node))
+								return -1;
+						}
+								
 					}
 					else
-						node_add_dependency_withnode(context->target, node);
+					{
+						if(!node_add_dependency_withnode(context->target, node))
+							return -1;
+					}
 				}
 			}
 			else
-				node_add_dependency_withnode(context->target, context->defaulttarget);
+			{
+				if(!node_add_dependency_withnode(context->target, context->defaulttarget))
+					return -1;
+			}
 
 		}
 	}
