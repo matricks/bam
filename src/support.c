@@ -68,7 +68,18 @@
 	}
 
 	static CRITICAL_SECTION criticalsection;
-	void platform_init() { InitializeCriticalSection(&criticalsection); }
+	void platform_init()
+	{
+		InitializeCriticalSection(&criticalsection);
+		
+		/* this environment variable is set by Microsoft Visual Studio
+			when building. It causes cl.exe to redirect it's output to
+			the specified pipe id. this causes loads of problems with
+			output.
+		*/ 
+		SetEnvironmentVariable("VS_UNICODE_OUTPUT", NULL);
+	}
+	
 	void platform_shutdown() { DeleteCriticalSection(&criticalsection); }
 	void criticalsection_enter() { EnterCriticalSection(&criticalsection); }
 	void criticalsection_leave() { LeaveCriticalSection(&criticalsection); }
