@@ -14,7 +14,6 @@
 
 /* program includes */
 #include "mem.h"
-#include "filters.h"
 #include "node.h"
 #include "path.h"
 #include "support.h"
@@ -76,8 +75,6 @@ static const char *option_targets[128] = {0};
 static int option_num_targets = 0;
 static const char *option_scriptargs[128] = {0};
 static int option_num_scriptargs = 0;
-
-static const char *option_filter_matchfirst = 0;
 
 /* session object */
 struct SESSION session = {
@@ -184,10 +181,6 @@ static struct OPTION options[] = {
 	@END*/
 	{0, &option_dry				, "--dry", "dry run"},
 	
-	/*@OPTION Filter: Match First ( --filter-matchfirst STR )
-	@END*/
-	{&option_filter_matchfirst,0, "--filter-matchfirst", "filter: matches the first input and skips it"},
-	
 	/*@OPTION Debug: Dump Nodes ( --debug-nodes )
 		Dumps all nodes in the dependency graph, their state and their
 		dependent nodes. This is useful if you are writing your own
@@ -243,8 +236,9 @@ int register_lua_globals(struct CONTEXT *context)
 	lua_register(context->lua, L_FUNCTION_PREFIX"add_job", lf_add_job);
 	lua_register(context->lua, L_FUNCTION_PREFIX"add_dependency", lf_add_dependency);
 	lua_register(context->lua, L_FUNCTION_PREFIX"add_dependency_search", lf_add_dependency_search);
-	lua_register(context->lua, L_FUNCTION_PREFIX"set_touch", lf_set_touch);
 	lua_register(context->lua, L_FUNCTION_PREFIX"default_target", lf_default_target);
+	lua_register(context->lua, L_FUNCTION_PREFIX"set_touch", lf_set_touch);
+	lua_register(context->lua, L_FUNCTION_PREFIX"set_filter", lf_set_filter);
 
 	/* path manipulation */
 	lua_register(context->lua, L_FUNCTION_PREFIX"path_join", lf_path_join);
@@ -341,7 +335,7 @@ int register_lua_globals(struct CONTEXT *context)
 			lua_getglobal(context->lua, "errorfunc");
 			
 			/* push error function to stack */
-			ret = lua_load(context->lua, internal_base_reader, &p, internal_files[f].filename);
+			ret = lua_load(context->lua, internal_base_reader, (void *)&p, internal_files[f].filename);
 			if(ret != 0)
 			{
 				lf_errorfunc(context->lua);
@@ -896,10 +890,6 @@ int main(int argc, char **argv)
 	/* parse commandline parameters */
 	if(parse_parameters(argc-1, argv+1))
 		return -1;
-		
-	/* check for filters */
-	if(option_filter_matchfirst)
-		return filter_matchfirst(option_filter_matchfirst);
 		
 	/* parse the report str */
 	for(i = 0; option_report_str[i]; i++)

@@ -39,6 +39,8 @@ struct NODE
 	char *cmdline; /* command line that should be executed to build this node */
 	char *label; /* what to print when we build this node */
 	
+	char *filter; /* filter string, first character sets the type of filter */
+	
 	RB_ENTRY(NODE) rbentry; /* RB-tree entry sorted by hashid */
 
 	/* filename and the tool to build the resource */
@@ -127,7 +129,6 @@ struct CONTEXT;
 #define NODEDIRTY_DEPDIRTY 3    /* one of the dependencies is dirty */
 #define NODEDIRTY_DEPNEWER 4    /* one of the dependencies is newer */
 #define NODEDIRTY_GLOBALSTAMP 5 /* the globaltimestamp is newer */
-
 
 /* you destroy graphs by destroying the heap */
 struct GRAPH *node_create_graph(struct HEAP *heap);

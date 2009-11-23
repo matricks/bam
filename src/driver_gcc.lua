@@ -10,16 +10,15 @@ function compile_c_cxx_gcc(label, exe, output, input, settings)
 	if settings.debug > 0 then f = f .. "-g " end
 	if settings.optimize > 0 then f = f .. "-O2 " end
 	local e = exe .. ' ' .. f ..'-c ' .. input .. ' -o ' .. output .. ' ' .. d .. i
-	return e
-	-- return bam_execute(e)
+	AddJob(output, label, e)
 end
 
-function DriverCXX_GCC(output,input,settings)
-	return compile_c_cxx_gcc("c++ " .. PathFilename(input), settings.cc.cxx_exe,output,input,settings)
+function DriverCXX_GCC(label, output, input, settings)
+	compile_c_cxx_gcc(label, settings.cc.cxx_exe,output,input,settings)
 end
 
-function DriverC_GCC(output,input,settings)
-	return compile_c_cxx_gcc("c " .. PathFilename(input), settings.cc.c_exe,output,input,settings)
+function DriverC_GCC(label, output, input, settings)
+	compile_c_cxx_gcc(label, settings.cc.c_exe,output,input,settings)
 end
 
 function DriverCTest_GCC(code, options)

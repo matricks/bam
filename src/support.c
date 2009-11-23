@@ -7,6 +7,7 @@
 #include "platform.h"
 #include "path.h"
 #include "context.h"
+#include "session.h"
 
 #ifdef BAM_FAMILY_BEOS
     #include <sched.h>
@@ -239,14 +240,8 @@ void file_touch(const char *filename)
 #endif
 }
 
-int run_command(const char *cmd)
+static void passthru(FILE *fp)
 {
-/*#ifdef BAM_FAMILY_WINDOWS
-	FILE *fp = _popen(cmd, "r");
-
-	if(!fp)
-		return -1;
-
 	while(1)
 	{
 		char buffer[1024*4];
@@ -257,11 +252,94 @@ int run_command(const char *cmd)
 		fwrite(buffer, 1, num_bytes, stdout);
 		criticalsection_leave();
 	}
+}
+
+int run_command(const char *cmd, const char *filter)
+{
+	int ret;
+#ifdef BAM_FAMILY_WINDOWS
+	FILE *fp = _popen(cmd, "r");
+
+	if(!fp)
+		return -1;
+		
+	if(filter && *filter == 'F')
+	{
+		/* first filter match */
+		char buffer[1024];
+		size_t total;
+		size_t matchlen;
+		size_t numread;
+		
+		/* skip first letter */
+		filter++;
+		matchlen = strlen(filter);
+		total = 0;
+
+		while(1)
+		{
+			numread = fread(buffer+total, 1, matchlen-total, fp);
+			if(numread <= 0)
+			{
+				/* done or error, flush and exit */
+				fwrite(buffer, 1, total, stdout);
+				break;
+			}
+			
+			/* accumelate the bytes read */
+			total += numread;
+			
+			if(total >= matchlen)
+			{
+				/* check if it matched */
+				if(memcmp(buffer, filter, matchlen) == 0)
+				{
+					/* check for line ending */
+					char t = fgetc(fp);
+					if(t == '\r')
+					{
+						/* this can be CR or CR/LF */
+						t = fgetc(fp);
+						if(t != '\n')
+						{
+							/* not a CR/LF */
+							fputc(t, stdout);
+						}
+					}
+					else if(t == '\n')
+					{
+						/* normal LF line ending */
+					}
+					else
+					{
+						/* no line ending */
+						fputc(t, stdout);
+					}
+				}
+				else
+				{
+					fwrite(buffer, 1, total, stdout);
+				}
 	
-	return _pclose(fp);
+				passthru(fp);
+				break;
+			}
+			
+		}
+	}
+	else
+	{
+		/* no filter */
+		passthru(fp);
+	}
+
+	ret = _pclose(fp);
 #else*/
-	return system(cmd);
-/*#endif*/
+	ret = system(cmd);
+#endif
+	if(session.verbose)
+		printf("%s: ret=%d %s\n", session.name, ret, cmd);
+	return ret;
 }
 
 /* general */

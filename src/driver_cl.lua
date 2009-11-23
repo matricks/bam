@@ -1,6 +1,6 @@
 
 ----- cl compiler ------
-function compile_c_cxx_cl(output, input, settings, label)
+function compile_c_cxx_cl(label, output, input, settings)
 	local defs = tbl_to_str(settings.cc.defines, "-D", " ") .. " "
 	local incs = tbl_to_str(settings.cc.includes, '-I"', '" ')
 	local incs = incs .. tbl_to_str(settings.cc.systemincludes, '-I"', '" ')
@@ -13,16 +13,18 @@ function compile_c_cxx_cl(output, input, settings, label)
 	end
 	if settings.debug > 0 then flags = flags .. "/Od /MTd /Zi /D \"_DEBUG\" " end
 	if settings.optimize > 0 then flags = flags .. "/Ox /Ot /MT /D \"NDEBUG\" " end
-	local exec = exe .. " /nologo /D_CRT_SECURE_NO_DEPRECATE /c " .. flags .. input .. " " .. incs .. defs .. " /Fo" .. output .. " |" .. _bam_exe .. " --filter-matchfirst " .. PathFilename(input)
-	return exec
+	local exec = exe .. " /nologo /D_CRT_SECURE_NO_DEPRECATE /c " .. flags .. input .. " " .. incs .. defs .. " /Fo" .. output
+
+	AddJob(output, label, exec)
+	SetFilter(output, "F" .. PathFilename(input))
 end
 
-function DriverCXX_CL(output,input,settings)
-	return compile_c_cxx_cl(output,input,settings,"c++ ")
+function DriverCXX_CL(label, output,input, settings)
+	compile_c_cxx_cl(label, output, input, settings)
 end
 
-function DriverC_CL(output,input,settings)
-	return compile_c_cxx_cl(output,input,settings,"c ")
+function DriverC_CL(label, output, input, settings)
+	compile_c_cxx_cl(label, output, input, settings)
 end
 
 function DriverCTest_CL(code, options)

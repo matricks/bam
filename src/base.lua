@@ -5,6 +5,8 @@ IsString = bam_isstring
 IsTable = bam_istable
 MakeDirectory = bam_mkdir
 Exist = bam_fileexist
+SetFilter = bam_set_filter
+SetTouch = bam_set_touch
 
 --[[@GROUP Common @END]]--
 
@@ -443,7 +445,7 @@ function Copy(outputdir, ...)
 			copy_command .. " " .. srcfile .. " " .. dstfile .. copy_append)
 
 		-- make sure that the files timestamps are updated correctly
-		bam_set_touch(output)
+		SetTouch(output)
 		AddDependency(output, input)
 		table.insert(outputs, output)
 	end
@@ -1099,11 +1101,7 @@ end
 
 function CCompiler(settings, input)
 	local outname = settings.cc.Output(settings, input) .. settings.cc.extension
-	AddJob(
-		outname,
-		settings.labelprefix .. "c " .. input,
-		settings.cc.DriverC(outname, input, settings)
-	)	
+	settings.cc.DriverC(settings.labelprefix .. "c " .. input, outname, input, settings)
 	AddDependency(outname, input)
 	bam_dependency_cpp(input, settings.cc.includes)
 	return outname
@@ -1111,11 +1109,7 @@ end
 
 function CXXCompiler(settings, input)
 	local outname = settings.cc.Output(settings, input) .. settings.cc.extension
-	AddJob(
-		outname,
-		settings.labelprefix .. "c++ " .. input,
-		settings.cc.DriverCXX(outname, input, settings)
-	)	
+	settings.cc.DriverCXX(settings.labelprefix .. "c++ " .. input, outname, input, settings)
 	AddDependency(outname, input)
 	bam_dependency_cpp(input, settings.cc.includes)	
 	return outname

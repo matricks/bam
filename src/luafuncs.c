@@ -86,6 +86,31 @@ int lf_set_touch(struct lua_State *L)
 }
 
 
+int lf_set_filter(struct lua_State *L)
+{
+	struct NODE *node;
+	const char *str;
+	size_t len;
+	
+	/* check the arguments */
+	if(lua_gettop(L) < 2)
+		luaL_error(L, "set_filter: to few arguments");
+	if(lua_type(L,2) != LUA_TSTRING)
+		luaL_error(L, "set_filter: expected string as second argument");
+
+	/* find the node */
+	node = node_find(context_get_pointer(L)->graph, lua_tostring(L,1));
+	if(!node)
+		luaL_error(L, "set_filter: couldn't find node with name '%s'", lua_tostring(L,1));
+
+	/* setup the string */	
+	str = lua_tolstring(L, 2, &len);
+	node->filter = (char *)mem_allocate(node->graph->heap, len+1);
+	memcpy(node->filter, str, len+1);
+	return 0;
+}
+
+
 static void build_stringlist(lua_State *L, struct HEAP *heap, struct STRINGLIST **first, int tableindex)
 {
 	struct STRINGLIST *listitem;
