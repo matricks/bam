@@ -33,6 +33,9 @@ struct NODE
 	struct NODE *next; /* next node in the graph */
 	struct NODELINK *firstdep; /* list of dependencies */
 	struct NODELINK *firstparent; /* list of parents */
+
+	struct NODELINK *constraint_exclusive; /* list of exclusive constraints */
+	struct NODELINK *constraint_shared; /* list of shared constraints */
 	
 	char *filename; /* this contains the filename with the FULLPATH */
 	
@@ -47,6 +50,9 @@ struct NODE
 	/* unsigned filename_len; */ /* including zero term */
 	unsigned cmdhash; /* hash of the command line for detecting changes */
 	unsigned cachehash; /* hash that should be written to the cache */
+	 
+	unsigned constraint_exclusive_count; /* */
+	unsigned constraint_shared_count; /* */
 	 
 	unsigned hashid; /* hash of the filename/nodename */
 	
@@ -139,6 +145,9 @@ int node_create(struct NODE **node, struct GRAPH *graph, const char *filename, c
 struct NODE *node_find(struct GRAPH *graph, const char *filename);
 struct NODE *node_add_dependency(struct NODE *node, const char *filename);
 struct NODE *node_add_dependency_withnode(struct NODE *node, struct NODE *depnode);
+
+struct NODE *node_add_constraint_shared(struct NODE *node, const char *filename);
+struct NODE *node_add_constraint_exclusive(struct NODE *node, const char *filename);
 
 struct NODEWALKPATH
 {

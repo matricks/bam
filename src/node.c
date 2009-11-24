@@ -193,6 +193,26 @@ struct NODE *node_add_dependency(struct NODE *node, const char *filename)
 	return node_add_dependency_withnode(node, node_get(node->graph, filename));
 }
 
+static struct NODE *node_add_constraint(struct NODELINK **first, struct NODE *node, const char *filename)
+{
+	struct NODE *contraint = node_get(node->graph, filename);
+	struct NODELINK *link = (struct NODELINK *)mem_allocate(node->graph->heap, sizeof(struct NODELINK));
+	link->node = contraint;
+	link->next = *first;
+	*first = link;
+	return contraint;
+}
+
+struct NODE *node_add_constraint_shared(struct NODE *node, const char *filename)
+{
+	return node_add_constraint(&node->constraint_shared, node, filename);
+}
+
+struct NODE *node_add_constraint_exclusive(struct NODE *node, const char *filename)
+{
+	return node_add_constraint(&node->constraint_exclusive, node, filename);
+}
+
 /* functions to handle with bit array access */
 static unsigned char *bitarray_allocate(int size)
 { return (unsigned char *)malloc((size+7)/8); }
@@ -391,9 +411,13 @@ void node_debug_dump(struct GRAPH *graph)
 			tool = node->cmdline;
 		printf("%08x %c   %s   %-15s\n", (unsigned)node->timestamp, d[node->dirty], node->filename, tool);
 		for(link = node->firstdep; link; link = link->next)
-			printf("%08x %c      D %s\n", (unsigned)link->node->timestamp, d[link->node->dirty], link->node->filename);
+			printf("%08x %c      DEP %s\n", (unsigned)link->node->timestamp, d[link->node->dirty], link->node->filename);
 		for(link = node->firstparent; link; link = link->next)
-			printf("%08x %c      P %s\n", (unsigned)link->node->timestamp, d[link->node->dirty], link->node->filename);
+			printf("%08x %c      PAR %s\n", (unsigned)link->node->timestamp, d[link->node->dirty], link->node->filename);
+		for(link = node->constraint_shared; link; link = link->next)
+			printf("%08x %c      SHR %s\n", (unsigned)link->node->timestamp, d[link->node->dirty], link->node->filename);
+		for(link = node->constraint_exclusive; link; link = link->next)
+			printf("%08x %c      EXL %s\n", (unsigned)link->node->timestamp, d[link->node->dirty], link->node->filename);
 	}
 }
 

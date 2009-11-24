@@ -34,7 +34,7 @@ end
 
 ------------------------ LINK GCC DRIVER ------------------------
 
-function DriverLink_GCC(output, inputs, settings)
+function DriverLink_GCC(label, output, inputs, settings)
 	local e = settings.link.exe .. " -o " .. output
 	local e = e .. " " .. settings.link.inputflags .. " " .. tbl_to_str(inputs, '', ' ') 
 	local e = e .. tbl_to_str(settings.link.extrafiles, '', ' ')
@@ -43,7 +43,7 @@ function DriverLink_GCC(output, inputs, settings)
 	local e = e .. tbl_to_str(settings.link.frameworkpath, '-F', ' ')
 	local e = e .. tbl_to_str(settings.link.frameworks, '-framework ', ' ')
 	local e = e .. settings.link.flags:ToString()
-	return e
+	AddJob(output, label, e)
 end
 
 ------------------------ LIB GCC DRIVER ------------------------

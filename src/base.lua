@@ -1069,6 +1069,20 @@ function AddDependencySearch(filename, paths, ...)
 end]]--
 
 
+-- TODO: Implement this in C
+function AddConstraintShared(filename, ...)
+	for f in WalkTable({...}) do
+		bam_add_constraint_shared(filename, f)
+	end
+end
+
+function AddConstraintExclusive(filename, ...)
+	for f in WalkTable({...}) do
+		bam_add_constraint_exclusive(filename, f)
+	end
+end
+
+
 
 function Default_Intermediate_Output(settings, input)
 	return PathBase(input) .. settings.config_ext
@@ -1199,8 +1213,8 @@ function Link(settings, output, ...)
 	local inputs = FlattenTable({...})
 
 	output = settings.link.Output(settings, output) .. settings.link.extension
-
-	AddJob(output, settings.labelprefix .. "link " .. output, settings.link.Driver(output, inputs, settings))
+	settings.link.Driver(label, output, inputs, settings)
+	--AddJob(output, settings.labelprefix .. "link " .. output, settings.link.Driver(output, inputs, settings))
 
 	-- all the files
 	for index, inname in ipairs(inputs) do

@@ -11,7 +11,8 @@ function compile_c_cxx_cl(label, output, input, settings)
 	else
 		flags = flags .. " /D \"WIN64\" "
 	end
-	if settings.debug > 0 then flags = flags .. "/Od /MTd /Zi /D \"_DEBUG\" " end
+	
+	if settings.debug > 0 then flags = flags .. "/Od /MTd /Z7 /D \"_DEBUG\" " end
 	if settings.optimize > 0 then flags = flags .. "/Ox /Ot /MT /D \"NDEBUG\" " end
 	local exec = exe .. " /nologo /D_CRT_SECURE_NO_DEPRECATE /c " .. flags .. input .. " " .. incs .. defs .. " /Fo" .. output
 
@@ -56,7 +57,7 @@ function DriverDLL_CL(output, inputs, settings)
 	return exec
 end
 
-function DriverLink_CL(output, inputs, settings)
+function DriverLink_CL(label, output, inputs, settings)
 	local input =  tbl_to_str(inputs, "", " ")
 	local flags = settings.link.flags:ToString()
 	local libs  = tbl_to_str(settings.link.libs, "", ".lib ")
@@ -64,7 +65,7 @@ function DriverLink_CL(output, inputs, settings)
 	local exe = str_replace(settings.link.exe, "/", "\\")
 	if settings.debug > 0 then flags = flags .. "/DEBUG " end
 	local exec = exe .. " /nologo /incremental:no /OUT:" .. output .. " " .. flags .. libpaths .. libs .. " " .. input
-	return exec
+	AddJob(output, label, exec)
 end
 
 function SetDriversCL(settings)

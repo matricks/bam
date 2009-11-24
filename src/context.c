@@ -75,6 +75,34 @@ static void progressbar_draw(struct CONTEXT *context)
 	}
 }
 
+static void constraints_update(struct NODE *node, int direction)
+{
+	struct NODELINK *link;
+	for(link = node->constraint_shared; link; link = link->next)
+		link->node->constraint_shared_count += direction;
+	for(link = node->constraint_exclusive; link; link = link->next)
+		link->node->constraint_exclusive_count += direction;
+}
+
+/* returns 0 if there are no constraints that are conflicting */
+static int constraints_check(struct NODE *node)
+{
+	struct NODELINK *link;
+	for(link = node->constraint_shared; link; link = link->next)
+	{
+		if(link->node->constraint_exclusive_count)
+			return 1;
+	}
+	
+	for(link = node->constraint_exclusive; link; link = link->next)
+	{
+		if(link->node->constraint_exclusive_count || link->node->constraint_shared_count)
+			return 1;
+	}
+	
+	return 0;
+}
+
 static int run_node(struct CONTEXT *context, struct NODE *node, int thread_id)
 {
 	static const char *format = 0;
@@ -123,12 +151,18 @@ static int run_node(struct CONTEXT *context, struct NODE *node, int thread_id)
 		
 	fflush(stdout);
 	
+	/* add constraints count */
+	constraints_update(node, 1);
+	
 	/* execute the command */
 	criticalsection_leave();
 	ret = run_command(node->cmdline, node->filter);
 	if(node->touch && ret == 0)
 		file_touch(node->filename);
 	criticalsection_enter();
+	
+	/* sub constraints count */
+	constraints_update(node, -1);
 	
 	if(ret)
 	{
@@ -172,7 +206,7 @@ static int threads_run_callback(struct NODEWALK *walkinfo)
 			node->workstatus = NODESTATUS_BROKEN;
 			return info->context->errorcode;
 		}
-			
+		
 		if(dep->node->dirty && dep->node->workstatus != NODESTATUS_DONE)
 			return 0;
 	}
@@ -183,6 +217,10 @@ static int threads_run_callback(struct NODEWALK *walkinfo)
 		node->workstatus = NODESTATUS_DONE;
 		return 0;
 	}
+	
+	/* check if constraints allows it */
+	if(constraints_check(node))
+		return 0;
 	
 	/* mark the node as its in the working */
 	node->workstatus = NODESTATUS_WORKING;
