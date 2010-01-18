@@ -56,7 +56,7 @@ end
 
 ------------------------ DLL GCC DRIVER ------------------------
 
-function DriverDLL_GCC(output, inputs, settings)
+function DriverDLL_GCC(label, output, inputs, settings)
 	local shared_flags = ""
 
 	if platform == "macosx" then
@@ -73,7 +73,7 @@ function DriverDLL_GCC(output, inputs, settings)
 	local e = e .. tbl_to_str(settings.dll.frameworkpath, '-F', ' ')
 	local e = e .. tbl_to_str(settings.dll.frameworks, '-framework ', ' ')
 	local e = e .. settings.dll.flags:ToString()
-	return e
+	AddJob(output, label, e)
 end
 
 function SetDriversGCC(settings)

@@ -63,7 +63,7 @@ def test(name, moreflags="", should_fail=0):
 
 	olddir = os.getcwd()
 	os.chdir(output_path+"/"+name)
-	cmdline = bam+" -v "+extra_bam_flags+" " + moreflags
+	cmdline = bam+" -bt -v "+extra_bam_flags+" " + moreflags
 	
 	print name + ":",
 	p = subprocess.Popen(cmdline, stdout=subprocess.PIPE, shell=True, stderr=subprocess.STDOUT)
@@ -226,6 +226,7 @@ test("multi_target", "CORRECT_ONE")
 test("collect_wrong", "", 1)
 test("locked", "", 1)
 test("collect_recurse")
+test("sharedlib")
 
 if len(failed_tests):
 	print "FAILED TESTS:"

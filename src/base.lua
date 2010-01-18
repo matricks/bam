@@ -1213,7 +1213,7 @@ function Link(settings, output, ...)
 	local inputs = FlattenTable({...})
 
 	output = settings.link.Output(settings, output) .. settings.link.extension
-	settings.link.Driver(label, output, inputs, settings)
+	settings.link.Driver(settings.labelprefix .. "link " .. output, output, inputs, settings)
 	--AddJob(output, settings.labelprefix .. "link " .. output, settings.link.Driver(output, inputs, settings))
 
 	-- all the files
@@ -1303,7 +1303,9 @@ function SharedLibrary(settings, output, ...)
 	local inputs = FlattenTable({...})
 
 	output = settings.dll.Output(settings, output) .. settings.dll.extension
-	AddJob(output, settings.labelprefix .. "dll ".. output, settings.dll.Driver(output, inputs, settings))
+	settings.dll.Driver(settings.labelprefix .. "dll ".. output, output, inputs, settings)
+	
+	-- AddJob(output, settings.labelprefix .. "dll ".. output, settings.dll.Driver(output, inputs, settings))
 
 	for index, inname in ipairs(inputs) do
 		AddDependency(output, inname)

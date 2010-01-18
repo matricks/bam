@@ -47,14 +47,15 @@ function DriverLib_CL(output, inputs, settings)
 	return exec
 end
 
-function DriverDLL_CL(output, inputs, settings)
+function DriverDLL_CL(label, output, inputs, settings)
 	local input =  tbl_to_str(inputs, "", " ")
 	local flags = settings.dll.flags:ToString()
 	local libs  = tbl_to_str(settings.dll.libs, "", " ")
 	local libpaths = tbl_to_str(settings.dll.libpath, "/libpath:\"", "\" ")
-	local exe = str_replace(settings.exe, "/", "\\")
+	local exe = str_replace(settings.dll.exe, "/", "\\")
 	local exec = exe .. ' /nologo /DLL' .. flags .. libpaths .. libs .. " /OUT:" .. output .. " " .. input
-	return exec
+	AddJob(output, label, exec)
+	--return exec
 end
 
 function DriverLink_CL(label, output, inputs, settings)
