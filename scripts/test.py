@@ -205,9 +205,10 @@ def unittests():
 
 # clean
 shutil.rmtree(output_path, True)
-
 # copy tree
 copytree("tests", output_path)
+os.mkdir(os.path.join(output_path, "unit"))
+
 
 # run smaller unit tests
 unittests()
