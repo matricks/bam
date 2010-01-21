@@ -240,6 +240,7 @@ void file_touch(const char *filename)
 #endif
 }
 
+#ifdef BAM_FAMILY_WINDOWS
 static void passthru(FILE *fp)
 {
 	while(1)
@@ -253,6 +254,7 @@ static void passthru(FILE *fp)
 		criticalsection_leave();
 	}
 }
+#endif
 
 int run_command(const char *cmd, const char *filter)
 {
@@ -334,7 +336,7 @@ int run_command(const char *cmd, const char *filter)
 	}
 
 	ret = _pclose(fp);
-#else*/
+#else
 	ret = system(cmd);
 #endif
 	if(session.verbose)
