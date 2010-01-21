@@ -228,6 +228,7 @@ test("collect_wrong", "", 1)
 test("locked", "", 1)
 test("collect_recurse")
 test("sharedlib")
+test("deadlock")
 
 if len(failed_tests):
 	print "FAILED TESTS:"
