@@ -199,7 +199,7 @@ static int threads_run_callback(struct NODEWALK *walkinfo)
 		return info->context->errorcode;
 
 	/* make sure that all deps are done and propagate broken status */
-	for(dep = node->firstdep; dep; dep = dep->next)
+	for(dep = node->firstjobdep; dep; dep = dep->next)
 	{
 		if(dep->node->workstatus == NODESTATUS_BROKEN)
 		{
@@ -250,7 +250,7 @@ static void threads_run(void *u)
 {
 	struct THREADINFO *info = (struct THREADINFO *)u;
 	struct NODE *target = info->context->target;
-	int flags = NODEWALK_BOTTOMUP|NODEWALK_UNDONE|NODEWALK_QUICK;
+	int flags = NODEWALK_BOTTOMUP|NODEWALK_UNDONE|NODEWALK_QUICK|NODEWALK_JOBS;
 	
 	info->errorcode = 0;
 	
@@ -362,6 +362,7 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 	struct CACHENODE *cachenode;
 	struct NODELINK *dep;
 	struct NODELINK *parent;
+	struct NODELINK *jobdep;
 	struct NODEWALKPATH *path;
 
 	time_t oldtimestamp = node->timestamp; /* to keep track of if this node changes */
@@ -396,9 +397,9 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 	/* check against all the dependencies */
 	for(dep = node->firstdep; dep; dep = dep->next)
 	{
-		/* do circular action dependency checking */
 		if(dep->node->cmdline)
 		{
+			/* do circular action dependency checking */
 			for(path = walkinfo->parent; path; path = path->parent)
 			{
 				if(path->node == dep->node)
@@ -410,6 +411,15 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 					return -1;
 				}
 			}
+		
+			/* propagate job dependencies */
+			node_add_job_dependency_withnode(node, dep->node);
+		}
+		else
+		{
+			/* propagate job dependencies */
+			for(jobdep = dep->node->firstjobdep; jobdep; jobdep = jobdep->next)
+				node_add_job_dependency_withnode(node, jobdep->node);
 		}
 
 		/* update dirty */		

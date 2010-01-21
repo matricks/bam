@@ -659,28 +659,26 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	/* do actions if we don't have any errors */
 	if(!setup_error)
 	{
-		if(option_debug_nodes)
+		build_error = context_build_prepare(&context);
+		
+		if(!build_error)
 		{
-			/* debug dump all nodes */
-			node_debug_dump(context.graph);
-		}
-		else if(option_debug_jobs)
-		{
-			/* debug dump all jobs */
-			build_error = context_build_prepare(&context);
-			node_debug_dump_jobs(context.graph);
-		}
-		else if(option_dry)
-		{
-			/* do NADA */
-			build_error = context_build_prepare(&context);
-		}
-		else
-		{
-			/* run build or clean */
-			build_error = context_build_prepare(&context);
-			if(!build_error)
+			if(option_debug_nodes)
 			{
+				/* debug dump all nodes */
+				node_debug_dump(context.graph);
+			}
+			else if(option_debug_jobs)
+			{
+				/* debug dump all jobs */
+				node_debug_dump_jobs(context.graph);
+			}
+			else if(option_dry)
+			{
+			}
+			else
+			{
+				/* run build or clean */
 				if(option_clean)
 					build_error = context_build_clean(&context);
 				else

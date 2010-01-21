@@ -33,6 +33,7 @@ struct NODE
 	struct NODE *next; /* next node in the graph */
 	struct NODELINK *firstdep; /* list of dependencies */
 	struct NODELINK *firstparent; /* list of parents */
+	struct NODELINK *firstjobdep; /* list of job dependencies */
 
 	struct NODELINK *constraint_exclusive; /* list of exclusive constraints */
 	struct NODELINK *constraint_shared; /* list of shared constraints */
@@ -124,7 +125,8 @@ struct CONTEXT;
 #define NODEWALK_BOTTOMUP 4 /* callbacks are done bottom up */
 #define NODEWALK_UNDONE 8   /* causes checking of the undone flag, does not decend if it's set */
 #define NODEWALK_QUICK 16   /* never visit the same node twice */
-#define NODEWALK_REVISIT (32|NODEWALK_QUICK) /* will do a quick pass and revisits all nodes thats
+#define NODEWALK_JOBS 32   /* walk the jobtree instead of the complete tree */
+#define NODEWALK_REVISIT (64|NODEWALK_QUICK) /* will do a quick pass and revisits all nodes thats
 	have been marked by node_walk_revisit(). path info won't be available when revisiting nodes */
 
 /* node dirty status */
@@ -145,6 +147,7 @@ int node_create(struct NODE **node, struct GRAPH *graph, const char *filename, c
 struct NODE *node_find(struct GRAPH *graph, const char *filename);
 struct NODE *node_add_dependency(struct NODE *node, const char *filename);
 struct NODE *node_add_dependency_withnode(struct NODE *node, struct NODE *depnode);
+struct NODE *node_add_job_dependency_withnode(struct NODE *node, struct NODE *depnode);
 
 struct NODE *node_add_constraint_shared(struct NODE *node, const char *filename);
 struct NODE *node_add_constraint_exclusive(struct NODE *node, const char *filename);

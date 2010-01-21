@@ -187,6 +187,38 @@ struct NODE *node_add_dependency_withnode(struct NODE *node, struct NODE *depnod
 	return depnode;
 }
 
+
+struct NODE *node_add_job_dependency_withnode(struct NODE *node, struct NODE *depnode)
+{
+	struct NODELINK *dep;
+	
+	/* make sure that the node doesn't try to depend on it self */
+	if(depnode == node)
+	{
+		if(node->cmdline)
+		{
+			printf("error: node '%s' is depended on itself and is produced by a job\n", node->filename);
+			return (struct NODE*)0x0;
+		}
+		
+		return node;
+	}
+	
+	/* check if we are already dependent on this node */
+	for(dep = node->firstjobdep; dep; dep = dep->next)
+		if(dep->node->hashid == depnode->hashid)
+			return depnode;
+	
+	/* create and add job dependency link */
+	dep = (struct NODELINK *)mem_allocate(node->graph->heap, sizeof(struct NODELINK));
+	dep->node = depnode;
+	dep->next = node->firstjobdep;
+	node->firstjobdep = dep;
+	
+	return depnode;
+}
+
+
 /* adds a dependency to a node */
 struct NODE *node_add_dependency(struct NODE *node, const char *filename)
 {
@@ -241,20 +273,20 @@ static int node_walk_r(
 	struct NODELINK *dep;
 	struct NODEWALKPATH path;
 	int result = 0;
-	int needrebuild = 0;
+	int flags = walk->flags;
 	
 	/* check and set mark */
 	if(bitarray_value(walk->mark, node->id))
 		return 0; 
 	bitarray_set(walk->mark, node->id);
 	
-	if((walk->flags)&NODEWALK_UNDONE)
+	if(flags&NODEWALK_UNDONE)
 	{
 		if(node->workstatus != NODESTATUS_UNDONE)
 			return 0;
 	}
 
-	if((walk->flags)&NODEWALK_TOPDOWN)
+	if(flags&NODEWALK_TOPDOWN)
 	{
 		walk->node = node;
 		result = walk->callback(walk);
@@ -267,11 +299,12 @@ static int node_walk_r(
 	walk->depth++;
 	
 	/* build all dependencies */
-	for(dep = node->firstdep; dep; dep = dep->next)
+	dep = node->firstdep;
+	if(flags&NODEWALK_JOBS)
+		dep = node->firstjobdep;
+	for(; dep; dep = dep->next)
 	{
 		result = node_walk_r(walk, dep->node);
-		if(node->timestamp < dep->node->timestamp)
-			needrebuild = 1;
 		if(result)
 			break;
 	}
@@ -281,7 +314,7 @@ static int node_walk_r(
 	walk->parent = walk->parent->parent;
 	
 	/* unmark the node so we can walk this tree again if needed */
-	if(!(walk->flags&NODEWALK_QUICK))
+	if(!(flags&NODEWALK_QUICK))
 		bitarray_clear(walk->mark, node->id);
 	
 	/* return if we have an error */
@@ -289,11 +322,11 @@ static int node_walk_r(
 		return result;
 
 	/* check if we need to rebuild this node */
-	if(!((walk->flags)&NODEWALK_FORCE) && !node->dirty)
+	if(!(flags&NODEWALK_FORCE) && !node->dirty)
 		return 0;
 	
 	/* build */
-	if((walk->flags)&NODEWALK_BOTTOMUP)
+	if(flags&NODEWALK_BOTTOMUP)
 	{
 		walk->node = node;
 		result = walk->callback(walk);
@@ -405,24 +438,27 @@ void node_debug_dump(struct GRAPH *graph)
 	
 	for(;node;node = node->next)
 	{
-		static const char d[] = " D";
+		static const char *dirtyflag[] = {"--", "MI", "CH", "DD", "DN", "GS"};
 		tool = "***";
 		if(node->cmdline)
 			tool = node->cmdline;
-		printf("%08x %c   %s   %-15s\n", (unsigned)node->timestamp, d[node->dirty], node->filename, tool);
+		printf("%08x %s   %s   %-15s\n", (unsigned)node->timestamp, dirtyflag[node->dirty], node->filename, tool);
 		for(link = node->firstdep; link; link = link->next)
-			printf("%08x %c      DEP %s\n", (unsigned)link->node->timestamp, d[link->node->dirty], link->node->filename);
+			printf("%08x %s      DEPEND %s\n", (unsigned)link->node->timestamp, dirtyflag[link->node->dirty], link->node->filename);
 		for(link = node->firstparent; link; link = link->next)
-			printf("%08x %c      PAR %s\n", (unsigned)link->node->timestamp, d[link->node->dirty], link->node->filename);
+			printf("%08x %s      PARENT %s\n", (unsigned)link->node->timestamp, dirtyflag[link->node->dirty], link->node->filename);
 		for(link = node->constraint_shared; link; link = link->next)
-			printf("%08x %c      SHR %s\n", (unsigned)link->node->timestamp, d[link->node->dirty], link->node->filename);
+			printf("%08x %s      SHARED %s\n", (unsigned)link->node->timestamp, dirtyflag[link->node->dirty], link->node->filename);
 		for(link = node->constraint_exclusive; link; link = link->next)
-			printf("%08x %c      EXL %s\n", (unsigned)link->node->timestamp, d[link->node->dirty], link->node->filename);
+			printf("%08x %s      EXCLUS %s\n", (unsigned)link->node->timestamp, dirtyflag[link->node->dirty], link->node->filename);
+		for(link = node->firstjobdep; link; link = link->next)
+			printf("%08x %s      JOBDEP %s\n", (unsigned)link->node->timestamp, dirtyflag[link->node->dirty], link->node->filename);
 	}
 }
 
 void node_debug_dump_jobs(struct GRAPH *graph)
 {
+	struct NODELINK *link;
 	struct NODE *node = graph->first;
 	static const char *dirtyflag[] = {"--", "MI", "CH", "DD", "DN", "GS"};
 	printf("MI = Missing CH = Command hash dirty, DD = Dependency dirty\n");
@@ -431,14 +467,18 @@ void node_debug_dump_jobs(struct GRAPH *graph)
 	for(;node;node = node->next)
 	{
 		if(node->cmdline)
+		{
 			printf(" %s    %3d  %-30s   %s\n", dirtyflag[node->dirty], node->depth, node->filename, node->cmdline);
+			
+			for(link = node->firstjobdep; link; link = link->next)
+				printf(" %s         + %-30s\n", dirtyflag[link->node->dirty], link->node->filename);
+		}
 	}
 }
 
-
-static int node_debug_dump_tree_r(struct NODEWALK *walkinfo)
+/*
+static int node_debug_dump_jobtree_r(struct NODEWALK *walkinfo)
 {
-	/*const char *workstatus = "UWD";*/
 	unsigned i;
 	if(walkinfo->node->workstatus != NODESTATUS_DONE)
 	{
@@ -451,7 +491,8 @@ static int node_debug_dump_tree_r(struct NODEWALK *walkinfo)
 	return 0;
 }
 
-void node_debug_dump_tree(struct NODE *root)
+void node_debug_dump_jobtree(struct NODE *root)
 {
 	node_walk(root, NODEWALK_FORCE|NODEWALK_TOPDOWN, node_debug_dump_tree_r, 0);
 }
+*/
