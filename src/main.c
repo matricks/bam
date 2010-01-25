@@ -643,6 +643,11 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	/* HACK: Store the context pointer as the userdata pointer to the allocator to make
 		sure that we have fast access to it. This makes the context_get_pointer call very fast */
 	context.lua = lua_newstate(lua_alloctor, &context);
+
+	/* we don't need the gc, just run and destroy it later */
+	lua_gc(context.lua, LUA_GCSTOP, 0);
+
+	/* install panic function */
 	lua_atpanic(context.lua, lf_panicfunc);
 
 
