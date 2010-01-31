@@ -60,6 +60,7 @@ static int option_no_cache = 0;
 static int option_dry = 0;
 static int option_dependent = 0;
 static int option_abort_on_error = 0;
+static int option_gc = 0;
 static int option_debug_nodes = 0;
 static int option_debug_jobs = 0;
 static int option_debug_dumpinternal = 0;
@@ -150,6 +151,13 @@ static struct OPTION options[] = {
 		the same number as logical cores on the machine. Set to 0 to disable.
 	@END*/
 	{&option_threads_str,0		, "-j", "sets the number of threads to use. 0 to disables"},
+
+	/*@OPTION Garbage collector ( -gc )
+		Enables the lua garbage collector. Reduces memory footprint when
+		executing the build scripts by sacrificing performace. Only needed
+		on memory restricted systems.
+	@END*/
+	{0, &option_gc			, "-gc", "garbage collector"},
 
 	/*@OPTION Abort on error ( -a )
 		Setting this will cause bam to abort the build process when an error has occured.
@@ -360,10 +368,11 @@ int register_lua_globals(struct CONTEXT *context)
 	return error;
 }
 
-static void *lua_alloctor(void *ud, void *ptr, size_t osize, size_t nsize)
+static int allocs = 0;
+
+static void *lua_alloctor_malloc(void *ud, void *ptr, size_t osize, size_t nsize)
 {
-	(void)ud; (void)osize;  /* not used */
-	
+	allocs++;
 	if (nsize == 0)
 	{
 		free(ptr);
@@ -371,6 +380,29 @@ static void *lua_alloctor(void *ud, void *ptr, size_t osize, size_t nsize)
 	}
 	
 	return realloc(ptr, nsize);
+}
+
+static struct HEAP *luaheap;
+
+static void *lua_alloctor_incheap(void *ud, void *ptr, size_t osize, size_t nsize)
+{
+	void *new_ptr;
+	(void)ud; /* not used */
+
+	allocs++;
+
+	if(nsize == 0)
+		return NULL;
+
+	new_ptr = mem_allocate(luaheap, nsize);
+	if(osize)
+	{
+		if(osize < nsize)
+			osize = nsize;
+		memcpy(new_ptr, ptr, osize);
+	}
+
+	return new_ptr;
 }
 
 /* returns 0 on no find, 1 on find and -1 on error */
@@ -642,14 +674,20 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	/* create lua context */
 	/* HACK: Store the context pointer as the userdata pointer to the allocator to make
 		sure that we have fast access to it. This makes the context_get_pointer call very fast */
-	context.lua = lua_newstate(lua_alloctor, &context);
+	if(option_gc)
+		context.lua = lua_newstate(lua_alloctor_malloc, &context);
+	else
+	{
+		context.luaheap = mem_create();
+		luaheap = context.luaheap; /*mem_create();*/
+		context.lua = lua_newstate(lua_alloctor_incheap, &context);
 
-	/* we don't need the gc, just run and destroy it later */
-	lua_gc(context.lua, LUA_GCSTOP, 0);
+		/* we don't need the gc, just run and destroy it later */
+		lua_gc(context.lua, LUA_GCSTOP, 0);
+	}
 
 	/* install panic function */
 	lua_atpanic(context.lua, lf_panicfunc);
-
 
 	/* load cache (thread?) */
 	if(option_no_cache == 0)
@@ -661,6 +699,12 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	/* done with the loopup heap */
 	mem_destroy(context.lookupheap);
 
+	/* if we have a separate lua heap, just destroy it */
+	if(context.luaheap)
+		mem_destroy(context.luaheap);
+	else
+		lua_close(context.lua);
+	
 	/* do actions if we don't have any errors */
 	if(!setup_error)
 	{
@@ -700,7 +744,6 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 		cache_save(option_cache, context.graph);
 	
 	/* clean up */
-	lua_close(context.lua);
 	mem_destroy(context.graphheap);
 
 	/* print final report and return */

@@ -10,21 +10,7 @@
 #include "path.h"
 #include "context.h"
 
-static int node_cmp(struct NODE *a, struct NODE *b)
-{
-	if(a->hashid > b->hashid) return 1;
-	if(a->hashid < b->hashid) return -1;
-	return 0;
-}
-
-RB_GENERATE_INTERNAL(NODERB, NODE, rbentry, node_cmp, static)
-
-void NODE_FUNCTIONREMOVER() /* this is just to get it not to complain about unused static functions */
-{
-	(void)NODERB_RB_REMOVE; (void)NODERB_RB_NFIND; (void)NODERB_RB_MINMAX;
-	(void)NODERB_RB_PREV; (void)NODERB_RB_NEXT;
-}
-
+#include "nodelinktree.inl"
 
 /* */
 static unsigned int string_hash(const char *str)
@@ -44,21 +30,17 @@ struct GRAPH *node_create_graph(struct HEAP *heap)
 		return (struct GRAPH *)0x0;
 
 	/* init */
-	memset(graph, 0, sizeof(struct GRAPH));
 	graph->heap = heap;
 	return graph; 
-}
-
-struct HEAP *node_graph_heap(struct GRAPH *graph)
-{
-	return graph->heap;
 }
 
 /* creates a node */
 int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename, const char *label, const char *cmdline)
 {
 	struct NODE *node;
+	struct NODETREELINK *link;
 	int sn;
+	unsigned hashid = string_hash(filename);
 
 	if(!path_isnice(filename))
 		printf("WARNING: adding non nice path %s\n", filename);
@@ -71,12 +53,12 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 		return NODECREATE_NOTNICE;
 		
 	/* */
-	if(node_find(graph, filename))
+	link = nodelinktree_find_closest(graph->nodehash[hashid&0xffff], hashid);
+	if(link && link->node->hashid == hashid)
 		return NODECREATE_EXISTS;
 	
 	/* allocate and set pointers */
 	node = (struct NODE *)mem_allocate(graph->heap, sizeof(struct NODE));
-	memset(node, 0, sizeof(struct NODE));
 	
 	node->graph = graph;
 	node->id = graph->num_nodes++;
@@ -107,12 +89,11 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 	}
 		
 	/* add to hashed tree */
-	RB_INSERT(NODERB, &graph->nodehash[node->hashid&0xffff], node);
+	nodelinktree_insert(&graph->nodehash[node->hashid&0xffff], link, node);
 
 	/* add to list */
 	if(graph->last) graph->last->next = node;
 	else graph->first = node;
-	node->next = 0;
 	graph->last = node;
 	
 	/* return new node */
@@ -124,15 +105,18 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 struct NODE *node_find(struct GRAPH *graph, const char *filename)
 {
 	unsigned int hashid = string_hash(filename);
-	struct NODE tempnode;
-	tempnode.hashid = hashid;
-	return RB_FIND(NODERB, &graph->nodehash[hashid&0xffff], &tempnode);
+	struct NODETREELINK *link;
+	link = nodelinktree_find_closest(graph->nodehash[hashid&0xffff], hashid);
+	if(link && link->node->hashid == hashid)
+		return link->node;
+	return NULL;
 }
 
 /* this will return the existing node or create a new one */
 struct NODE *node_get(struct GRAPH *graph, const char *filename) 
 {
 	struct NODE *node = node_find(graph, filename);
+	
 	if(!node)
 	{
 		if(node_create(&node, graph, filename, 0, 0) == NODECREATE_OK)
@@ -145,6 +129,7 @@ struct NODE *node_add_dependency_withnode(struct NODE *node, struct NODE *depnod
 {
 	struct NODELINK *dep;
 	struct NODELINK *parent;
+	struct NODETREELINK *treelink;
 	
 	/* make sure that the node doesn't try to depend on it self */
 	if(depnode == node)
@@ -159,15 +144,17 @@ struct NODE *node_add_dependency_withnode(struct NODE *node, struct NODE *depnod
 	}
 	
 	/* check if we are already dependent on this node */
-	for(dep = node->firstdep; dep; dep = dep->next)
-		if(dep->node->hashid == depnode->hashid)
-			return depnode;
-	
+	treelink = nodelinktree_find_closest(node->deproot, depnode->hashid);
+	if(treelink != NULL && treelink->node->hashid == depnode->hashid)
+		return depnode;
+
 	/* create and add dependency link */
 	dep = (struct NODELINK *)mem_allocate(node->graph->heap, sizeof(struct NODELINK));
 	dep->node = depnode;
 	dep->next = node->firstdep;
 	node->firstdep = dep;
+	
+	nodelinktree_insert(&node->deproot, treelink, depnode);
 	
 	/* create and add parent link */
 	parent = (struct NODELINK *)mem_allocate(node->graph->heap, sizeof(struct NODELINK));
@@ -191,6 +178,7 @@ struct NODE *node_add_dependency_withnode(struct NODE *node, struct NODE *depnod
 struct NODE *node_add_job_dependency_withnode(struct NODE *node, struct NODE *depnode)
 {
 	struct NODELINK *dep;
+	struct NODETREELINK *treelink;
 	
 	/* make sure that the node doesn't try to depend on it self */
 	if(depnode == node)
@@ -203,17 +191,19 @@ struct NODE *node_add_job_dependency_withnode(struct NODE *node, struct NODE *de
 		
 		return node;
 	}
-	
+
 	/* check if we are already dependent on this node */
-	for(dep = node->firstjobdep; dep; dep = dep->next)
-		if(dep->node->hashid == depnode->hashid)
-			return depnode;
+	treelink = nodelinktree_find_closest(node->jobdeproot, depnode->hashid);
+	if(treelink != NULL && treelink->node->hashid == depnode->hashid)
+		return depnode;
 	
 	/* create and add job dependency link */
 	dep = (struct NODELINK *)mem_allocate(node->graph->heap, sizeof(struct NODELINK));
 	dep->node = depnode;
 	dep->next = node->firstjobdep;
 	node->firstjobdep = dep;
+	
+	nodelinktree_insert(&node->jobdeproot, treelink, depnode);	
 	
 	return depnode;
 }
@@ -475,24 +465,3 @@ void node_debug_dump_jobs(struct GRAPH *graph)
 		}
 	}
 }
-
-/*
-static int node_debug_dump_jobtree_r(struct NODEWALK *walkinfo)
-{
-	unsigned i;
-	if(walkinfo->node->workstatus != NODESTATUS_DONE)
-	{
-		static const char d[] = " D";
-		printf("%3d %08x %c ", walkinfo->depth, (unsigned)walkinfo->node->timestamp, d[walkinfo->node->dirty]);
-		for(i = 0; i < walkinfo->depth; i++)
-			printf("  ");
-		printf("%s   %s\n", walkinfo->node->filename, walkinfo->node->cmdline);
-	}
-	return 0;
-}
-
-void node_debug_dump_jobtree(struct NODE *root)
-{
-	node_walk(root, NODEWALK_FORCE|NODEWALK_TOPDOWN, node_debug_dump_tree_r, 0);
-}
-*/

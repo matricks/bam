@@ -2,16 +2,24 @@
 #define FILE_NODE_H
 
 
-/***** dependency graph *******/
+/* **** dependency graph ****** */
 
 #include <time.h>
 #include "tree.h"
 
-/**/
+/* */
 struct NODELINK
 {
 	struct NODE *node;
 	struct NODELINK *next;
+};
+
+struct NODETREELINK
+{
+	struct NODETREELINK *parent;
+	struct NODETREELINK *leafs[2];
+	struct NODE *node;
+	int depth;
 };
 
 struct SCANNER
@@ -31,9 +39,13 @@ struct NODE
 	/* *** */
 	struct GRAPH *graph; /* graph that the node belongs to */
 	struct NODE *next; /* next node in the graph */
-	struct NODELINK *firstdep; /* list of dependencies */
 	struct NODELINK *firstparent; /* list of parents */
+	
+	struct NODELINK *firstdep; /* list of dependencies */
+	struct NODETREELINK *deproot; /* tree of dependencies */
+	
 	struct NODELINK *firstjobdep; /* list of job dependencies */
+	struct NODETREELINK *jobdeproot; /* tree of job dependencies */
 
 	struct NODELINK *constraint_exclusive; /* list of exclusive constraints */
 	struct NODELINK *constraint_shared; /* list of shared constraints */
@@ -45,8 +57,6 @@ struct NODE
 	
 	char *filter; /* filter string, first character sets the type of filter */
 	
-	RB_ENTRY(NODE) rbentry; /* RB-tree entry sorted by hashid */
-
 	/* filename and the tool to build the resource */
 	/* unsigned filename_len; */ /* including zero term */
 	unsigned cmdhash; /* hash of the command line for detecting changes */
@@ -75,8 +85,6 @@ struct NODE
 	volatile unsigned workstatus:2; /* build status of the node, NODESTATUS_* flags */
 };
 
-RB_HEAD(NODERB, NODE);
-
 /* cache node */
 struct CACHENODE
 {
@@ -95,7 +103,7 @@ struct CACHENODE
 /* */
 struct GRAPH
 {
-	struct NODERB nodehash[0x10000];
+	struct NODETREELINK *nodehash[0x10000];
 	struct NODE *first;
 	struct NODE *last;
 	struct HEAP *heap;
@@ -140,7 +148,6 @@ struct CONTEXT;
 
 /* you destroy graphs by destroying the heap */
 struct GRAPH *node_create_graph(struct HEAP *heap);
-struct HEAP *node_graph_heap(struct GRAPH *graph);
 
 /* */
 int node_create(struct NODE **node, struct GRAPH *graph, const char *filename, const char *label, const char *cmdline);

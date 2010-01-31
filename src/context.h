@@ -17,6 +17,7 @@ struct LOOKUP
 
 struct CONTEXT
 {
+	struct HEAP *luaheap;
 	struct lua_State *lua;
 	
 	const char *filename;

@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h> /* memset */
 #include "mem.h"
 
 struct CHUNK
@@ -27,6 +28,8 @@ static struct CHUNK *mem_newchunk(int chunksize)
 	mem = malloc(sizeof(struct CHUNK)+chunksize);
 	if(!mem)
 		return 0x0;
+		
+	memset(mem, 0, sizeof(struct CHUNK)+chunksize);
 
 	/* the chunk structure is located in the begining of the chunk */
 	/* init it and return the chunk */
