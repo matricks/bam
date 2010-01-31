@@ -18,8 +18,6 @@ if s.cc.c_exe == "cl" then
 
 end
 
-asdasd.asd.asd.sdf = nil
-
 txt2c_tool = Link(s, "src/tools/txt2c", Compile(s, "src/tools/txt2c.c"))
 
 base_files = {"src/base.lua", "src/driver_gcc.lua", "src/driver_cl.lua"}
