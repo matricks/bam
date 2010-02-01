@@ -229,6 +229,7 @@ test("locked", "", 1)
 test("collect_recurse")
 test("sharedlib")
 test("deadlock")
+test("addorder")
 
 if len(failed_tests):
 	print "FAILED TESTS:"

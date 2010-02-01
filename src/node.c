@@ -52,24 +52,40 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 	if(!path_isnice(filename))
 		return NODECREATE_NOTNICE;
 		
-	/* */
+	/* search for the node */
 	link = nodelinktree_find_closest(graph->nodehash[hashid&0xffff], hashid);
 	if(link && link->node->hashid == hashid)
-		return NODECREATE_EXISTS;
-	
-	/* allocate and set pointers */
-	node = (struct NODE *)mem_allocate(graph->heap, sizeof(struct NODE));
-	
-	node->graph = graph;
-	node->id = graph->num_nodes++;
-	node->timestamp = file_timestamp(filename);
-	
-	/* set filename */
-	node->filename_len = strlen(filename)+1;
-	node->filename = (char *)mem_allocate(graph->heap, node->filename_len);
-	memcpy(node->filename, filename, node->filename_len);
-	node->hashid = string_hash(filename);
+	{
+		/* we are allowed to create a new node from a node that doesn't
+			have a job assigned to it*/
+		if(link->node->cmdline || cmdline == NULL)
+			return NODECREATE_EXISTS;
+		node = link->node;
+	}
+	else
+	{
+		/* allocate and set pointers */
+		node = (struct NODE *)mem_allocate(graph->heap, sizeof(struct NODE));
+		
+		node->graph = graph;
+		node->id = graph->num_nodes++;
+		node->timestamp = file_timestamp(filename);
+		
+		/* set filename */
+		node->filename_len = strlen(filename)+1;
+		node->filename = (char *)mem_allocate(graph->heap, node->filename_len);
+		memcpy(node->filename, filename, node->filename_len);
+		node->hashid = string_hash(filename);
+		
+		/* add to hashed tree */
+		nodelinktree_insert(&graph->nodehash[node->hashid&0xffff], link, node);
 
+		/* add to list */
+		if(graph->last) graph->last->next = node;
+		else graph->first = node;
+		graph->last = node;		
+	}
+	
 	/* set label line */
 	if(label && label[0])
 	{
@@ -87,14 +103,7 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 		node->cmdhash = string_hash(cmdline);
 		node->cachehash = node->cmdhash;
 	}
-		
-	/* add to hashed tree */
-	nodelinktree_insert(&graph->nodehash[node->hashid&0xffff], link, node);
 
-	/* add to list */
-	if(graph->last) graph->last->next = node;
-	else graph->first = node;
-	graph->last = node;
 	
 	/* return new node */
 	*nodeptr = node;
