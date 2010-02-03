@@ -1,8 +1,8 @@
 settings = NewSettings() 
 
-AddJob("test", "testing", "pwd")
+AddJob("test", "testing", "echo")
 AddDependency("test", "test2") 
-AddJob("test2", "testing", "pwd")
+AddJob("test2", "testing", "echo")
 
 --src = Collect("*.cpp") 
 --objs = Compile(settings, src) 
