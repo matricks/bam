@@ -171,11 +171,6 @@ struct NODE *node_add_dependency_withnode(struct NODE *node, struct NODE *depnod
 	parent->next = depnode->firstparent;
 	depnode->firstparent = parent;
 	
-	/* set depnode flags */
-	if(node->cmdline)
-		depnode->parenthastool = 1;
-	depnode->isdependedon = 1;
-	
 	/* increase dep counter */
 	node->graph->num_deps++;
 		
