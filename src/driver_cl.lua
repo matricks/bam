@@ -43,30 +43,27 @@ end
 function DriverLib_CL(output, inputs, settings)
 	local input =  tbl_to_str(inputs, "", " ")
 	local exe = str_replace(settings.lib.exe, "/", "\\")
-	local exec = exe .. ' /nologo ' .. settings.lib.flags:ToString() .. " /OUT:" .. output .. " " .. input
+	local exec = exe .. " /nologo " .. settings.lib.flags:ToString() .. " /OUT:" .. output .. " " .. input
 	return exec
 end
 
-function DriverDLL_CL(label, output, inputs, settings)
+function DriverCommon_CL(label, output, inputs, settings, part, extra)
 	local input =  tbl_to_str(inputs, "", " ")
-	local flags = settings.dll.flags:ToString()
-	local libs  = tbl_to_str(settings.dll.libs, "", " ")
-	local libpaths = tbl_to_str(settings.dll.libpath, "/libpath:\"", "\" ")
-	local exe = str_replace(settings.dll.exe, "/", "\\")
-	local exec = exe .. " /nologo /DLL " .. flags .. libpaths .. libs .. " /OUT:" .. output .. " " .. input
+	local flags = part.flags:ToString()
+	local libs  = tbl_to_str(part.libs, "", ".lib ")
+	local libpaths = tbl_to_str(part.libpath, "/libpath:\"", "\" ")
+	local exe = str_replace(part.exe, "/", "\\")
+	if settings.debug > 0 then flags = flags .. "/DEBUG " end
+	local exec = exe .. " /nologo /incremental:no " .. extra .. " " .. flags .. libpaths .. libs .. " /OUT:" .. output .. " " .. input
 	AddJob(output, label, exec)
-	--return exec
+end
+
+function DriverDLL_CL(label, output, inputs, settings)
+	DriverCommon_CL(label, output, inputs, settings, settings.dll, "/DLL")
 end
 
 function DriverLink_CL(label, output, inputs, settings)
-	local input =  tbl_to_str(inputs, "", " ")
-	local flags = settings.link.flags:ToString()
-	local libs  = tbl_to_str(settings.link.libs, "", ".lib ")
-	local libpaths = tbl_to_str(settings.link.libpath, "/libpath:\"", "\" ")
-	local exe = str_replace(settings.link.exe, "/", "\\")
-	if settings.debug > 0 then flags = flags .. "/DEBUG " end
-	local exec = exe .. " /nologo /incremental:no /OUT:" .. output .. " " .. flags .. libpaths .. libs .. " " .. input
-	AddJob(output, label, exec)
+	DriverCommon_CL(label, output, inputs, settings, settings.dll, "")
 end
 
 function SetDriversCL(settings)

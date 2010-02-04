@@ -60,7 +60,7 @@ static int option_no_cache = 0;
 static int option_dry = 0;
 static int option_dependent = 0;
 static int option_abort_on_error = 0;
-static int option_gc = 0;
+static int option_gc = 1;
 static int option_debug_nodes = 0;
 static int option_debug_jobs = 0;
 static int option_debug_dumpinternal = 0;
@@ -157,7 +157,7 @@ static struct OPTION options[] = {
 		executing the build scripts by sacrificing performace. Only needed
 		on memory restricted systems.
 	@END*/
-	{0, &option_gc			, "-gc", "garbage collector"},
+	/*{0, &option_gc			, "-gc", "garbage collector"},*/
 
 	/*@OPTION Abort on error ( -a )
 		Setting this will cause bam to abort the build process when an error has occured.
