@@ -740,7 +740,7 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	}		
 
 	/* save cache (thread?) */
-	if(option_no_cache == 0)
+	if(option_no_cache == 0 && setup_error == 0)
 		cache_save(option_cache, context.graph);
 	
 	/* clean up */
