@@ -9,6 +9,7 @@
 #include "support.h"
 #include "path.h"
 #include "context.h"
+#include "session.h"
 
 #include "nodelinktree.inl"
 
@@ -43,14 +44,13 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 	unsigned hashid = string_hash(filename);
 
 	if(!path_isnice(filename))
-		printf("WARNING: adding non nice path %s\n", filename);
+	{
+		printf("%s: error: adding non nice path '%s'. this causes problems with dependency lookups\n", session.name, filename);
+		return NODECREATE_NOTNICE;
+	}
 	
 	/* zero out the return pointer */
 	*nodeptr = (struct NODE *)0x0;
-	
-	/* */
-	if(!path_isnice(filename))
-		return NODECREATE_NOTNICE;
 		
 	/* search for the node */
 	link = nodelinktree_find_closest(graph->nodehash[hashid&0xffff], hashid);
@@ -221,7 +221,10 @@ struct NODE *node_add_job_dependency_withnode(struct NODE *node, struct NODE *de
 /* adds a dependency to a node */
 struct NODE *node_add_dependency(struct NODE *node, const char *filename)
 {
-	return node_add_dependency_withnode(node, node_get(node->graph, filename));
+	struct NODE *depnode = node_get(node->graph, filename);
+	if(!depnode)
+		return NULL;
+	return node_add_dependency_withnode(node, depnode);
 }
 
 static struct NODE *node_add_constraint(struct NODELINK **first, struct NODE *node, const char *filename)

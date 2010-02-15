@@ -190,10 +190,7 @@ static int dependency_cpp_run(struct CONTEXT *context, struct NODE *node,
 			/* run callback */
 			errorcode = callback(userdata, includestart, systemheader);
 			if(errorcode)
-			{
-				printf("cpp-dep: error %d during callback\n", errorcode);
 				break;
-			}
 		}
 	}
 
