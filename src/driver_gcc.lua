@@ -100,7 +100,13 @@ function SetDriversGCC(settings)
 	end
 	
 	if settings.dll then
-		settings.dll.extension = ".so"
+		if platform == "macosx" then
+			settings.dll.prefix = "lib"
+			settings.dll.extension = ".dylib"
+		else
+			settings.dll.prefix = ""
+			settings.dll.extension = ".so"
+		end
 		settings.dll.exe = "g++"
 		settings.dll.Driver = DriverDLL_GCC
 	end

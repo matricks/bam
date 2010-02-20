@@ -1279,6 +1279,7 @@ end
 AddTool("dll", function (settings)
 	settings.dll = {}
 	settings.dll.Driver = DriverNull
+	settings.dll.prefix = ""
 	settings.dll.extension = ""
 	settings.dll.Output = Default_Intermediate_Output
 	settings.dll.exe = ""
@@ -1301,7 +1302,7 @@ function SharedLibrary(settings, output, ...)
 	
 	local inputs = FlattenTable({...})
 
-	output = settings.dll.Output(settings, output) .. settings.dll.extension
+	output = settings.dll.Output(settings, PathJoin(PathPath(output), settings.dll.prefix .. PathFilename(output))) .. settings.dll.extension
 	settings.dll.Driver(settings.labelprefix .. "dll ".. output, output, inputs, settings)
 
 	for index, inname in ipairs(inputs) do
@@ -1313,7 +1314,7 @@ function SharedLibrary(settings, output, ...)
 	local paths = {}
 	
 	for index, inname in ipairs(settings.dll.libs) do
-		table.insert(libs, settings.lib.prefix .. inname .. settings.lib.extension)
+		table.insert(libs, settings.dll.prefix .. inname .. settings.lib.extension)
 	end
 
 	for index, inname in ipairs(settings.dll.libpath) do
