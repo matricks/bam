@@ -28,11 +28,31 @@ struct SCANNER
 	int (*scannerfunc)(struct NODE *, struct SCANNER *info);
 };
 
+#if 0
+struct JOB
+{
+	struct GRAPH *graph; /* graph that the job belongs to */
+	
+	char *cmdline;
+	char *label;
+	char *filter;
+
+	unsigned cmdhash; /* hash of the command line for detecting changes */
+	unsigned cachehash; /* hash that should be written to the cache */
+
+	struct NODELINK *firstoutput;
+	
+	struct NODELINK *constraint_exclusive; /* list of exclusive constraints */
+	struct NODELINK *constraint_shared; /* list of shared constraints */
+	
+};
+#endif
+
 /*
 	a node in the dependency graph
 	NOTE: when adding variables to this structure, they will all be set
 		to zero when created by node_create().
-	TODO: these should be allocated cache aligned, and padded to 64 byte?
+	TODO: these should be allocated cache aligned, and padded to 128 byte?
 */
 struct NODE
 {
@@ -58,7 +78,6 @@ struct NODE
 	char *filter; /* filter string, first character sets the type of filter */
 	
 	/* filename and the tool to build the resource */
-	/* unsigned filename_len; */ /* including zero term */
 	unsigned cmdhash; /* hash of the command line for detecting changes */
 	unsigned cachehash; /* hash that should be written to the cache */
 	 
@@ -76,10 +95,7 @@ struct NODE
 	/* various flags (4 bytes in the end) */
 	unsigned dirty:8; /* non-zero if the node has to be rebuilt */
 	unsigned depchecked:1; /* set if a dependency checker have processed the file */
-	unsigned cached:1;
-	unsigned parenthastool:1; /* set if a parent has a tool */
 	unsigned counted:1;
-	unsigned isdependedon:1; /* set if someone depends on this node */
 	unsigned touch:1; /* when built, touch the output file as well */
 	
 	volatile unsigned workstatus:2; /* build status of the node, NODESTATUS_* flags */

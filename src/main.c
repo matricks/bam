@@ -595,7 +595,7 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 			/* build the all target */
 			for(node = context->graph->first; node; node = node->next)
 			{
-				if(!node->isdependedon && node != context->target)
+				if(node->firstparent == NULL && node != context->target)
 				{
 					if(!node_add_dependency_withnode(context->target, node))
 						return -1;
