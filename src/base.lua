@@ -7,6 +7,7 @@ MakeDirectory = bam_mkdir
 Exist = bam_fileexist
 SetFilter = bam_set_filter
 SetTouch = bam_set_touch
+AddOutput = bam_add_output
 
 --[[@GROUP Common @END]]--
 

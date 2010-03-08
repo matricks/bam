@@ -242,6 +242,7 @@ int register_lua_globals(struct CONTEXT *context)
 	
 	/* add specific functions */
 	lua_register(context->lua, L_FUNCTION_PREFIX"add_job", lf_add_job);
+	lua_register(context->lua, L_FUNCTION_PREFIX"add_output", lf_add_output);
 	lua_register(context->lua, L_FUNCTION_PREFIX"add_dependency", lf_add_dependency);
 	lua_register(context->lua, L_FUNCTION_PREFIX"add_dependency_search", lf_add_dependency_search);
 	lua_register(context->lua, L_FUNCTION_PREFIX"add_constraint_shared", lf_add_constraint_shared);

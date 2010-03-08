@@ -46,6 +46,34 @@ int lf_add_job(lua_State *L)
 	return 0;
 }
 
+/* add_output(string output, string other_output) */
+int lf_add_output(lua_State *L)
+{
+	struct NODE *output;
+	struct NODE *other_output;
+	struct CONTEXT *context;
+	
+	if(lua_gettop(L) != 2)
+		luaL_error(L, "add_output: incorrect number of arguments");
+
+	luaL_checktype(L, 1, LUA_TSTRING);
+	luaL_checktype(L, 2, LUA_TSTRING);
+	
+	context = context_get_pointer(L);
+
+	output = node_find(context->graph, lua_tostring(L,1));
+	if(!output)
+		luaL_error(L, "add_output: couldn't find node with name '%s'", lua_tostring(L,1));
+
+	other_output = node_get(context->graph, lua_tostring(L,2));
+	if(!other_output)
+		luaL_error(L, "add_output: couldn't find node with name '%s'", lua_tostring(L,2));
+	
+	node_add_dependency_withnode(other_output, output);
+	return 0;
+}
+
+
 /* add_dependency(string node, string dependency) */
 static int add_node_attribute(lua_State *L, const char *funcname, struct NODE *(*callback)(struct NODE*, const char *))
 {
@@ -57,6 +85,8 @@ static int add_node_attribute(lua_State *L, const char *funcname, struct NODE *(
 	if(n < 2)
 		luaL_error(L, "%s: to few arguments", funcname);
 
+	luaL_checktype(L, 1, LUA_TSTRING);
+
 	context = context_get_pointer(L);
 
 	node = node_find(context->graph, lua_tostring(L,1));
@@ -66,13 +96,9 @@ static int add_node_attribute(lua_State *L, const char *funcname, struct NODE *(
 	/* seek deps */
 	for(i = 2; i <= n; ++i)
 	{
-		if(lua_isstring(L,n))
-		{
-			if(!callback(node, lua_tostring(L,n)))
-				luaL_error(L, "%s: could not add '%s' to '%s'", funcname, lua_tostring(L,n), lua_tostring(L,1));
-		}
-		else
-			luaL_error(L, "%s: argument %d is not a string for node '%s'", funcname, i, lua_tostring(L,1));
+		luaL_checktype(L, n, LUA_TSTRING);
+		if(!callback(node, lua_tostring(L,n)))
+			luaL_error(L, "%s: could not add '%s' to '%s'", funcname, lua_tostring(L,n), lua_tostring(L,1));
 	}
 	
 	return 0;
@@ -87,8 +113,10 @@ int lf_set_touch(struct lua_State *L)
 	struct NODE *node;
 	
 	if(lua_gettop(L) < 1)
-		luaL_error(L, "set_touch: to few arguments");
+		luaL_error(L, "set_touch: too few arguments");
 
+	luaL_checktype(L, 1, LUA_TSTRING);
+	
 	node = node_find(context_get_pointer(L)->graph, lua_tostring(L,1));
 	if(!node)
 		luaL_error(L, "set_touch: couldn't find node with name '%s'", lua_tostring(L,1));
@@ -106,9 +134,10 @@ int lf_set_filter(struct lua_State *L)
 	
 	/* check the arguments */
 	if(lua_gettop(L) < 2)
-		luaL_error(L, "set_filter: to few arguments");
-	if(lua_type(L,2) != LUA_TSTRING)
-		luaL_error(L, "set_filter: expected string as second argument");
+		luaL_error(L, "set_filter: too few arguments");
+		
+	luaL_checktype(L, 1, LUA_TSTRING);
+	luaL_checktype(L, 2, LUA_TSTRING);
 
 	/* find the node */
 	node = node_find(context_get_pointer(L)->graph, lua_tostring(L,1));
@@ -157,6 +186,7 @@ int lf_add_dependency_search(lua_State *L)
 	
 	if(lua_gettop(L) != 3)
 		luaL_error(L, "add_dep_search: expected 3 arguments");
+	luaL_checktype(L, 1, LUA_TSTRING);
 
 	context = context_get_pointer(L);
 
@@ -196,9 +226,7 @@ int lf_default_target(lua_State *L)
 	int n = lua_gettop(L);
 	if(n != 1)
 		luaL_error(L, "default_target: incorrect number of arguments");
-	
-	if(!lua_isstring(L,1))
-		luaL_error(L, "default_target: expected string");
+	luaL_checktype(L, 1, LUA_TSTRING);
 
 	/* fetch context from lua */
 	context = context_get_pointer(L);
@@ -220,7 +248,8 @@ int lf_update_globalstamp(lua_State *L)
 	time_t file_stamp;
 	
 	if(lua_gettop(L) < 1)
-		luaL_error(L, "update_globalstamp: to few arguments");
+		luaL_error(L, "update_globalstamp: too few arguments");
+	luaL_checktype(L, 1, LUA_TSTRING);
 
 	context = context_get_pointer(L);
 	file_stamp = file_timestamp(lua_tostring(L,1)); /* update global timestamp */
@@ -237,6 +266,7 @@ int lf_loadfile(lua_State *L)
 {
 	if(lua_gettop(L) < 1)
 		luaL_error(L, "loadfile: too few arguments");
+	luaL_checktype(L, 1, LUA_TSTRING);
 
 	if(session.verbose)
 		printf("%s: reading script from '%s'\n", session.name, lua_tostring(L,1));

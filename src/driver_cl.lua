@@ -66,6 +66,8 @@ end
 
 function DriverDLL_CL(label, output, inputs, settings)
 	DriverCommon_CL(label, output, inputs, settings, settings.dll, "/DLL")
+	local libfile = string.sub(output, 0, string.len(output) - string.len(settings.dll.extension)) .. settings.lib.extension
+	AddOutput(output, libfile)
 end
 
 function DriverLink_CL(label, output, inputs, settings)

@@ -168,6 +168,7 @@ struct GRAPH *node_create_graph(struct HEAP *heap);
 /* */
 int node_create(struct NODE **node, struct GRAPH *graph, const char *filename, const char *label, const char *cmdline);
 struct NODE *node_find(struct GRAPH *graph, const char *filename);
+struct NODE *node_get(struct GRAPH *graph, const char *filename);
 struct NODE *node_add_dependency(struct NODE *node, const char *filename);
 struct NODE *node_add_dependency_withnode(struct NODE *node, struct NODE *depnode);
 struct NODE *node_add_job_dependency_withnode(struct NODE *node, struct NODE *depnode);
