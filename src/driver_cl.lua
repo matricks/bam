@@ -1,10 +1,16 @@
 
 ----- cl compiler ------
-function compile_c_cxx_cl(label, output, input, settings)
+function compile_c_cxx_cl(cpp, label, output, input, settings)
 	local defs = tbl_to_str(settings.cc.defines, "-D", " ") .. " "
 	local incs = tbl_to_str(settings.cc.includes, '-I"', '" ')
 	local incs = incs .. tbl_to_str(settings.cc.systemincludes, '-I"', '" ')
 	local flags = settings.cc.flags:ToString()
+	if cpp == "c++" then
+		flags = flags .. settings.cc.cpp_flags:ToString()
+	else
+		flags = flags .. settings.cc.c_flags:ToString()
+	end
+	
 	local exe = str_replace(settings.cc.c_exe, "/", "\\")
 	if platform =="win32" then
 		flags = flags .. " /D \"WIN32\" "
@@ -21,11 +27,11 @@ function compile_c_cxx_cl(label, output, input, settings)
 end
 
 function DriverCXX_CL(label, output,input, settings)
-	compile_c_cxx_cl(label, output, input, settings)
+	compile_c_cxx_cl(true, label, output, input, settings)
 end
 
 function DriverC_CL(label, output, input, settings)
-	compile_c_cxx_cl(label, output, input, settings)
+	compile_c_cxx_cl(nil, label, output, input, settings)
 end
 
 function DriverCTest_CL(code, options)

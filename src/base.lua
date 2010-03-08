@@ -1103,6 +1103,8 @@ function InitCommonCCompiler(settings)
 	settings.cc.DriverC = DriverNull
 	settings.cc.DriverCXX = DriverNull
 	settings.cc.flags = NewFlagTable()
+	settings.cc.c_flags = NewFlagTable()
+	settings.cc.cpp_flags = NewFlagTable()
 	settings.cc.includes = NewPathTable()
 	settings.cc.systemincludes = NewTable()
 	settings.cc.defines = NewTable()

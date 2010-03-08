@@ -1,12 +1,17 @@
 
 ------------------------ C/C++ GCC DRIVER ------------------------
 
-function compile_c_cxx_gcc(label, exe, output, input, settings)
+function compile_c_cxx_gcc(cpp, label, exe, output, input, settings)
 	local d = tbl_to_str(settings.cc.defines, "-D", " ")
 	local i = tbl_to_str(settings.cc.includes, '-I "', '" ')
 	local i = i .. tbl_to_str(settings.cc.systemincludes, '-isystem "', '" ')
 	local i = i .. tbl_to_str(settings.cc.frameworks, '-framework ', ' ')
 	local f = settings.cc.flags:ToString()
+	if cpp then
+		f = f .. settings.cc.cpp_flags:ToString()
+	else
+		f = f .. settings.cc.c_flags:ToString()
+	end
 	if settings.debug > 0 then f = f .. "-g " end
 	if settings.optimize > 0 then f = f .. "-O2 " end
 	local e = exe .. ' ' .. f ..'-c ' .. input .. ' -o ' .. output .. ' ' .. d .. i
@@ -14,11 +19,11 @@ function compile_c_cxx_gcc(label, exe, output, input, settings)
 end
 
 function DriverCXX_GCC(label, output, input, settings)
-	compile_c_cxx_gcc(label, settings.cc.cxx_exe,output,input,settings)
+	compile_c_cxx_gcc(true, label, settings.cc.cxx_exe,output,input,settings)
 end
 
 function DriverC_GCC(label, output, input, settings)
-	compile_c_cxx_gcc(label, settings.cc.c_exe,output,input,settings)
+	compile_c_cxx_gcc(nil, label, settings.cc.c_exe,output,input,settings)
 end
 
 function DriverCTest_GCC(code, options)
