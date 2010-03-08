@@ -118,6 +118,7 @@ def difftest(name, flags1, flags2):
 		print "ok"
 
 def unittests():
+	global failed_tests
 	class Test:
 		def __init__(self):
 			self.line = ""
@@ -193,7 +194,9 @@ def unittests():
 				failed = True
 				print "FAILED! could not find '%s' in output" % (test.find)
 		if failed or verbose:
-			if not failed:
+			if failed:
+				failed_tests += [test.line]
+			else:
 				print "",
 			for l in report:
 				print "\t", l.rstrip()

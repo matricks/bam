@@ -20,11 +20,19 @@ int lf_add_job(lua_State *L)
 	struct NODE *node;
 	struct CONTEXT *context;
 	int i;
+	
 	if(lua_gettop(L) != 3)
 		luaL_error(L, "add_job: incorrect number of arguments");
 
+	luaL_checktype(L, 1, LUA_TSTRING);
+	luaL_checktype(L, 2, LUA_TSTRING);
+	luaL_checktype(L, 3, LUA_TSTRING);
+	
 	/* fetch contexst from lua */
 	context = context_get_pointer(L);
+	
+	if(lua_tostring(L,1) == NULL)
+		luaL_error(L, "add_job: node '%s' is not nice", lua_tostring(L,1));
 
 	/* create the node */
 	i = node_create(&node, context->graph, lua_tostring(L,1), lua_tostring(L,2), lua_tostring(L,3));
@@ -73,40 +81,6 @@ static int add_node_attribute(lua_State *L, const char *funcname, struct NODE *(
 int lf_add_dependency(lua_State *L) { return add_node_attribute(L, "add_dependency", node_add_dependency); }
 int lf_add_constraint_shared(lua_State *L) { return add_node_attribute(L, "add_constraint_shared", node_add_constraint_shared); }
 int lf_add_constraint_exclusive(lua_State *L) { return add_node_attribute(L, "add_constraint_exclusive", node_add_constraint_exclusive); }
-
-/* add_dependency(string node, string dependency) */
-#if 0
-int lf_add_dependency(lua_State *L)
-{
-	struct NODE *node;
-	struct CONTEXT *context;
-	int n = lua_gettop(L);
-	int i;
-	
-	if(n < 2)
-		luaL_error(L, "add_dep: to few arguments");
-
-	context = context_get_pointer(L);
-
-	node = node_find(context->graph, lua_tostring(L,1));
-	if(!node)
-		luaL_error(L, "add_dep: couldn't find node with name '%s'", lua_tostring(L,1));
-	
-	/* seek deps */
-	for(i = 2; i <= n; ++i)
-	{
-		if(lua_isstring(L,n))
-		{
-			if(!node_add_dependency(node, lua_tostring(L,n)))
-				luaL_error(L, "add_dep: could not add dependency for node '%s'", lua_tostring(L,1));
-		}
-		else
-			luaL_error(L, "add_dep: dependency is not a string for node '%s'", lua_tostring(L,1));
-	}
-	
-	return 0;
-}
-#endif
 
 int lf_set_touch(struct lua_State *L)
 {

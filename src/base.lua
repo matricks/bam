@@ -40,6 +40,10 @@ end
 --[[@FUNCTION
 	Flattens a tree of tables
 @END]]--
+--[[@UNITTESTS
+	err=0 : FlattenTable({"", {"", {""}, ""}, "", {}, {""}})
+	err=1 : FlattenTable({"", {"", {""}, ""}, 1, {""}})
+@END]]--
 function FlattenTable(varargtable)
 	function flatten(collection, varargtable)
 		for i,v in pairs(varargtable) do
@@ -47,6 +51,8 @@ function FlattenTable(varargtable)
 				flatten(collection, v)
 			elseif IsString(v) then
 				table.insert(collection, v)
+			else
+				error("unexpected " .. type(v) .. " in table")
 			end		
 		end
 	end
@@ -58,6 +64,10 @@ end
 
 --[[@FUNCTION
 	
+@END]]--
+--[[@UNITTESTS
+	err=0 : for s in WalkTable({"", {"", {""}, ""}, "", {}, {""}}) do end
+	err=1 : for s in WalkTable({"", {"", {""}, ""}, 1, {""}}) do end
 @END]]--
 function WalkTable(t)
   return coroutine.wrap(function()
@@ -72,6 +82,8 @@ function WalkTableImpl(func, varargtable)
 				walk(v)
 			elseif IsString(v) then
 				func(v)
+			else
+				error("unexpected " .. type(v) .. " in table")
 			end		
 		end
 	end
