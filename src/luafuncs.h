@@ -2,6 +2,7 @@
 /* jobs and deps */
 int lf_add_job(struct lua_State *L);
 int lf_add_output(struct lua_State *L);
+int lf_add_pseudo(struct lua_State *L);
 int lf_add_dependency(struct lua_State *L);
 int lf_add_dependency_search(struct lua_State *L);
 int lf_add_constraint_shared(struct lua_State *L);

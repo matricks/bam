@@ -479,7 +479,7 @@ DefaultTarget = bam_default_target
 @END]]--
 function PseudoTarget(name, ...)
 	local name = Path(name)
-	AddJob(name, "", "")
+	bam_add_pseudo(name)
 	
 	-- all the files
 	for inname in WalkTable({...}) do

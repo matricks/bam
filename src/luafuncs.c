@@ -30,9 +30,6 @@ int lf_add_job(lua_State *L)
 	
 	/* fetch contexst from lua */
 	context = context_get_pointer(L);
-	
-	if(lua_tostring(L,1) == NULL)
-		luaL_error(L, "add_job: node '%s' is not nice", lua_tostring(L,1));
 
 	/* create the node */
 	i = node_create(&node, context->graph, lua_tostring(L,1), lua_tostring(L,2), lua_tostring(L,3));
@@ -42,6 +39,33 @@ int lf_add_job(lua_State *L)
 		luaL_error(L, "add_job: node '%s' already exists", lua_tostring(L,1));
 	else if(i != NODECREATE_OK)
 		luaL_error(L, "add_job: unknown error creating node '%s'", lua_tostring(L,1));
+	return 0;
+}
+
+
+/* add_pseudo(string node) */
+int lf_add_pseudo(lua_State *L)
+{
+	struct NODE *node;
+	struct CONTEXT *context;
+	int i;
+	
+	if(lua_gettop(L) != 1)
+		luaL_error(L, "add_pseudo: incorrect number of arguments");
+
+	luaL_checktype(L, 1, LUA_TSTRING);
+	
+	/* fetch contexst from lua */
+	context = context_get_pointer(L);
+
+	/* create the node */
+	i = node_create(&node, context->graph, lua_tostring(L,1), NULL, NULL);
+	if(i == NODECREATE_NOTNICE)
+		luaL_error(L, "add_pseudo: node '%s' is not nice", lua_tostring(L,1));
+	else if(i == NODECREATE_EXISTS)
+		luaL_error(L, "add_pseudo: node '%s' already exists", lua_tostring(L,1));
+	else if(i != NODECREATE_OK)
+		luaL_error(L, "add_pseudo: unknown error creating node '%s'", lua_tostring(L,1));
 
 	return 0;
 }

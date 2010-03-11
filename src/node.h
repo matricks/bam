@@ -72,6 +72,7 @@ struct NODE
 	
 	char *filename; /* this contains the filename with the FULLPATH */
 	
+	/* either none of these are set or both of em are */
 	char *cmdline; /* command line that should be executed to build this node */
 	char *label; /* what to print when we build this node */
 	
@@ -142,6 +143,7 @@ struct CONTEXT;
 #define NODECREATE_OK 0
 #define NODECREATE_EXISTS 1  /* the node already exists */
 #define NODECREATE_NOTNICE 2 /* the path is not normalized */
+#define NODECREATE_INVALID_ARG 3 /* invalid arguments */
 
 /* node walk flags */
 #define NODEWALK_FORCE 1    /* skips dirty checks and*/

@@ -43,10 +43,22 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 	int sn;
 	unsigned hashid = string_hash(filename);
 
+	/* check arguments */
 	if(!path_isnice(filename))
 	{
 		printf("%s: error: adding non nice path '%s'. this causes problems with dependency lookups\n", session.name, filename);
 		return NODECREATE_NOTNICE;
+	}
+	
+	if(cmdline && !label)
+	{
+		printf("%s: error: adding job '%s' with command but no label\n", session.name, filename);
+		return NODECREATE_INVALID_ARG;
+	}
+	else if(!cmdline && label)
+	{
+		printf("%s: error: adding job '%s' with label but no command\n", session.name, filename);
+		return NODECREATE_INVALID_ARG;
 	}
 	
 	/* zero out the return pointer */
@@ -86,24 +98,20 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 		graph->last = node;		
 	}
 	
-	/* set label line */
-	if(label && label[0])
-	{
-		sn = strlen(label)+1;
-		node->label = (char *)mem_allocate(graph->heap, sn);
-		memcpy(node->label, label, sn);
-	}
-
-	/* set cmdline line */
-	if(cmdline && cmdline[0])
+	/* set command and label */
+	if(cmdline)
 	{
 		sn = strlen(cmdline)+1;
 		node->cmdline = (char *)mem_allocate(graph->heap, sn);
 		memcpy(node->cmdline, cmdline, sn);
 		node->cmdhash = string_hash(cmdline);
 		node->cachehash = node->cmdhash;
+		
+		/* set label */
+		sn = strlen(label)+1;
+		node->label = (char *)mem_allocate(graph->heap, sn);
+		memcpy(node->label, label, sn);
 	}
-
 	
 	/* return new node */
 	*nodeptr = node;

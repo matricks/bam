@@ -108,7 +108,7 @@ static int run_node(struct CONTEXT *context, struct NODE *node, int thread_id)
 	static const char *format = 0;
 	int ret;
 	
-	if(node->label && node->label[0])
+	if(node->cmdline)
 	{
 		context->current_cmd_num++;
 	
@@ -160,6 +160,7 @@ static int run_node(struct CONTEXT *context, struct NODE *node, int thread_id)
 	if(node->touch && ret == 0)
 		file_touch(node->filename);
 	criticalsection_enter();
+	
 	
 	/* sub constraints count */
 	constraints_update(node, -1);
