@@ -461,6 +461,56 @@ void node_debug_dump(struct GRAPH *graph)
 	}
 }
 
+
+static int node_debug_dump_dot_callback(struct NODEWALK *walkinfo)
+{
+	struct NODE *node = walkinfo->node;
+	struct NODELINK *link;
+
+	/* skip top node, always the build target */
+	if(node == walkinfo->user)
+		return 0;
+
+	printf("node%d [label=\"%s\"];\n", node->id, node->filename);
+	for(link = node->firstdep; link; link = link->next)
+		printf("node%d -> node%d;\n", link->node->id, node->id);
+	return 0;
+}
+
+/* dumps all nodes to the stdout */
+void node_debug_dump_dot(struct GRAPH *graph, struct NODE *top)
+{
+	printf("digraph {\n");
+	printf("graph [rankdir=\"LR\"];\n");
+	printf("node [shape=box, height=0.25, color=gray, fontsize=8];\n");
+	node_walk(top, NODEWALK_FORCE|NODEWALK_TOPDOWN|NODEWALK_QUICK, node_debug_dump_dot_callback, top);
+	printf("}\n");
+}
+
+static int node_debug_dump_jobs_dot_callback(struct NODEWALK *walkinfo)
+{
+	struct NODE *node = walkinfo->node;
+	struct NODELINK *link;
+
+	/* skip top node, always the build target */
+	if(node == walkinfo->user)
+		return 0;
+
+	printf("node%d [shape=box, label=\"%s\"];\n", node->id, node->filename);
+	for(link = node->firstjobdep; link; link = link->next)
+		printf("node%d -> node%d;\n", link->node->id, node->id);
+	return 0;
+}
+
+void node_debug_dump_jobs_dot(struct GRAPH *graph, struct NODE *top)
+{
+	printf("digraph {\n");
+	printf("graph [rankdir=\"LR\"];\n");
+	printf("node [shape=box, height=0.25, color=gray, fontsize=8];\n");
+	node_walk(top, NODEWALK_FORCE|NODEWALK_TOPDOWN|NODEWALK_JOBS|NODEWALK_QUICK, node_debug_dump_jobs_dot_callback, top);
+	printf("}\n");
+}
+
 void node_debug_dump_jobs(struct GRAPH *graph)
 {
 	struct NODELINK *link;

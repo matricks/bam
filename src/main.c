@@ -63,6 +63,8 @@ static int option_abort_on_error = 0;
 static int option_gc = 1;
 static int option_debug_nodes = 0;
 static int option_debug_jobs = 0;
+static int option_debug_dot = 0;
+static int option_debug_jobs_dot = 0;
 static int option_debug_dumpinternal = 0;
 static int option_debug_nointernal = 0;
 
@@ -199,6 +201,18 @@ static struct OPTION options[] = {
 	/*@OPTION Debug: Dump Jobs ( --debug-jobs )
 	@END*/
 	{0, &option_debug_jobs		, "--debug-jobs", "prints all the jobs that exist"},
+
+	/*@OPTION Debug: Dump Dot ( --debug-dot )
+		Dumps all nodes in the dependency graph into a dot file that can
+		be rendered with graphviz.
+	@END*/
+	{0, &option_debug_dot		, "--debug-dot", "dumps all nodes as a dot graph"},
+
+	/*@OPTION Debug: Dump Jobs Dot ( --debug-jobs-dot )
+		Dumps all jobs and their dependent jobs into a dot file that can
+		be rendered with graphviz.
+	@END*/
+	{0, &option_debug_jobs_dot	, "--debug-jobs-dot", "dumps all jobs as a dot graph"},
 
 	/*@OPTION Debug: Dump Internal Scripts ( --debug-dump-int )
 	@END*/
@@ -714,16 +728,14 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 		
 		if(!build_error)
 		{
-			if(option_debug_nodes)
-			{
-				/* debug dump all nodes */
+			if(option_debug_nodes) /* debug dump all nodes */
 				node_debug_dump(context.graph);
-			}
-			else if(option_debug_jobs)
-			{
-				/* debug dump all jobs */
+			else if(option_debug_jobs) /* debug dump all jobs */
 				node_debug_dump_jobs(context.graph);
-			}
+			else if(option_debug_dot) /* debug dump all nodes as dot */
+				node_debug_dump_dot(context.graph, context.target);
+			else if(option_debug_jobs_dot) /* debug dump all jobs as dot */
+				node_debug_dump_jobs_dot(context.graph, context.target);
 			else if(option_dry)
 			{
 			}
