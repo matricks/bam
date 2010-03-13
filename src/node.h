@@ -87,7 +87,10 @@ struct NODE
 	 
 	unsigned hashid; /* hash of the filename/nodename */
 	
-	time_t timestamp; /* timestamp of the node, 0 == does not exist */
+	/* time stamps, 0 == does not exist. */
+	time_t timestamp; /* timestamp. this will be updated from the deps of the node */
+	time_t timestamp_raw; /* raw timestamp. contains the timestamp on the disc */
+	
 	unsigned id; /* used when doing traversal with marking (bitarray) */
 	
 	unsigned short filename_len; /* length of filename including zero term */
