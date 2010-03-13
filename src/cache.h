@@ -13,4 +13,3 @@ int cache_do_dependency(
 	struct NODE *node,
 	void (*callback)(struct NODE *node, void *user),
 	void *user);
-
