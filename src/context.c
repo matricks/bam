@@ -168,9 +168,19 @@ static int run_node(struct CONTEXT *context, struct NODE *node, int thread_id)
 	if(ret)
 	{
 		if(session.report_color)
-			printf("\033[01;31m%s: command returned error %d\033[00m\n", session.name, ret);
-		else
-			printf("%s: command returned error: %d\n", session.name, ret);
+			printf("\033[01;31m");
+		
+		printf("%s: '%s' error %d\n", session.name, node->filename, ret);
+		
+		if(file_timestamp(node->filename) != node->timestamp_raw)
+		{
+			remove(node->filename);
+			printf("%s: '%s' removed because job updated it even it failed.\n", session.name, node->filename);
+		}
+
+		if(session.report_color)
+			printf("\033[00m");
+			
 		fflush(stdout);
 	}
 	return ret;
