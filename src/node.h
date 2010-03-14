@@ -87,9 +87,7 @@ struct NODE
 	 
 	unsigned hashid; /* hash of the filename/nodename */
 	
-	/* time stamps, 0 == does not exist.
-	time_t timestamp; /* timestamp. this will be updated from the deps of the node */
-	time_t timestamp_raw; /* raw timestamp. contains the timestamp on the disc */
+	time_t timestamp; /* timestamp of the node, 0 == does not exist */
 	unsigned id; /* used when doing traversal with marking (bitarray) */
 	
 	unsigned short filename_len; /* length of filename including zero term */
@@ -110,7 +108,7 @@ struct CACHENODE
 	RB_ENTRY(CACHENODE) rbentry;
 
 	unsigned hashid;
-	time_t timestamp_raw;
+	time_t timestamp;
 	char *filename;
 	
 	unsigned cmdhash;
