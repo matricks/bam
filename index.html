@@ -1,85 +1,97 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
-	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
 
-	<title>matricks/bam @ GitHub (test)</title>
+	<title>bam - a fast and flexible build system</title>
 	
 	<style type="text/css">
 		body {
-  		margin-top: 1.0em;
-  		background-color: #a7c45b;
-		  font-family: "Helvetica,Arial,FreeSans";
-  		color: #000000;
-    }
-    #container {
-      margin: 0 auto;
-      width: 700px;
-    }
-		h1 { font-size: 3.8em; color: #583ba4; margin-bottom: 3px; }
-		h1 .small { font-size: 0.4em; }
-		h1 a { text-decoration: none }
-		h2 { font-size: 1.5em; color: #583ba4; }
-    h3 { text-align: center; color: #583ba4; }
-    a { color: #583ba4; }
-    .description { font-size: 1.2em; margin-bottom: 30px; margin-top: 30px; font-style: italic;}
-    .download { float: right; }
-		pre { background: #000; color: #fff; padding: 15px;}
-    hr { border: 0; width: 80%; border-bottom: 1px solid #aaa}
-    .footer { text-align:center; padding-top:30px; font-style: italic; }
+			font: normal 13px verdana,arial,'Bitstream Vera Sans',helvetica,sans-serif;
+			margin-left: 16px;
+			margin-top: 16px;
+			margin-bottom: 40px;
+		}
+		
+		:link, :visited {
+			text-decoration: none;
+			color: #b00;
+			border-bottom: 1px dotted #bbb;
+		}
+		
+		:link:hover, :visited:hover {
+			background-color: #eee;
+			color: #555;
+		}
 	</style>
-	
 </head>
 
 <body>
-  <a href="http://github.com/matricks/bam"><img style="position: absolute; top: 0; right: 0; border: 0;" src="http://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub" /></a>
 
-  <div id="container">
+<img src="bam_logo.png" alt="bam logo"/>
+<!--<a href="http://github.com/matricks/bam"></a> -->
+<p style="position: absolute; top: 0; right: 0; margin-right: 20px; margin-top: 20px">
+<a href="http://github.com/matricks/bam">github page</a><br/><br/>
+<a href="mailto:magnus.auvinen@gmail.com">email me</a>
+</p>
 
-    <div class="download">
-      <a href="http://github.com/matricks/bam/zipball/master">
-        <img border="0" width="90" src="http://github.com/images/modules/download/zip.png"></a>
-      <a href="http://github.com/matricks/bam/tarball/master">
-        <img border="0" width="90" src="http://github.com/images/modules/download/tar.png"></a>
-    </div>
+<h2>What is bam?</h2>
+<p>
+	Bam is a fast and flexible build system. Bam uses Lua to describe the build process.
+	It's takes its inspiration for the script files from scons. While scons focuses on
+	being 100% correct when building, bam makes a few sacrifices to acquire fast full
+	and incremental build times.
+</p>
 
-    <h1><a href="http://github.com/matricks/bam">bam</a>
-      <span class="small">by <a href="http://github.com/matricks">matricks</a></span></h1>
+<h2>Getting bam</h2>
+<p>
+	Bam is only distributed as source. Current version is 0.3.2.
+</p>
+<p>
+	<ul>
+	<li><a href="http://github.com/downloads/matricks/bam/bam-0.3.2.zip">bam-0.3.2.zip</a></li>
+	<li><a href="http://github.com/downloads/matricks/bam/bam-0.3.2.tar.gz">bam-0.3.2.tar.gz</a></li>
+	<li><a href="http://github.com/downloads/matricks/bam/bam-0.3.2.tar.bz2">bam-0.3.2.tar.bz2</a></li>
+	</ul>
+</p>
+<p>
+	<div>An archive of all the releases can be found <a href="">here</a>. You can also browse the source here.</div>
+</p>
 
-    <div class="description">
-      Bam is a fast and flexible build system. Bam uses Lua to describe the build process. It's takes its inspiration for the script files from scons. While scons focuses on being 100% correct when building, bam makes a few sacrifices to acquire fast full and incremental build times. 
-    </div>
+<h2>Getting the very latest bam</h2>
+<p>
+	You can clone the project with <a href="http://git-scm.com">git</a> by running:
+	<pre>  $ git clone git://github.com/matricks/bam</pre>
+	You can download the master branch (not garanteed to be stable) by using these links:
 
-    <p>temp</p><h2>Dependencies</h2>
-<p>temp</p>
-<h2>Install</h2>
-<p>temp</p>
-<h2>License</h2>
-<p>temp</p>
-<h2>Authors</h2>
-<p>Joel de Vahl (joel@stalverk80.se)<br/>Magnus Auvinen (magnus.auvinen@gmail.com)<br/><br/>      </p>
-<h2>Contact</h2>
-<p>Magnus Auvinen (magnus.auvinen@gmail.com)<br/>      </p>
+	<ul>
+	<li><a href="http://github.com/matricks/bam/zipball/master">as zip</a></li>
+	<li><a href="http://github.com/matricks/bam/tarball/master">as tar.gz</a></li>
+	</ul>
+	
+	You can also visit bam over at <a href="http://github.com/matricks/bam">github</a>.
+<p>
 
+<h2>Documentation</h2>
+<p>
+	There are no good documentation at this given time but there are some.
 
-    <h2>Download</h2>
-    <p>
-      You can download this project in either
-      <a href="http://github.com/matricks/bam/zipball/master">zip</a> or
-      <a href="http://github.com/matricks/bam/tarball/master">tar</a> formats.
-    </p>
-    <p>You can also clone the project with <a href="http://git-scm.com">Git</a>
-      by running:
-      <pre>$ git clone git://github.com/matricks/bam</pre>
-    </p>
+	<ul>
+	<li><a href="http://www.lua.org/manual/5.1/">Lua 5.1 manual</a></li>
+	<li><a href="http://wiki.github.com/matricks/bam/examples">Some examples</a></li>
+	</ul>
+</p>
 
-    <div class="footer">
-      get the source code on GitHub : <a href="http://github.com/matricks/bam">matricks/bam</a>
-    </div>
+<h2>Missing features</h2>
+<p>
+	There is a few important things that are missing from the current versions of bam. This can be good to know.
 
-  </div>
+	<ul>
+	<li>Good subproject support</li>
+	<li>Good documentation</li>
+	</ul>
+</p>
 
   
 </body>
