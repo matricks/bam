@@ -48,6 +48,7 @@
 
 struct OPTION
 {
+	int print;
 	const char **s;
 	int *v;
 	const char *sw;
@@ -105,75 +106,58 @@ static struct OPTION options[] = {
 		TODO: Add documentation
 	@END*/
 
-	/*@OPTION Script File ( -s FILENAME )
-		Bam file to use. In normal operation, Bam executes
-		^bam.lua^. This option allows you to specify another bam
-		file.
-	@END*/
-	{&option_script,0			, "-s", "bam file to use. default is bam.lua"},
-
-	/*@OPTION Clean ( -c )
-		Cleans the specified targets or the default target.
-	@END*/
-	{0, &option_clean			, "-c", "clean"},
-
-	/*@OPTION Dependent build ( -d )
-		Builds all targets that are dependent on the given targets.
-		If no targets are given this option doesn't do anything.
-	@END*/
-	{0, &option_dependent			, "-d", "build targets that is dependent given targets"},
-	
-	/*@OPTION Cache ( -k FILENAME )
-		Specifies what cache file to use instead of the default.
-	@END*/
-	{&option_cache,0					, "-k", "use cache (" CACHE_FILENAME ")"},
-
-	/*@OPTION No cache ( -n )
-		Do not use cache when building.
-	@END*/
-	{0, &option_no_cache			, "-n", "don't use cache (" CACHE_FILENAME ") (no enabled)"},
-	
-	/*@OPTION Verbose ( -v )
-		Prints all commands that are runned when building.
-	@END*/
-	{0, &session.verbose			, "-v", "verbose"},
-
-	/*@OPTION Script Backtrace ( -bt )
-		Prints backtrace when there is a script error
-	@END*/
-	{0, &session.lua_backtrace		, "-bt", "lua backtrace"},
-
-	/*@OPTION Script Locals ( -l )
-		Prints local and up values in the backtrace when there is a script error
-	@END*/
-	{0, &session.lua_locals		, "-l", "lua locals"},
-
-	/*@OPTION Threading ( -j N )
-		Sets the number of threads used when building. A good value for N is
-		the same number as logical cores on the machine. Set to 0 to disable.
-	@END*/
-	{&option_threads_str,0		, "-j", "sets the number of threads to use. 0 to disables"},
-
-	/*@OPTION Garbage collector ( -gc )
-		Enables the lua garbage collector. Reduces memory footprint when
-		executing the build scripts by sacrificing performace. Only needed
-		on memory restricted systems.
-	@END*/
-	/*{0, &option_gc			, "-gc", "garbage collector"},*/
+	{1, 0, 0						, "\n Execution:", ""},
 
 	/*@OPTION Abort on error ( -a )
 		Setting this will cause bam to abort the build process when an error has occured.
 		Normally it would continue as far as it can
 	@END*/
-	{0,&option_abort_on_error	, "-a", "abort on error"},
+	{1, 0,&option_abort_on_error	, "-a", "abort on error"},
 
-	/*@OPTION Help ( -h, --help )
-		Prints out a short reference of the command line options and quits
-		directly after.
+	/*@OPTION Clean ( -c )
+		Cleans the specified targets or the default target.
 	@END*/
-	{0, &option_print_help		, "-h", "prints this help"},
-	{0, &option_print_help		, "--help", "prints this help"},
+	{1, 0, &option_clean			, "-c", "clean targets"},
 
+	/*@OPTION Dependent build ( -d )
+		Builds all targets that are dependent on the given targets.
+		If no targets are given this option doesn't do anything.
+	@END*/
+	{1, 0, &option_dependent			, "-d", "build targets that is dependent given targets"},
+		
+	/*@OPTION Dry Run ( --dry )
+		Does everything that it normally would do but does not execute any
+		commands.
+	@END*/
+	{1, 0, &option_dry				, "--dry", "dry run, don't run any jobs"},
+
+	/*@OPTION Threading ( -j N )
+		Sets the number of threads used when building. A good value for N is
+		the same number as logical cores on the machine. Set to 0 to disable.
+	@END*/
+	{1, &option_threads_str,0		, "-j", "sets the number of threads to use (default: 0, disabled)"},
+
+	/*@OPTION Script File ( -s FILENAME )
+		Bam file to use. In normal operation, Bam executes
+		^bam.lua^. This option allows you to specify another bam
+		file.
+	@END*/
+	{1, &option_script,0			, "-s", "bam file to use (default: bam.lua)"},
+
+	{1, 0, 0						, "\n Lua:", ""},
+
+	/*@OPTION Script Locals ( -l )
+		Prints local and up values in the backtrace when there is a script error
+	@END*/
+	{1, 0, &session.lua_locals		, "-l", "print local variables in backtrace"},
+
+	/*@OPTION Script Backtrace ( -t )
+		Prints backtrace when there is a script error
+	@END*/
+	{1, 0, &session.lua_backtrace		, "-t", "print backtrace when an error occurs"},
+
+	{1, 0, 0						, "\n Output:", ""},
+	
 	/*@OPTION Report Format ( -r [b][s][c] )
 		Sets the format of the progress report when building.
 		<ul>
@@ -182,49 +166,72 @@ static struct OPTION options[] = {
 			<li>c</li> - Use ANSI colors.
 		</ul>
 	@END*/
-	{&option_report_str,0		, "-r", "set report format (default:" DEFAULT_REPORT_STYLE ")\n"
-		"                       " "    b = bar, s = steps, c = color"},
-
-	/*@OPTION Dry Run ( --dry )
-		Does everything that it normally would do but does not execute any
-		commands.
-	@END*/
-	{0, &option_dry				, "--dry", "dry run"},
+	{1, &option_report_str,0		, "-r", "build progress report format (default: " DEFAULT_REPORT_STYLE ")\n"
+		"                       " "    b = progress bar\n"
+		"                       " "    c = use ansi colors\n"
+		"                       " "    s = build steps"},
 	
+	/*@OPTION Verbose ( -v )
+		Prints all commands that are runned when building.
+	@END*/
+	{1, 0, &session.verbose			, "-v", "be verbose"},
+				
+	{1, 0, 0						, "\n Other:", ""},
+
+	/*@OPTION Cache ( -k FILENAME )
+		Specifies what cache file to use instead of the default.
+	@END*/
+	{1, &option_cache,0				, "-k", "set cache file to use (default: " CACHE_FILENAME ")"},
+	
+	/*@OPTION No cache ( -n )
+		Do not use cache when building.
+	@END*/
+	{1, 0, &option_no_cache			, "-n", "don't use cache"},
+
+	/*@OPTION Help ( -h, --help )
+		Prints out a short reference of the command line options and quits
+		directly after.
+	@END*/
+	{1, 0, &option_print_help		, "-h, --help", "prints this help"},
+	{0, 0, &option_print_help		, "-h", "prints this help"},
+	{0, 0, &option_print_help		, "--help", "prints this help"},
+
+	{1, 0, 0						, "\n Debug:", ""},
+
 	/*@OPTION Debug: Dump Nodes ( --debug-nodes )
 		Dumps all nodes in the dependency graph, their state and their
 		dependent nodes. This is useful if you are writing your own
 		actions to verify that dependencies are correctly added.
 	@END*/
-	{0, &option_debug_nodes		, "--debug-nodes", "prints all the nodes with dependencies"},
+	{1, 0, &option_debug_nodes		, "--debug-nodes", "prints all the nodes with dependencies"},
 
 	/*@OPTION Debug: Dump Jobs ( --debug-jobs )
 	@END*/
-	{0, &option_debug_jobs		, "--debug-jobs", "prints all the jobs that exist"},
+	{1, 0, &option_debug_jobs		, "--debug-jobs", "prints all the jobs that exist"},
 
 	/*@OPTION Debug: Dump Dot ( --debug-dot )
 		Dumps all nodes in the dependency graph into a dot file that can
 		be rendered with graphviz.
 	@END*/
-	{0, &option_debug_dot		, "--debug-dot", "dumps all nodes as a dot graph"},
+	{1, 0, &option_debug_dot		, "--debug-dot", "prints all nodes as a graphviz dot file"},
 
 	/*@OPTION Debug: Dump Jobs Dot ( --debug-jobs-dot )
 		Dumps all jobs and their dependent jobs into a dot file that can
 		be rendered with graphviz.
 	@END*/
-	{0, &option_debug_jobs_dot	, "--debug-jobs-dot", "dumps all jobs as a dot graph"},
+	{1, 0, &option_debug_jobs_dot	, "--debug-jobs-dot", "prints all jobs as a graphviz dot file"},
 
 	/*@OPTION Debug: Dump Internal Scripts ( --debug-dump-int )
 	@END*/
-	{0, &option_debug_dumpinternal		, "--debug-dump-int", "dumps the internals scripts to stdout"},
+	{1, 0, &option_debug_dumpinternal		, "--debug-dump-int", "prints the internals scripts to stdout"},
 
 	/*@OPTION Debug: No Internal ( --debug-no-int )
 		Disables all the internal scripts that bam loads on startup.
-	@END*/
-	{0, &option_debug_nointernal		, "--debug-no-int", "don't load internal scripts"},
+	@1, END*/
+	{1, 0, &option_debug_nointernal		, "--debug-no-int", "don't load internal scripts"},
 		
 	/* terminate list */
-	{0, 0, (const char*)0, (const char*)0}
+	{0, 0, 0, (const char*)0, (const char*)0}
 };
 
 static const char *internal_base_reader(lua_State *L, void *data, size_t *size)
@@ -802,16 +809,18 @@ void install_abort_signal()
 static void print_help()
 {
 	int j;
+	printf("Usage: %s [OPTION]... [VARIABLE=VALUE]... [TARGET]...\n", session.name);
+	printf("Builds applications using the bam build system.\n");
+	for(j = 0; options[j].sw; j++)
+	{
+		if(options[j].print)
+			printf("  %-20s %s\n", options[j].sw, options[j].desc);
+	}
+	printf("\n");
 	printf("bam version " BAM_VERSION_STRING_COMPLETE ". built "__DATE__" "__TIME__" using " LUA_VERSION "\n");
 	printf("by Magnus Auvinen (magnus.auvinen@gmail.com)\n");
 	printf("\n");
-	printf("%s [OPTIONS] [TARGETS]\n", session.name);
-	printf("\n");
 
-	for(j = 0; options[j].sw; j++)
-		printf("  %-20s %s\n", options[j].sw, options[j].desc);
-
-	printf("\n");
 }
 
 static int parse_parameters(int num, char **params)
