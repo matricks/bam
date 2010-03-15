@@ -63,6 +63,7 @@ static int option_dependent = 0;
 static int option_abort_on_error = 0;
 static int option_gc = 1;
 static int option_debug_nodes = 0;
+static int option_debug_nodes_detailed = 0;
 static int option_debug_jobs = 0;
 static int option_debug_dot = 0;
 static int option_debug_jobs_dot = 0;
@@ -199,11 +200,16 @@ static struct OPTION options[] = {
 	{1, 0, 0						, "\n Debug:", ""},
 
 	/*@OPTION Debug: Dump Nodes ( --debug-nodes )
+		Dumps all nodes in the dependency graph.
+	@END*/
+	{1, 0, &option_debug_nodes		, "--debug-nodes", "prints all the nodes with dependencies"},
+
+	/*@OPTION Debug: Dump Nodes Detailed( --debug-detail )
 		Dumps all nodes in the dependency graph, their state and their
 		dependent nodes. This is useful if you are writing your own
 		actions to verify that dependencies are correctly added.
 	@END*/
-	{1, 0, &option_debug_nodes		, "--debug-nodes", "prints all the nodes with dependencies"},
+	{1, 0, &option_debug_nodes_detailed		, "--debug-detail", "prints all the nodes with dependencies and details"},
 
 	/*@OPTION Debug: Dump Jobs ( --debug-jobs )
 	@END*/
@@ -737,6 +743,8 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 		{
 			if(option_debug_nodes) /* debug dump all nodes */
 				node_debug_dump(context.graph);
+			else if(option_debug_nodes_detailed) /* debug dump all nodes detailed */
+				node_debug_dump_detailed(context.graph);
 			else if(option_debug_jobs) /* debug dump all jobs */
 				node_debug_dump_jobs(context.graph);
 			else if(option_debug_dot) /* debug dump all nodes as dot */

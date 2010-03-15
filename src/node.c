@@ -435,8 +435,21 @@ void node_walk_revisit(struct NODEWALK *walk, struct NODE *node)
 	walk->firstrevisit = revisit;
 }
 
-/* dumps all nodes to the stdout */
 void node_debug_dump(struct GRAPH *graph)
+{
+	struct NODE *node = graph->first;
+	struct NODELINK *link;
+
+	for(;node;node = node->next)
+	{
+		printf("%s\n", node->filename);
+		for(link = node->firstdep; link; link = link->next)
+			printf("   DEPEND %s\n", link->node->filename);
+	}
+}
+
+/* dumps all nodes to the stdout */
+void node_debug_dump_detailed(struct GRAPH *graph)
 {
 	struct NODE *node = graph->first;
 	struct NODELINK *link;
