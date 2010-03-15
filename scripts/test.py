@@ -63,7 +63,7 @@ def test(name, moreflags="", should_fail=0):
 
 	olddir = os.getcwd()
 	os.chdir(output_path+"/"+name)
-	cmdline = bam+" -bt -v "+extra_bam_flags+" " + moreflags
+	cmdline = bam+" -t -v "+extra_bam_flags+" " + moreflags
 	
 	print name + ":",
 	p = subprocess.Popen(cmdline, stdout=subprocess.PIPE, shell=True, stderr=subprocess.STDOUT)
