@@ -111,7 +111,7 @@ struct CACHENODE
 	RB_ENTRY(CACHENODE) rbentry;
 
 	unsigned hashid;
-	time_t timestamp;
+	time_t timestamp_raw;
 	char *filename;
 	
 	unsigned cmdhash;

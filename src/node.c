@@ -81,7 +81,8 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 		
 		node->graph = graph;
 		node->id = graph->num_nodes++;
-		node->timestamp = file_timestamp(filename);
+		node->timestamp_raw = file_timestamp(filename);
+		node->timestamp = node->timestamp_raw;
 		
 		/* set filename */
 		node->filename_len = strlen(filename)+1;

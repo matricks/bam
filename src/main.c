@@ -57,7 +57,7 @@ struct OPTION
 
 /* options passed via the command line */
 static int option_clean = 0;
-static int option_no_cache = 1;
+static int option_no_cache = 0;
 static int option_dry = 0;
 static int option_dependent = 0;
 static int option_abort_on_error = 0;
