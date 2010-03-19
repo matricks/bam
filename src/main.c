@@ -581,7 +581,7 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 	/* call the code chunk */	
 	if(lua_pcall(context->lua, 0, LUA_MULTRET, -2) != 0)
 	{
-		printf("%s: script error (-bt for more detail)\n", session.name);
+		printf("%s: script error (-t for more detail)\n", session.name);
 		return -1;
 	}
 	
