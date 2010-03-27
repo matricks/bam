@@ -87,6 +87,7 @@ int path_normalize(char *path)
 			}
 			else if(srcptr[1] == '.')
 			{
+				/* found ".." in path */
 				if(path_is_separator(srcptr[2]))
 				{
 					/* "../" case */
@@ -107,6 +108,25 @@ int path_normalize(char *path)
 						depth--;
 						dstptr = dirs[depth-1];
 						srcptr += 3;
+					}
+				}
+				else if(srcptr[2] == 0)
+				{
+					/* ".." case, .. at end of string */
+					if(depth == 1)
+					{
+						dstptr[0] = '.';
+						dstptr[1] = '.';
+						dstptr += 2;
+						srcptr += 2;
+						
+						dirs[0] = dstptr;
+					}
+					else
+					{
+						depth--;
+						dstptr = dirs[depth-1];
+						srcptr += 2;
 					}
 				}
 				else

@@ -99,6 +99,7 @@ end
 	catch="" : Path("/")
 	catch="/b.c/file.ext" : Path("/a/../b.c/./file.ext")
 	catch="/b.c" : Path("/a/../b.c/./")
+	catch="/a" : Path("/a/b/..")
 	catch="../../b.c" : Path("../../a/../b.c/./")
 	catch="../path/file.name.ext" : Path("../test/../path/file.name.ext")
 @END]]--
@@ -122,29 +123,41 @@ Path = bam_path_fix
 	}}}}
 @END]]--
 --[[@UNITTESTS
+	err=1 : PathJoin(nil)
 	catch="a/b" : PathJoin("a/b", "")
 	catch="a/b" : PathJoin("a/b/", "")
 	catch="a/b" : PathJoin("a", "b")
 	catch="a" : PathJoin("", "a")
 	catch="a/b" : PathJoin("", "a/b")
+	catch="a" : PathJoin("a/b", "..")
+@END]]--
+
+--[[@FUNCTION PathJoin(base, add)
+	Joins two paths together and normalizes the result.
+	
+	{{{{
+	PathJoin("test/path/", "../filename.ext") -- Returns "test/filename.ext"
+	PathJoin("../test", "path/filename.ext") -- Returns "../test/path/filename.ext"
+	}}}}	
+	
 @END]]--
 function PathJoin(base, add)
 	if string.len(base) == 0 then
-		return add
+		return Path(add)
 	end
 	
 	if string.sub(base, -1) == "/" then
 		if string.len(add) == 0 then
 			return string.sub(base, 0, string.len(base)-1)
 		end
-		return base .. add
+		return Path(base .. add)
 	end
 	
 	if string.len(add) == 0 then
-		return base
+		return Path(base)
 	end
 	
-	return base .. "/" .. add
+	return Path(base .. "/" .. add)
 end
 
 -- [TODO: Should be in C]
