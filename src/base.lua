@@ -23,7 +23,7 @@ function CheckSettings(settings)
 	end
 end
 
---[[@FUNCTION
+--[[@FUNCTION CheckVersion
 	Tells bam what version this script is written for. It will either
 	make sure that it behaves like that version or print out an error.
 	
@@ -38,12 +38,12 @@ function CheckVersion(version)
 	end
 end
 
---[[@FUNCTION
-	Flattens a tree of tables
-@END]]--
 --[[@UNITTESTS
 	err=0 : FlattenTable({"", {"", {""}, ""}, "", {}, {""}})
 	err=1 : FlattenTable({"", {"", {""}, ""}, 1, {""}})
+@END]]--
+--[[@FUNCTION
+	Flattens a tree of tables
 @END]]--
 function FlattenTable(varargtable)
 	function flatten(collection, varargtable)
@@ -63,12 +63,11 @@ function FlattenTable(varargtable)
 	return inputs
 end
 
---[[@FUNCTION
-	
-@END]]--
 --[[@UNITTESTS
 	err=0 : for s in WalkTable({"", {"", {""}, ""}, "", {}, {""}}) do end
 	err=1 : for s in WalkTable({"", {"", {""}, ""}, 1, {""}}) do end
+@END]]--
+--[[@FUNCTION
 @END]]--
 function WalkTable(t)
   return coroutine.wrap(function()
@@ -104,7 +103,7 @@ end
 	catch="../path/file.name.ext" : Path("../test/../path/file.name.ext")
 @END]]--
 --[[@FUNCTION Path(str)
-	Normalizes the path in ^str^ by removing ".." and "." from it
+	Normalizes the path in ^str^ by removing ".." and "." from it.
 
 	{{{{
 	Path("test/./path/../file.name.ext") -- Returns "test/file.name.ext"
@@ -113,7 +112,15 @@ end
 @END]]--
 Path = bam_path_fix
 
--- [TODO: Should be in C]
+--[TODO: Should be in C]
+--[[@FUNCTION PathJoin(base, add)
+	Joins the two paths ^base^ and ^add^ together and returns a
+	normalized path.
+	
+	{{{{
+	TODO: Examples
+	}}}}
+@END]]--
 --[[@UNITTESTS
 	catch="a/b" : PathJoin("a/b", "")
 	catch="a/b" : PathJoin("a/b/", "")
@@ -152,8 +159,8 @@ end
 	Returns the everthing except the extention in the path.
 
 	{{{{
-	Path("test/path/file.name.ext") -- Returns "test/path/file.name"<br/>
-	Path("test/path/file.name") -- Returns "test/path/file"<br/>
+	Path("test/path/file.name.ext") -- Returns "test/path/file.name"
+	Path("test/path/file.name") -- Returns "test/path/file"
 	Path("test/path/file") -- Returns "test/path/file"
 	}}}}
 @END]]--
@@ -198,47 +205,10 @@ PathFilename = bam_path_filename
 @END]]--
 PathFileExt = bam_path_ext
 
---[[@UNITTESTS
-	err=1 : PathPath(nil)
-	err=1 : PathPath({})
-	catch="" : PathPath("")
-	catch="" : PathPath("/")
-	catch="/b.c" : PathPath("/a/../b.c/./file.ext")
-@END]]--
---[[@FUNCTION PathPath(str)
-	Returns the path of the filename in ^str^.
-
-	{{{{
-	PathPath("test/path/file.name.ext") -- Returns "test/path"
-	}}}}
-@END]]--
-PathPath = bam_path_path
-
--- [TODO: Improve]
--- [TODO: Should be in C]
---[[@FUNCTION
-	TODO
-@END]]--
-function PathRelative(base, str)
-	local l = string.len(base)
-	if string.sub(s, 0, l) == base then
-		return string.sub(s, l+2)
-	end
-	return s
-end
-
---[[@FUNCTION
-	TODO
-@END]]--
-function PathScriptRelative(s)
-	return PathRelative(_bam_path, s)
-end
-
 -- [TODO: Should be in C?]
 function str_replace(s, pattern, what)
 	return string.gsub(s, pattern, function(v) return what end)
 end
-
 
 -- make a table into a string
 -- [TODO: Should be in C?]
@@ -298,18 +268,7 @@ function NewFlagTable()
 
 	t.string_version = 0
 	t.string = ""
-	
 
-	return t
-end
-
-function NewPathTable()
-	local t = NewTable()
-	return t
-end
-
-function NewAntiPathTable()
-	local t = NewTable()
 	return t
 end
 
@@ -356,10 +315,23 @@ end
 
 _bam_tools = {}
 
+--[[@UNITTESTS
+@END]]--
+--[[@FUNCTION
+	Adds a new tool called ^name^ to bam. The ^func^ will be called
+	when NewSettings function is invoked with the settings object as
+	first parameter.
+@END]]--
 function AddTool(name, func)
 	_bam_tools[name] = func
 end
 
+--[[@UNITTESTS
+@END]]--
+--[[@FUNCTION
+	Create a new settings object with the settings for all the
+	registered tools.
+@END]]--
 function NewSettings()
 	local settings = {}
 	
@@ -376,7 +348,7 @@ function NewSettings()
 	settings.optimize = 0
 	
 	-- add all tools
-	for name, tool in pairs(_bam_tools) do
+	for _, tool in pairs(_bam_tools) do
 		tool(settings)
 	end
 
@@ -393,7 +365,7 @@ function NewSettings()
 end
 
 
---[[@GROUP Files and Directories@END]]--
+--[[@GROUP Files and Directories @END]]--
 
 -- Collects files in a directory.
 --[[@FUNCTION Collect(...)
@@ -430,25 +402,29 @@ CollectDirsRecursive = bam_collectdirsrecursive
 
 --[[@GROUP Actions@END]]--
 
--- Copy -
+-- Copy
 --[[@FUNCTION
 	e
 @END]]--
 function Copy(outputdir, ...)
 	local outputs = {}
+
+	local copy_command = "cp"
+	local copy_append = ""
+
+	if family == "windows" then
+		copy_command = "copy /b" -- binary copy
+		copy_append = " >nul 2>&1" -- suppress output
+	end
 	
 	-- compile all the files
 	for inname in WalkTable({...}) do
 		output = Path(outputdir .. "/" .. PathFilename(inname))
 		input = Path(inname)
 
-		local copy_command = "cp"
-		local copy_append = ""
 		local srcfile = input
 		local dstfile = output
 		if family == "windows" then
-			copy_command = "copy /b" -- binary copy
-			copy_append = " >nul 2>&1" -- suppress output
 			srcfile = str_replace(srcfile, "/", "\\")
 			dstfile = str_replace(dstfile, "/", "\\")
 		end
@@ -1118,7 +1094,7 @@ function InitCommonCCompiler(settings)
 	settings.cc.flags = NewFlagTable()
 	settings.cc.c_flags = NewFlagTable()
 	settings.cc.cpp_flags = NewFlagTable()
-	settings.cc.includes = NewPathTable()
+	settings.cc.includes = NewTable()
 	settings.cc.systemincludes = NewTable()
 	settings.cc.defines = NewTable()
 	settings.cc.frameworks = NewTable()
@@ -1212,9 +1188,9 @@ AddTool("link", function (settings)
 	settings.link.flags = NewFlagTable()
 	settings.link.libs = NewTable()
 	settings.link.frameworks = NewTable()
-	settings.link.frameworkpath = NewPathTable()
-	settings.link.libpath = NewPathTable()
-	settings.link.extrafiles = NewPathTable()
+	settings.link.frameworkpath = NewTable()
+	settings.link.libpath = NewTable()
+	settings.link.extrafiles = NewTable()
 	
 	table.lock(settings.link)
 end)
@@ -1302,9 +1278,9 @@ AddTool("dll", function (settings)
 	settings.dll.flags = NewFlagTable()
 	settings.dll.libs = NewTable()
 	settings.dll.frameworks = NewTable()
-	settings.dll.frameworkpath = NewPathTable()
-	settings.dll.libpath = NewPathTable()
-	settings.dll.extrafiles = NewPathTable()
+	settings.dll.frameworkpath = NewTable()
+	settings.dll.libpath = NewTable()
+	settings.dll.extrafiles = NewTable()
 
 	table.lock(settings.dll)
 end)
