@@ -23,6 +23,10 @@ int lf_listdir(struct lua_State *L);
 int lf_mkdir(struct lua_State *L);
 int lf_fileexist(struct lua_State *L);
 
+/* */
+int lf_table_walk(struct lua_State *L);
+int lf_table_deepcopy(struct lua_State *L);
+
 /* support, misc */
 int lf_istable(struct lua_State *L);
 int lf_isstring(struct lua_State *L);

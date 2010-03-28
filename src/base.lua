@@ -38,58 +38,6 @@ function CheckVersion(version)
 	end
 end
 
---[[@UNITTESTS
-	err=0 : FlattenTable({"", {"", {""}, ""}, "", {}, {""}})
-	err=1 : FlattenTable({"", {"", {""}, ""}, 1, {""}})
-@END]]--
---[[@FUNCTION
-	Flattens a tree of tables
-@END]]--
-function FlattenTable(varargtable)
-	function flatten(collection, varargtable)
-		for i,v in pairs(varargtable) do
-			if IsTable(v) then
-				flatten(collection, v)
-			elseif IsString(v) then
-				table.insert(collection, v)
-			else
-				error("unexpected " .. type(v) .. " in table")
-			end		
-		end
-	end
-
-	local inputs = {}
-	flatten(inputs, varargtable)
-	return inputs
-end
-
---[[@UNITTESTS
-	err=0 : for s in WalkTable({"", {"", {""}, ""}, "", {}, {""}}) do end
-	err=1 : for s in WalkTable({"", {"", {""}, ""}, 1, {""}}) do end
-@END]]--
---[[@FUNCTION
-@END]]--
-function WalkTable(t)
-  return coroutine.wrap(function()
-    return WalkTableImpl(coroutine.yield, t)
-  end)
-end
-
-function WalkTableImpl(func, varargtable)
-	function walk(varargtable)
-		for i,v in pairs(varargtable) do
-			if IsTable(v) then
-				walk(v)
-			elseif IsString(v) then
-				func(v)
-			else
-				error("unexpected " .. type(v) .. " in table")
-			end		
-		end
-	end
-	walk(varargtable)
-end
-
 --[[@GROUP Path Manipulation @END]]--
 
 --[[@UNITTESTS
@@ -111,17 +59,9 @@ end
 	Path("../test/../path/file.name.ext") -- Returns "../path/file.name.ext"
 	}}}}
 @END]]--
-Path = bam_path_fix
+Path = bam_path_normalize
 
 --[TODO: Should be in C]
---[[@FUNCTION PathJoin(base, add)
-	Joins the two paths ^base^ and ^add^ together and returns a
-	normalized path.
-	
-	{{{{
-	TODO: Examples
-	}}}}
-@END]]--
 --[[@UNITTESTS
 	err=1 : PathJoin(nil)
 	catch="a/b" : PathJoin("a/b", "")
@@ -131,10 +71,10 @@ Path = bam_path_fix
 	catch="a/b" : PathJoin("", "a/b")
 	catch="a" : PathJoin("a/b", "..")
 @END]]--
-
 --[[@FUNCTION PathJoin(base, add)
-	Joins two paths together and normalizes the result.
-	
+	Joins the two paths ^base^ and ^add^ together and returns a
+	normalized path.
+		
 	{{{{
 	PathJoin("test/path/", "../filename.ext") -- Returns "test/filename.ext"
 	PathJoin("../test", "path/filename.ext") -- Returns "../test/path/filename.ext"
@@ -160,15 +100,15 @@ function PathJoin(base, add)
 	return Path(base .. "/" .. add)
 end
 
--- [TODO: Should be in C]
 --[[@UNITTESTS
 	err=1: PathBase(nil)
 	err=1: PathBase({})
 	catch="": PathBase("")
 	catch="/": PathBase("/")
+	catch="test/path/file.name": PathBase("test/path/file.name.ext")
 	catch="/a/../b.c/./file": PathBase("/a/../b.c/./file.ext")
 @END]]--
---[[@FUNCTION
+--[[@FUNCTION PathBase(path)
 	Returns the everthing except the extention in the path.
 
 	{{{{
@@ -177,14 +117,23 @@ end
 	Path("test/path/file") -- Returns "test/path/file"
 	}}}}
 @END]]--
-function PathBase(s)
-	local e = PathFileExt(s)
-	if e == "" then
-		return s
-	end
-	
-	return string.sub(s,1,string.len(s)-string.len(PathFileExt(s))-1)
-end
+PathBase = bam_path_base
+
+--[[@UNITTESTS
+	err=1 : PathPath(nil)
+	err=1 : PathPath({})
+	catch="" : PathPath("")
+	catch="" : PathPath("/")
+	catch="/b.c" : PathPath("/a/../b.c/./file.ext")
+@END]]--
+--[[@FUNCTION PathPath(str)
+	Returns the path of the filename in ^str^.
+
+	{{{{
+	PathPath("test/path/file.name.ext") -- Returns "test/path"
+	}}}}
+@END]]--
+PathPath = bam_path_path
 
 --[[@UNITTESTS
 	err=1 : PathFilename(nil)
@@ -285,44 +234,69 @@ function NewFlagTable()
 	return t
 end
 
--- copied from the lua-users mailing-list and modified abit 
-function table.copy(self, ud_copy_fn)
-    ud_copy_fn = ud_copy_fn or function ( ud ) return ud end
-    
-    local new_table = {}
-    for key, value in pairs(self) do
-        local new_key
-        if(type(key) == 'table') then
-            new_key = table.copy(key, ud_copy_fn)
-        elseif (type(key) == 'userdata') then
-            new_key = ud_copy_fn(key)
-        else
-            new_key = key
-        end
 
-        local new_value
-        if(type( value ) == 'table' ) then
-            new_value = table.copy(value, ud_copy_fn)
-        elseif(type(value) == 'userdata') then
-            new_value = ud_copy_fn(value)
-        else
-            new_value = value
-        end
+--[[@GROUP Tables @END]]--
 
-        new_table[new_key] = new_value
-    end
+--[[@FUNCTION TableDeepCopy(tbl)
+	Makes a deep copy of the table ^tbl^ resulting in a complete separate
+	table.
+]]
+TableDeepCopy = bam_table_deepcopy
 
-     return new_table
+--[[@UNITTESTS
+	err=0 : TableFlatten({"", {"", {""}, ""}, "", {}, {""}})
+	err=1 : TableFlatten({"", {"", {""}, ""}, 1, {""}})
+@END]]--
+--[[@FUNCTION
+	Flattens a tree of tables
+@END]]--
+function TableFlatten(varargtable)
+	function flatten(collection, varargtable)
+		for i,v in pairs(varargtable) do
+			if IsTable(v) then
+				flatten(collection, v)
+			elseif IsString(v) then
+				table.insert(collection, v)
+			else
+				error("unexpected " .. type(v) .. " in table")
+			end		
+		end
+	end
+
+	local inputs = {}
+	flatten(inputs, varargtable)
+	return inputs
 end
 
-function table.lock(t)
-	local mt = getmetatable(t)
+--[[@FUNCTION TableLock(tbl)
+	Locks the table ^tbl^ so no new keys can be added. Trying to add a new
+	key will result in an error.
+]]
+function TableLock(tbl)
+	local mt = getmetatable(tbl)
 	if not mt then mt = {} end
-	mt.__newindex = function(t, key, value)
+	mt.__newindex = function(tbl, key, value)
 		error("trying to create key '" .. key .. "' on a locked table")
 	end
-	setmetatable(t,mt)
+	setmetatable(tbl, mt)
 end
+
+--[[@UNITTESTS
+	err=0 : for s in TableWalk({"", {"", {""}, ""}, "", {}, {""}}) do end
+	err=1 : for s in TableWalk({"", {"", {""}, ""}, 1, {""}}) do end
+@END]]--
+--[[@FUNCTION TableWalk(tbl)
+	Returns an iterator that does a deep walk of a table looking for strings.
+	Only checks numeric keys and anything else then table and strings will
+	cause an error.
+
+	{{{{
+	for filename in TableWalk({...}) do
+		print(filename)
+	end
+	}}}}
+@END]]--
+TableWalk = bam_table_walk
 
 --[[@GROUP Settings @END]]--
 
@@ -349,7 +323,7 @@ function NewSettings()
 	local settings = {}
 	
 	settings._is_settingsobject = true
-	settings.Copy = table.copy
+	settings.Copy = TableDeepCopy
 	
 	settings.filemappings = {}
 
@@ -365,7 +339,7 @@ function NewSettings()
 		tool(settings)
 	end
 
-	table.lock(settings)
+	TableLock(settings)
 	
 	-- set default drivers
 	if family == "windows" then
@@ -431,7 +405,7 @@ function Copy(outputdir, ...)
 	end
 	
 	-- compile all the files
-	for inname in WalkTable({...}) do
+	for inname in TableWalk({...}) do
 		output = Path(outputdir .. "/" .. PathFilename(inname))
 		input = Path(inname)
 
@@ -471,7 +445,7 @@ function PseudoTarget(name, ...)
 	bam_add_pseudo(name)
 	
 	-- all the files
-	for inname in WalkTable({...}) do
+	for inname in TableWalk({...}) do
 		AddDependency(name, inname)
 	end
 
@@ -1054,12 +1028,7 @@ end
 	Adds dependencies to a job. The files specified in the argument list gets added.
 	Strings and nested tables of strings are accepted.
 @END]]--
--- TODO: Implement this in C
-function AddDependency(filename, ...)
-	for f in WalkTable({...}) do
-		bam_add_dependency(filename, f)
-	end
-end
+AddDependency = bam_add_dependency
 
 --[[@FUNCTION AddDependencySearch(filename, paths, dependencies)
 @END]]--
@@ -1071,20 +1040,9 @@ function AddDependencySearch(filename, paths, ...)
 end]]--
 
 
--- TODO: Implement this in C
-function AddConstraintShared(filename, ...)
-	for f in WalkTable({...}) do
-		bam_add_constraint_shared(filename, f)
-	end
-end
-
-function AddConstraintExclusive(filename, ...)
-	for f in WalkTable({...}) do
-		bam_add_constraint_exclusive(filename, f)
-	end
-end
-
-
+-- TODO: document
+AddConstraintShared = bam_add_constraint_shared
+AddConstraintExclusive = bam_add_constraint_exclusive
 
 function Default_Intermediate_Output(settings, input)
 	return PathBase(input) .. settings.config_ext
@@ -1098,6 +1056,9 @@ end
 
 function InitCommonCCompiler(settings)
 	settings.cc = {}
+	settings.cc._invoke_counter = 0
+	settings.cc._c_cache = { nr = 0, str = "" }
+	settings.cc._cxx_cache = { nr = 0, str = "" }
 	settings.cc.extension = ""
 	settings.cc.c_exe = ""
 	settings.cc.cxx_exe = ""
@@ -1114,7 +1075,7 @@ function InitCommonCCompiler(settings)
 	settings.cc.Output = Default_Intermediate_Output
 	settings.cc.optimize = 0
 	
-	table.lock(settings.cc)
+	TableLock(settings.cc)
 end
 
 function CCompiler(settings, input)
@@ -1149,7 +1110,7 @@ AddTool("cxx", function (settings)
 end)
 
 ------------------------ COMPILE ACTION ------------------------
-
+	
 -- Compiles C, Obj-C and C++ files
 --[[@UNITTESTS
 	err=1; find="expected a settings object": Compile(nil)
@@ -1159,12 +1120,13 @@ end)
 --[[@FUNCTION
 	TODO
 @END]]--
-
 function Compile(settings, ...)
 	CheckSettings(settings)
 	local outputs = {}
 	
-	for inname in WalkTable({...}) do
+	settings.cc._invoke_counter = settings.cc._invoke_counter + 1
+
+	for inname in TableWalk({...}) do
 		-- fetch correct compiler
 		local ext = PathFileExt(inname)
 		local Compiler = settings.filemappings[ext]
@@ -1205,7 +1167,7 @@ AddTool("link", function (settings)
 	settings.link.libpath = NewTable()
 	settings.link.extrafiles = NewTable()
 	
-	table.lock(settings.link)
+	TableLock(settings.link)
 end)
 
 --[[@FUNCTION
@@ -1214,7 +1176,7 @@ end)
 function Link(settings, output, ...)
 	CheckSettings(settings)
 	
-	local inputs = FlattenTable({...})
+	local inputs = TableFlatten({...})
 
 	output = settings.link.Output(settings, output) .. settings.link.extension
 	settings.link.Driver(settings.labelprefix .. "link " .. output, output, inputs, settings)
@@ -1256,7 +1218,7 @@ AddTool("lib", function (settings)
 	settings.lib.exe = ""
 	settings.lib.flags = NewFlagTable()
 	
-	table.lock(settings.lib)
+	TableLock(settings.lib)
 end)
 
 --[[@FUNCTION
@@ -1265,7 +1227,7 @@ end)
 function StaticLibrary(settings, output, ...)
 	CheckSettings(settings)
 	
-	local inputs = FlattenTable({...})
+	local inputs = TableFlatten({...})
 
 	output = settings.lib.Output(settings, PathJoin(PathPath(output), settings.lib.prefix .. PathFilename(output))) .. settings.lib.extension
 
@@ -1295,7 +1257,7 @@ AddTool("dll", function (settings)
 	settings.dll.libpath = NewTable()
 	settings.dll.extrafiles = NewTable()
 
-	table.lock(settings.dll)
+	TableLock(settings.dll)
 end)
 
 --[[@FUNCTION
@@ -1304,7 +1266,7 @@ end)
 function SharedLibrary(settings, output, ...)
 	CheckSettings(settings)
 	
-	local inputs = FlattenTable({...})
+	local inputs = TableFlatten({...})
 
 	output = settings.dll.Output(settings, PathJoin(PathPath(output), settings.dll.prefix .. PathFilename(output))) .. settings.dll.extension
 	settings.dll.Driver(settings.labelprefix .. "dll ".. output, output, inputs, settings)

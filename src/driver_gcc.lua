@@ -2,19 +2,26 @@
 ------------------------ C/C++ GCC DRIVER ------------------------
 
 function compile_c_cxx_gcc(cpp, label, exe, output, input, settings)
-	local d = tbl_to_str(settings.cc.defines, "-D", " ")
-	local i = tbl_to_str(settings.cc.includes, '-I "', '" ')
-	local i = i .. tbl_to_str(settings.cc.systemincludes, '-isystem "', '" ')
-	local i = i .. tbl_to_str(settings.cc.frameworks, '-framework ', ' ')
-	local f = settings.cc.flags:ToString()
-	if cpp then
-		f = f .. settings.cc.cpp_flags:ToString()
-	else
-		f = f .. settings.cc.c_flags:ToString()
+	if settings.cc._invoke_counter ~= settings.cc._c_cache.nr then
+		settings.cc._c_cache.nr = settings.cc._invoke_counter
+		
+		local d = tbl_to_str(settings.cc.defines, "-D", " ")
+		local i = tbl_to_str(settings.cc.includes, '-I "', '" ')
+		local i = i .. tbl_to_str(settings.cc.systemincludes, '-isystem "', '" ')
+		local i = i .. tbl_to_str(settings.cc.frameworks, '-framework ', ' ')
+		local f = settings.cc.flags:ToString()
+		if cpp then
+			f = f .. settings.cc.cpp_flags:ToString()
+		else
+			f = f .. settings.cc.c_flags:ToString()
+		end
+		if settings.debug > 0 then f = f .. "-g " end
+		if settings.optimize > 0 then f = f .. "-O2 " end
+		
+		settings.cc._c_cache.str = exe .. ' ' .. f ..'-c ' .. d .. i .. ' -o '
 	end
-	if settings.debug > 0 then f = f .. "-g " end
-	if settings.optimize > 0 then f = f .. "-O2 " end
-	local e = exe .. ' ' .. f ..'-c ' .. input .. ' -o ' .. output .. ' ' .. d .. i
+
+	local e = settings.cc._c_cache.str .. output .. " " .. input
 	AddJob(output, label, e)
 end
 

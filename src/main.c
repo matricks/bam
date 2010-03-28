@@ -61,7 +61,6 @@ static int option_no_cache = 0;
 static int option_dry = 0;
 static int option_dependent = 0;
 static int option_abort_on_error = 0;
-static int option_gc = 1;
 static int option_debug_nodes = 0;
 static int option_debug_nodes_detailed = 0;
 static int option_debug_jobs = 0;
@@ -69,6 +68,7 @@ static int option_debug_dot = 0;
 static int option_debug_jobs_dot = 0;
 static int option_debug_dumpinternal = 0;
 static int option_debug_nointernal = 0;
+static int option_debug_trace_vm = 0;
 
 static int option_print_help = 0;
 
@@ -227,6 +227,11 @@ static struct OPTION options[] = {
 	@END*/
 	{1, 0, &option_debug_jobs_dot	, "--debug-jobs-dot", "prints all jobs as a graphviz dot file"},
 
+	/*@OPTION Debug: Trace VM ( --debug-trace-vm )
+		Prints a the function and source line for every instruction that the vm makes.
+	@END*/
+	{1, 0, &option_debug_trace_vm	, "--debug-trace-vm", "prints a line for every instruction the vm makes"},
+
 	/*@OPTION Debug: Dump Internal Scripts ( --debug-dump-int )
 	@END*/
 	{1, 0, &option_debug_dumpinternal		, "--debug-dump-int", "prints the internals scripts to stdout"},
@@ -259,6 +264,25 @@ static void lua_setglobalstring(lua_State *L, const char *field, const char *s)
 	lua_setglobal(L, field);
 }
 
+static void lua_vm_trace_hook(lua_State *L, lua_Debug *ar)
+{
+	lua_getinfo(L, "nSl", ar);
+	if(ar->name)
+		printf("%s %s %d\n", ar->name, ar->source, ar->currentline);
+}
+
+static void *lua_alloctor_malloc(void *ud, void *ptr, size_t osize, size_t nsize)
+{
+	if (nsize == 0)
+	{
+		free(ptr);
+		return NULL;
+	}
+	
+	return realloc(ptr, nsize);
+}
+
+
 /* *** */
 int register_lua_globals(struct CONTEXT *context)
 {
@@ -281,11 +305,12 @@ int register_lua_globals(struct CONTEXT *context)
 
 	/* path manipulation */
 	lua_register(context->lua, L_FUNCTION_PREFIX"path_join", lf_path_join);
-	lua_register(context->lua, L_FUNCTION_PREFIX"path_fix", lf_path_fix);
+	lua_register(context->lua, L_FUNCTION_PREFIX"path_normalize", lf_path_normalize);
 	lua_register(context->lua, L_FUNCTION_PREFIX"path_isnice", lf_path_isnice);
 	
 	lua_register(context->lua, L_FUNCTION_PREFIX"path_ext", lf_path_ext);
 	lua_register(context->lua, L_FUNCTION_PREFIX"path_path", lf_path_path);
+	lua_register(context->lua, L_FUNCTION_PREFIX"path_base", lf_path_base);
 	lua_register(context->lua, L_FUNCTION_PREFIX"path_filename", lf_path_filename);
 
 	/* various support functions */
@@ -303,6 +328,9 @@ int register_lua_globals(struct CONTEXT *context)
 
 	lua_register(context->lua, L_FUNCTION_PREFIX"isstring", lf_isstring);
 	lua_register(context->lua, L_FUNCTION_PREFIX"istable", lf_istable);
+
+	lua_register(context->lua, L_FUNCTION_PREFIX"table_walk", lf_table_walk);
+	lua_register(context->lua, L_FUNCTION_PREFIX"table_deepcopy", lf_table_deepcopy);
 
 	/* error handling */
 	lua_register(context->lua, "errorfunc", lf_errorfunc);
@@ -357,6 +385,9 @@ int register_lua_globals(struct CONTEXT *context)
 	lua_pushnumber(context->lua, session.verbose);
 	lua_setglobal(context->lua, "verbose");
 
+	if(option_debug_trace_vm)
+		lua_sethook(context->lua, lua_vm_trace_hook, LUA_MASKCOUNT, 1);
+
 	/* load base script */
 	if(!option_debug_nointernal)
 	{
@@ -395,43 +426,6 @@ int register_lua_globals(struct CONTEXT *context)
 	}
 	
 	return error;
-}
-
-static int allocs = 0;
-
-static void *lua_alloctor_malloc(void *ud, void *ptr, size_t osize, size_t nsize)
-{
-	allocs++;
-	if (nsize == 0)
-	{
-		free(ptr);
-		return NULL;
-	}
-	
-	return realloc(ptr, nsize);
-}
-
-static struct HEAP *luaheap;
-
-static void *lua_alloctor_incheap(void *ud, void *ptr, size_t osize, size_t nsize)
-{
-	void *new_ptr;
-	(void)ud; /* not used */
-
-	allocs++;
-
-	if(nsize == 0)
-		return NULL;
-
-	new_ptr = mem_allocate(luaheap, nsize);
-	if(osize)
-	{
-		if(osize < nsize)
-			osize = nsize;
-		memcpy(new_ptr, ptr, osize);
-	}
-
-	return new_ptr;
 }
 
 /* returns 0 on no find, 1 on find and -1 on error */
@@ -703,17 +697,7 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	/* create lua context */
 	/* HACK: Store the context pointer as the userdata pointer to the allocator to make
 		sure that we have fast access to it. This makes the context_get_pointer call very fast */
-	if(option_gc)
-		context.lua = lua_newstate(lua_alloctor_malloc, &context);
-	else
-	{
-		context.luaheap = mem_create();
-		luaheap = context.luaheap; /*mem_create();*/
-		context.lua = lua_newstate(lua_alloctor_incheap, &context);
-
-		/* we don't need the gc, just run and destroy it later */
-		lua_gc(context.lua, LUA_GCSTOP, 0);
-	}
+	context.lua = lua_newstate(lua_alloctor_malloc, &context);
 
 	/* install panic function */
 	lua_atpanic(context.lua, lf_panicfunc);

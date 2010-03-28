@@ -314,17 +314,17 @@ int lf_path_isnice(lua_State *L)
 	return 1;
 }
 
-int lf_path_fix(lua_State *L)
+int lf_path_normalize(lua_State *L)
 {
 	int n = lua_gettop(L);
 	const char *path = 0;
 
 	if(n < 1)
-		luaL_error(L, "path_fix: incorrect number of arguments");
+		luaL_error(L, "path_normalize: incorrect number of arguments");
 	
 	path = lua_tostring(L, 1);
 	if(!path)
-		luaL_error(L, "path_fix: got null-string");
+		luaL_error(L, "path_normalize: got null-string");
 	
 	if(path_isnice(path))
 	{
@@ -374,6 +374,37 @@ int lf_path_ext(lua_State *L)
 		luaL_error(L, "path_ext: argument is not a string");
 		
 	lua_pushstring(L, path_ext(path));
+	return 1;
+}
+
+
+/*  */
+int lf_path_base(lua_State *L)
+{
+	int n = lua_gettop(L);
+	size_t org_len;
+	size_t new_len;
+	size_t count = 0;
+	const char *cur = 0;
+	const char *path = 0;
+	if(n < 1)
+		luaL_error(L, "path_base: incorrect number of arguments");
+	
+	path = lua_tolstring(L, 1, &org_len);
+	if(!path)
+		luaL_error(L, "path_base: argument is not a string");
+
+	/* cut off the ext */
+	new_len = org_len;
+	for(cur = path; *cur; cur++, count++)
+	{
+		if(*cur == '.')
+			new_len = count;
+		else if(*cur == '/')
+			new_len = org_len;
+	}
+		
+	lua_pushlstring(L, path, new_len);
 	return 1;
 }
 

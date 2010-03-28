@@ -118,11 +118,28 @@ static int add_node_attribute(lua_State *L, const char *funcname, struct NODE *(
 		luaL_error(L, "%s: couldn't find node with name '%s'", funcname, lua_tostring(L,1));
 	
 	/* seek deps */
+	/* TODO: do a proper table walk? */
 	for(i = 2; i <= n; ++i)
 	{
-		luaL_checktype(L, n, LUA_TSTRING);
-		if(!callback(node, lua_tostring(L,n)))
-			luaL_error(L, "%s: could not add '%s' to '%s'", funcname, lua_tostring(L,n), lua_tostring(L,1));
+		/* handle the case if we get a table into this function as well */
+		if(lua_istable(L, n))
+		{
+			lua_pushnil(L);
+			while(lua_next(L, n))
+			{
+				luaL_checktype(L, -1, LUA_TSTRING);
+				if(!callback(node, lua_tostring(L, -1)))
+					luaL_error(L, "%s: could not add '%s' to '%s'", funcname, lua_tostring(L, -1), lua_tostring(L,1));
+								
+				lua_pop(L, 1);
+			}
+		}
+		else
+		{
+			luaL_checktype(L, n, LUA_TSTRING);
+			if(!callback(node, lua_tostring(L,n)))
+				luaL_error(L, "%s: could not add '%s' to '%s'", funcname, lua_tostring(L,n), lua_tostring(L,1));
+		}
 	}
 	
 	return 0;
@@ -442,4 +459,124 @@ int lf_isstring(lua_State *L)
 	return 1;
 }
 
+/* TODO: remove this limit */
+#define WALK_MAXDEPTH 32
 
+struct WALKDATA
+{
+	int index[WALK_MAXDEPTH];
+	int depth;
+};
+
+static int lf_table_walk_iter(struct lua_State *L)
+{
+	struct WALKDATA *data;
+	int type;
+	
+	/* 1: walk table  2: last value(ignore) */
+	lua_rawgeti(L, 1, 1); /* push 3: the walk data */
+	data = (struct WALKDATA *)lua_touserdata(L, -1);
+	
+	/* 1: walk table  2: last value 3: walk data */
+	while(1)
+	{
+		data->index[data->depth]++;
+		
+		/* .. 4: current table 5: current value */
+		lua_rawgeti(L, 1, data->depth+1); /* push 4: fetch table */
+		lua_rawgeti(L, -1, data->index[data->depth]); /* push 5: value in table */
+		
+		type = lua_type(L, -1);
+		
+		if(type == LUA_TTABLE)
+		{
+			data->depth++;
+			if(data->depth >= WALK_MAXDEPTH)
+				luaL_error(L, "max table depth exceeded");
+			data->index[data->depth] = 0;
+			lua_rawseti(L, 1, data->depth+1);
+			lua_pop(L, 1);
+		}
+		else if(type == LUA_TNIL)
+		{
+			/* pop table and nil value */
+			lua_pop(L, 2);
+			data->depth--;
+			if(data->depth == 0)
+			{
+				lua_pushnil(L);
+				return 1;
+			}
+		}
+		else if(type == LUA_TSTRING)
+		{
+			lua_pushvalue(L, 1); /* push the table stack again */
+			return 2;
+		}
+		else
+			luaL_error(L, "tablewalk: encountered strange value in tables");
+	}
+}
+
+/*
+	the walk table looks like this
+	t = {
+			[1] = walk data
+			[2] = table 1
+			[3] = table 2
+			[N] = table N
+	}
+*/
+int lf_table_walk(struct lua_State *L)
+{
+	struct WALKDATA *data;
+	
+	/* 1: table to iterate over */
+	lua_pushcfunction(L, lf_table_walk_iter); /* 2: iterator function */
+	lua_createtable(L, 4, 0); /* 3: table stack */
+	
+	data = (struct WALKDATA *)lua_newuserdata(L, sizeof(struct WALKDATA));
+	data->depth = 1;
+	data->index[data->depth] = 0;
+	lua_rawseti(L, 3, 1);
+	
+	lua_pushvalue(L, 1);
+	lua_rawseti(L, 3, 2);
+	lua_pushnil(L);
+	
+	return 3;
+}
+
+/* does a deep copy of a table */
+int lf_table_deepcopy(struct lua_State *L)
+{
+	/* 1: table to copy, 2: new table */
+	size_t s = lua_objlen(L, -1);
+	lua_createtable(L, 0, s);
+	
+	/* 3: iterator */
+	lua_pushnil(L);
+	while(lua_next(L, -3))
+	{
+		/* 4: value */
+		if(lua_istable(L, -1))
+		{
+			lf_table_deepcopy(L); /* 5: new table */
+			lua_pushvalue(L, -3); /* 6: key */
+			lua_pushvalue(L, -2); /* 7: value */
+			lua_settable(L, -6); /* pops 6 and 7 */
+			lua_pop(L, 1); /* pops 5 */
+		}
+		else
+		{
+			lua_pushvalue(L, -2); /* 5: key */
+			lua_pushvalue(L, -2); /* 6: value */
+			lua_settable(L, -5); /* pops 5 and 6 */
+		}
+		
+		/* pops 4 */
+		lua_pop(L, 1);
+	}
+	
+	return 1;
+}
