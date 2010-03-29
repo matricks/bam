@@ -1,10 +1,6 @@
 CheckVersion("0.4")
 
-config = NewConfig()
-config:Add(OptCCompiler("cc"))
-config:Finalize("config.bam")
-
-s = config:NewSettings()
+s = NewSettings()
 
 s.debug = 1
 s.optimize = 0
