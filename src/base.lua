@@ -61,6 +61,57 @@ end
 @END]]--
 Path = bam_path_normalize
 
+--[[@UNITTESTS
+	err=1: PathBase(nil)
+	err=1: PathBase({})
+	catch="": PathBase("")
+	catch="/": PathBase("/")
+	catch="test/path/file.name": PathBase("test/path/file.name.ext")
+	catch="/a/../b.c/./file": PathBase("/a/../b.c/./file.ext")
+@END]]--
+--[[@FUNCTION PathBase(path)
+	Returns the everthing except the extention in the path.
+
+	{{{{
+	Path("test/path/file.name.ext") -- Returns "test/path/file.name"
+	Path("test/path/file.name") -- Returns "test/path/file"
+	Path("test/path/file") -- Returns "test/path/file"
+	}}}}
+@END]]--
+PathBase = bam_path_base
+
+--[[@UNITTESTS
+	err=1 : PathFileExt(nil)
+	err=1 : PathFileExt({})
+	catch="" : PathFileExt("")
+	catch="" : PathFileExt("/")
+	catch="ext" : PathFileExt("/a/../b.c/./file.ext")
+@END]]--
+--[[@FUNCTION PathFileExt(str)
+	Returns the extension of the filename in ^str^.
+	
+	{{{{
+	PathFileExt("test/path/file.name.ext") -- Returns "ext"
+	}}}}
+@END]]--
+PathFileExt = bam_path_ext
+
+--[[@UNITTESTS
+	err=1 : PathFilename(nil)
+	err=1 : PathFilename({})
+	catch="" : PathFilename("")
+	catch="" : PathFilename("/")
+	catch="file.ext" : PathFilename("/a/../b.c/./file.ext")
+@END]]--
+--[[@FUNCTION PathFilename(str)
+	Returns the filename of the path in ^str^.
+
+	{{{{
+	PathFilename("test/path/file.name.ext") -- Returns "file.name.ext"
+	}}}}
+@END]]--
+PathFilename = bam_path_filename
+
 --[TODO: Should be in C]
 --[[@UNITTESTS
 	err=1 : PathJoin(nil)
@@ -101,25 +152,6 @@ function PathJoin(base, add)
 end
 
 --[[@UNITTESTS
-	err=1: PathBase(nil)
-	err=1: PathBase({})
-	catch="": PathBase("")
-	catch="/": PathBase("/")
-	catch="test/path/file.name": PathBase("test/path/file.name.ext")
-	catch="/a/../b.c/./file": PathBase("/a/../b.c/./file.ext")
-@END]]--
---[[@FUNCTION PathBase(path)
-	Returns the everthing except the extention in the path.
-
-	{{{{
-	Path("test/path/file.name.ext") -- Returns "test/path/file.name"
-	Path("test/path/file.name") -- Returns "test/path/file"
-	Path("test/path/file") -- Returns "test/path/file"
-	}}}}
-@END]]--
-PathBase = bam_path_base
-
---[[@UNITTESTS
 	err=1 : PathPath(nil)
 	err=1 : PathPath({})
 	catch="" : PathPath("")
@@ -134,38 +166,6 @@ PathBase = bam_path_base
 	}}}}
 @END]]--
 PathPath = bam_path_path
-
---[[@UNITTESTS
-	err=1 : PathFilename(nil)
-	err=1 : PathFilename({})
-	catch="" : PathFilename("")
-	catch="" : PathFilename("/")
-	catch="file.ext" : PathFilename("/a/../b.c/./file.ext")
-@END]]--
---[[@FUNCTION PathFilename(str)
-	Returns the filename of the path in ^str^.
-
-	{{{{
-	PathFilename("test/path/file.name.ext") -- Returns "file.name.ext"
-	}}}}
-@END]]--
-PathFilename = bam_path_filename
-
---[[@UNITTESTS
-	err=1 : PathFileExt(nil)
-	err=1 : PathFileExt({})
-	catch="" : PathFileExt("")
-	catch="" : PathFileExt("/")
-	catch="ext" : PathFileExt("/a/../b.c/./file.ext")
-@END]]--
---[[@FUNCTION PathFileExt(str)
-	Returns the extension of the filename in ^str^.
-	
-	{{{{
-	PathFileExt("test/path/file.name.ext") -- Returns "ext"
-	}}}}
-@END]]--
-PathFileExt = bam_path_ext
 
 -- [TODO: Should be in C?]
 function str_replace(s, pattern, what)
@@ -240,14 +240,14 @@ end
 --[[@FUNCTION TableDeepCopy(tbl)
 	Makes a deep copy of the table ^tbl^ resulting in a complete separate
 	table.
-]]
+@END]]--
 TableDeepCopy = bam_table_deepcopy
 
 --[[@UNITTESTS
 	err=0 : TableFlatten({"", {"", {""}, ""}, "", {}, {""}})
 	err=1 : TableFlatten({"", {"", {""}, ""}, 1, {""}})
 @END]]--
---[[@FUNCTION
+--[[@FUNCTION TableFlatten(tbl)
 	Flattens a tree of tables
 @END]]--
 function TableFlatten(varargtable)
@@ -271,7 +271,7 @@ end
 --[[@FUNCTION TableLock(tbl)
 	Locks the table ^tbl^ so no new keys can be added. Trying to add a new
 	key will result in an error.
-]]
+@END]]--
 function TableLock(tbl)
 	local mt = getmetatable(tbl)
 	if not mt then mt = {} end
@@ -388,48 +388,6 @@ CollectDirs = bam_collectdirs
 @END]]--
 CollectDirsRecursive = bam_collectdirsrecursive
 
---[[@GROUP Actions@END]]--
-
--- Copy
---[[@FUNCTION
-	e
-@END]]--
-function Copy(outputdir, ...)
-	local outputs = {}
-
-	local copy_command = "cp"
-	local copy_append = ""
-
-	if family == "windows" then
-		copy_command = "copy /b" -- binary copy
-		copy_append = " >nul 2>&1" -- suppress output
-	end
-	
-	-- compile all the files
-	for inname in TableWalk({...}) do
-		output = Path(outputdir .. "/" .. PathFilename(inname))
-		input = Path(inname)
-
-		local srcfile = input
-		local dstfile = output
-		if family == "windows" then
-			srcfile = str_replace(srcfile, "/", "\\")
-			dstfile = str_replace(dstfile, "/", "\\")
-		end
-
-		AddJob(output,
-			"copy " .. input .. " -> " .. output,
-			copy_command .. " " .. srcfile .. " " .. dstfile .. copy_append)
-
-		-- make sure that the files timestamps are updated correctly
-		SetTouch(output)
-		AddDependency(output, input)
-		table.insert(outputs, output)
-	end
-	
-	return outputs
-end
-
 --[[@GROUP Targets@END]]--
 
 --[[@FUNCTION DefaultTarget(filename)
@@ -451,21 +409,6 @@ function PseudoTarget(name, ...)
 	end
 
 	return name
-end
-
---- SilentExecute
-function _execute_silent_win(command) return os.execute(command .. " >nul 2>&1") end
-function _execute_silent_unix(command) return os.execute(command .. " >/dev/null 2>/dev/null") end
-
---[[@FUNCTION ExecuteSilent(command)
-	Executes a command in the shell and returns the error code. It supresses stdout and stderr
-	of that command.
-@END]]--
-
-if family == "windows" then
-	ExecuteSilent = _execute_silent_win
-else
-	ExecuteSilent = _execute_silent_unix
 end
 
 --[[@GROUP Modules@END]]--
@@ -562,6 +505,8 @@ end
 function DriverNull()
 	error("no driver set")
 end
+
+--[[@GROUP Actions @END]]--
 
 ------------------------ C/C++ COMPILE ------------------------
 
@@ -660,6 +605,46 @@ function CTestCompile(settings, code, options)
 	return settings.cc.DriverCTest(code, options)
 end
 
+--[[@FUNCTION
+	e
+@END]]--
+function Copy(outputdir, ...)
+	local outputs = {}
+
+	local copy_command = "cp"
+	local copy_append = ""
+
+	if family == "windows" then
+		copy_command = "copy /b" -- binary copy
+		copy_append = " >nul 2>&1" -- suppress output
+	end
+	
+	-- compile all the files
+	for inname in TableWalk({...}) do
+		output = Path(outputdir .. "/" .. PathFilename(inname))
+		input = Path(inname)
+
+		local srcfile = input
+		local dstfile = output
+		if family == "windows" then
+			srcfile = str_replace(srcfile, "/", "\\")
+			dstfile = str_replace(dstfile, "/", "\\")
+		end
+
+		AddJob(output,
+			"copy " .. input .. " -> " .. output,
+			copy_command .. " " .. srcfile .. " " .. dstfile .. copy_append)
+
+		-- make sure that the files timestamps are updated correctly
+		SetTouch(output)
+		AddDependency(output, input)
+		table.insert(outputs, output)
+	end
+	
+	return outputs
+end
+
+
 ------------------------ LINK ------------------------
 
 AddTool("link", function (settings)
@@ -717,39 +702,6 @@ function Link(settings, output, ...)
 	return output
 end
 
------------------------- STATIC LIBRARY ACTION ------------------------
-
-AddTool("lib", function (settings)
-	settings.lib = {}
-	settings.lib.Driver = DriverNull
-	settings.lib.Output = Default_Intermediate_Output
-	settings.lib.prefix = ""
-	settings.lib.extension = ""
-	settings.lib.exe = ""
-	settings.lib.flags = NewFlagTable()
-	
-	TableLock(settings.lib)
-end)
-
---[[@FUNCTION
-	TODO
-@END]]--
-function StaticLibrary(settings, output, ...)
-	CheckSettings(settings)
-	
-	local inputs = TableFlatten({...})
-
-	output = settings.lib.Output(settings, PathJoin(PathPath(output), settings.lib.prefix .. PathFilename(output))) .. settings.lib.extension
-
-	AddJob(output, settings.labelprefix .. "lib " .. output, settings.lib.Driver(output, inputs, settings))
-
-	for index, inname in ipairs(inputs) do
-		AddDependency(output, inname)
-	end
-
-	return output
-end
-
 ------------------------ SHARED LIBRARY ACTION ------------------------
 
 AddTool("dll", function (settings)
@@ -802,3 +754,53 @@ function SharedLibrary(settings, output, ...)
 	return output
 end
 
+
+------------------------ STATIC LIBRARY ACTION ------------------------
+
+AddTool("lib", function (settings)
+	settings.lib = {}
+	settings.lib.Driver = DriverNull
+	settings.lib.Output = Default_Intermediate_Output
+	settings.lib.prefix = ""
+	settings.lib.extension = ""
+	settings.lib.exe = ""
+	settings.lib.flags = NewFlagTable()
+	
+	TableLock(settings.lib)
+end)
+
+--[[@FUNCTION
+	TODO
+@END]]--
+function StaticLibrary(settings, output, ...)
+	CheckSettings(settings)
+	
+	local inputs = TableFlatten({...})
+
+	output = settings.lib.Output(settings, PathJoin(PathPath(output), settings.lib.prefix .. PathFilename(output))) .. settings.lib.extension
+
+	AddJob(output, settings.labelprefix .. "lib " .. output, settings.lib.Driver(output, inputs, settings))
+
+	for index, inname in ipairs(inputs) do
+		AddDependency(output, inname)
+	end
+
+	return output
+end
+
+
+--[[@GROUP Other @END]]--
+
+--- SilentExecute
+function _execute_silent_win(command) return os.execute(command .. " >nul 2>&1") end
+function _execute_silent_unix(command) return os.execute(command .. " >/dev/null 2>/dev/null") end
+
+--[[@FUNCTION ExecuteSilent(command)
+	Executes a command in the shell and returns the error code. It supresses stdout and stderr
+	of that command.
+@END]]--
+if family == "windows" then
+	ExecuteSilent = _execute_silent_win
+else
+	ExecuteSilent = _execute_silent_unix
+end
