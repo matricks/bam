@@ -25,24 +25,26 @@ function DriverCL_Common(cpp, settings)
 end
 
 function DriverCL_CXX(label, output,input, settings)
-	if settings.cc._invoke_counter ~= settings.cc._cxx_cache.nr then
-		settings.cc._cxx_cache.nr = settings.cc._invoke_counter
-		settings.cc._cxx_cache.str = DriverCL_Common(true, settings)
+	local cc = settings.cc
+	local cache = cc._cxx_cache
+	if cc._invoke_counter ~= cache.nr then
+		cache.nr = settings.cc._invoke_counter
+		cache.str = DriverCL_Common(true, settings)
 	end
 	
-	local exec = settings.cc._cxx_cache.str .. output .. " " .. input
-	AddJob(output, label, exec)
+	AddJob(output, label, cache.str .. output .. " " .. input)
 	SetFilter(output, "F" .. PathFilename(input))
 end
 
 function DriverCL_C(label, output, input, settings)
-	if settings.cc._invoke_counter ~= settings.cc._c_cache.nr then
-		settings.cc._c_cache.nr = settings.cc._invoke_counter
-		settings.cc._c_cache.str = DriverCL_Common(nil, settings)
+	local cc = settings.cc
+	local cache = cc._c_cache
+	if cc._invoke_counter ~= cache.nr then
+		cache.nr = settings.cc._invoke_counter
+		cache.str = DriverCL_Common(nil, settings)
 	end
 	
-	local exec = settings.cc._c_cache.str .. output .. " " .. input
-	AddJob(output, label, exec)
+	AddJob(output, label, cache.str .. output .. " " .. input)
 	SetFilter(output, "F" .. PathFilename(input))
 end
 
