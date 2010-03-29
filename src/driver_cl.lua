@@ -1,11 +1,11 @@
 
 ----- cl compiler ------
-function DriverCL_Common(cpp, label, output, input, settings)
+function DriverCL_Common(cpp, settings)
 	local defs = tbl_to_str(settings.cc.defines, "-D", " ") .. " "
 	local incs = tbl_to_str(settings.cc.includes, '-I"', '" ')
 	local incs = incs .. tbl_to_str(settings.cc.systemincludes, '-I"', '" ')
 	local flags = settings.cc.flags:ToString()
-	if cpp == "c++" then
+	if cpp then
 		flags = flags .. settings.cc.cpp_flags:ToString()
 	else
 		flags = flags .. settings.cc.c_flags:ToString()
@@ -20,18 +20,30 @@ function DriverCL_Common(cpp, label, output, input, settings)
 	
 	if settings.debug > 0 then flags = flags .. "/Od /MTd /Z7 /D \"_DEBUG\" " end
 	if settings.optimize > 0 then flags = flags .. "/Ox /Ot /MT /D \"NDEBUG\" " end
-	local exec = exe .. " /nologo /D_CRT_SECURE_NO_DEPRECATE /c " .. flags .. input .. " " .. incs .. defs .. " /Fo" .. output
+	local exec = exe .. " /nologo /D_CRT_SECURE_NO_DEPRECATE /c " .. flags .. " " .. incs .. defs .. " /Fo"
+	return exec
+end
 
+function DriverCL_CXX(label, output,input, settings)
+	if settings.cc._invoke_counter ~= settings.cc._cxx_cache.nr then
+		settings.cc._cxx_cache.nr = settings.cc._invoke_counter
+		settings.cc._cxx_cache.str = DriverCL_Common(true, settings)
+	end
+	
+	local exec = settings.cc._cxx_cache.str .. output .. " " .. input
 	AddJob(output, label, exec)
 	SetFilter(output, "F" .. PathFilename(input))
 end
 
-function DriverCL_CXX(label, output,input, settings)
-	DriverCL_Common(true, label, output, input, settings)
-end
-
 function DriverCL_C(label, output, input, settings)
-	DriverCL_Common(nil, label, output, input, settings)
+	if settings.cc._invoke_counter ~= settings.cc._c_cache.nr then
+		settings.cc._c_cache.nr = settings.cc._invoke_counter
+		settings.cc._c_cache.str = DriverCL_Common(nil, settings)
+	end
+	
+	local exec = settings.cc._c_cache.str .. output .. " " .. input
+	AddJob(output, label, exec)
+	SetFilter(output, "F" .. PathFilename(input))
 end
 
 function DriverCL_CTest(code, options)
