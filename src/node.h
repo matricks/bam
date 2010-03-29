@@ -99,7 +99,8 @@ struct NODE
 	/* various flags (4 bytes in the end) */
 	unsigned dirty:8; /* non-zero if the node has to be rebuilt */
 	unsigned depchecked:1; /* set if a dependency checker have processed the file */
-	unsigned counted:1;
+	unsigned counted:1; /* set if we have counted this node towards the number of targets to build */
+	unsigned targeted:1; /* set if this node is targeted for a build */
 	unsigned touch:1; /* when built, touch the output file as well */
 	
 	volatile unsigned workstatus:2; /* build status of the node, NODESTATUS_* flags */

@@ -448,15 +448,21 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 		}
 	}
 
+	/* mark as targeted */
+	if(!walkinfo->revisiting)
+		node->targeted = 1;
+	
 	/* count commands */
-	if(node->cmdline && node->dirty && !node->counted)
+	if(node->cmdline && node->dirty && !node->counted && node->targeted)
 	{
 		node->counted = 1;
 		context->num_commands++;
 	}
 	
 	/* check if we should revisit it's parents to
-		propagate the dirty state and timestamp */
+		propagate the dirty state and timestamp.
+		this can cause us to go outside the targeted
+		nodes and into nodes that are not targeted. be aware */
 	if(olddirty != node->dirty || oldtimestamp != node->timestamp)
 	{
 		for(parent = node->firstparent; parent; parent = parent->next)
