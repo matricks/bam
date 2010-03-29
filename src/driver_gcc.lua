@@ -1,39 +1,38 @@
 
 ------------------------ C/C++ GCC DRIVER ------------------------
 
-function compile_c_cxx_gcc(cpp, label, exe, output, input, settings)
-	if settings.cc._invoke_counter ~= settings.cc._c_cache.nr then
-		settings.cc._c_cache.nr = settings.cc._invoke_counter
-		
-		local d = tbl_to_str(settings.cc.defines, "-D", " ")
-		local i = tbl_to_str(settings.cc.includes, '-I "', '" ')
-		local i = i .. tbl_to_str(settings.cc.systemincludes, '-isystem "', '" ')
-		local i = i .. tbl_to_str(settings.cc.frameworks, '-framework ', ' ')
-		local f = settings.cc.flags:ToString()
+function DriverGCC_Common(cpp, label, cache, exe, output, input, settings)
+	if settings.invoke_count ~= cache.nr then
+		cache.nr = settings.invoke_count
+		local cc = settings.cc
+		local d = tbl_to_str(cc.defines, "-D", " ")
+		local i = tbl_to_str(cc.includes, '-I "', '" ')
+		local i = i .. tbl_to_str(cc.systemincludes, '-isystem "', '" ')
+		local i = i .. tbl_to_str(cc.frameworks, '-framework ', ' ')
+		local f = cc.flags:ToString()
 		if cpp then
-			f = f .. settings.cc.cpp_flags:ToString()
+			f = f .. cc.cpp_flags:ToString()
 		else
-			f = f .. settings.cc.c_flags:ToString()
+			f = f .. cc.c_flags:ToString()
 		end
 		if settings.debug > 0 then f = f .. "-g " end
 		if settings.optimize > 0 then f = f .. "-O2 " end
 		
-		settings.cc._c_cache.str = exe .. ' ' .. f ..'-c ' .. d .. i .. ' -o '
+		cache.str = exe .. " " .. f .. "-c " .. d .. i .. " -o "
 	end
-
-	local e = settings.cc._c_cache.str .. output .. " " .. input
-	AddJob(output, label, e)
+	
+	AddJob(output, label, cache.str .. output .. " " .. input)
 end
 
-function DriverCXX_GCC(label, output, input, settings)
-	compile_c_cxx_gcc(true, label, settings.cc.cxx_exe,output,input,settings)
+function DriverGCC_CXX(label, output, input, settings)
+	DriverGCC_Common(true, label, settings.cc._cxx_cache, settings.cc.cxx_exe, output, input, settings)
 end
 
-function DriverC_GCC(label, output, input, settings)
-	compile_c_cxx_gcc(nil, label, settings.cc.c_exe,output,input,settings)
+function DriverGCC_C(label, output, input, settings)
+	DriverGCC_Common(nil, label, settings.cc._c_cache, settings.cc.c_exe, output, input, settings)
 end
 
-function DriverCTest_GCC(code, options)
+function DriverGCC_CTest(code, options)
 	local f = io.open("_test.c", "w")
 	f:write(code)
 	f:write("\n")
@@ -46,7 +45,7 @@ end
 
 ------------------------ LINK GCC DRIVER ------------------------
 
-function DriverLink_GCC(label, output, inputs, settings)
+function DriverGCC_Link(label, output, inputs, settings)
 	local e = settings.link.exe .. " -o " .. output
 	local e = e .. " " .. settings.link.inputflags .. " " .. tbl_to_str(inputs, '', ' ') 
 	local e = e .. tbl_to_str(settings.link.extrafiles, '', ' ')
@@ -60,7 +59,7 @@ end
 
 ------------------------ LIB GCC DRIVER ------------------------
 
-function DriverLib_GCC(output, inputs, settings)
+function DriverGCC_Lib(output, inputs, settings)
 	local e = settings.lib.exe .. " rcu " .. output
 	local e = e .. " " .. tbl_to_str(inputs, '', ' ') .. settings.lib.flags:ToString()
 	return e
@@ -68,7 +67,7 @@ end
 
 ------------------------ DLL GCC DRIVER ------------------------
 
-function DriverDLL_GCC(label, output, inputs, settings)
+function DriverGCC_DLL(label, output, inputs, settings)
 	local shared_flags = ""
 
 	if platform == "macosx" then
@@ -93,22 +92,22 @@ function SetDriversGCC(settings)
 		settings.cc.extension = ".o"
 		settings.cc.c_exe = "gcc"
 		settings.cc.cxx_exe = "g++"
-		settings.cc.DriverCTest = DriverCTest_GCC
-		settings.cc.DriverC = DriverC_GCC
-		settings.cc.DriverCXX = DriverCXX_GCC	
+		settings.cc.DriverCTest = DriverGCC_CTest
+		settings.cc.DriverC = DriverGCC_C
+		settings.cc.DriverCXX = DriverGCC_CXX	
 	end
 	
 	if settings.link then
 		settings.link.extension = ""
 		settings.link.exe = "g++"
-		settings.link.Driver = DriverLink_GCC
+		settings.link.Driver = DriverGCC_Link
 	end
 	
 	if settings.lib then
 		settings.lib.prefix = "lib"
 		settings.lib.extension = ".a"
 		settings.lib.exe = "ar"
-		settings.lib.Driver = DriverLib_GCC
+		settings.lib.Driver = DriverGCC_Lib
 	end
 	
 	if settings.dll then
@@ -120,6 +119,6 @@ function SetDriversGCC(settings)
 			settings.dll.extension = ".so"
 		end
 		settings.dll.exe = "g++"
-		settings.dll.Driver = DriverDLL_GCC
+		settings.dll.Driver = DriverGCC_DLL
 	end
 end

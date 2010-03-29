@@ -25,10 +25,9 @@ function DriverCL_Common(cpp, settings)
 end
 
 function DriverCL_CXX(label, output,input, settings)
-	local cc = settings.cc
-	local cache = cc._cxx_cache
-	if cc._invoke_counter ~= cache.nr then
-		cache.nr = settings.cc._invoke_counter
+	local cache = settings.cc._cxx_cache
+	if settings.invoke_count ~= cache.nr then
+		cache.nr = settings.invoke_count
 		cache.str = DriverCL_Common(true, settings)
 	end
 	
@@ -37,10 +36,9 @@ function DriverCL_CXX(label, output,input, settings)
 end
 
 function DriverCL_C(label, output, input, settings)
-	local cc = settings.cc
-	local cache = cc._c_cache
-	if cc._invoke_counter ~= cache.nr then
-		cache.nr = settings.cc._invoke_counter
+	local cache = settings.cc._c_cache
+	if settings.invoke_count ~= cache.nr then
+		cache.nr = settings.invoke_count
 		cache.str = DriverCL_Common(nil, settings)
 	end
 	

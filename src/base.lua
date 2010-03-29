@@ -323,6 +323,7 @@ function NewSettings()
 	local settings = {}
 	
 	settings._is_settingsobject = true
+	settings.invoke_count = 0
 	settings.Copy = TableDeepCopy
 	
 	settings.filemappings = {}
@@ -997,7 +998,6 @@ function ModuleFilename()
 	return _bam_modulefilename
 end
 
-
 --[[@GROUP Job and Dependencies @END]]--
 
 --[[@FUNCTION AddJob(output, label, command, ...)
@@ -1056,7 +1056,6 @@ end
 
 function InitCommonCCompiler(settings)
 	settings.cc = {}
-	settings.cc._invoke_counter = 0
 	settings.cc._c_cache = { nr = 0, str = "" }
 	settings.cc._cxx_cache = { nr = 0, str = "" }
 	settings.cc.extension = ""
@@ -1124,7 +1123,7 @@ function Compile(settings, ...)
 	CheckSettings(settings)
 	local outputs = {}
 	
-	settings.cc._invoke_counter = settings.cc._invoke_counter + 1
+	settings.invoke_count = settings.invoke_count + 1
 
 	for inname in TableWalk({...}) do
 		-- fetch correct compiler
