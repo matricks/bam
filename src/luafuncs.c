@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <malloc.h>
+
 /* lua includes */
 #include <lua.h>
 #include <lualib.h>
@@ -577,6 +579,70 @@ int lf_table_deepcopy(struct lua_State *L)
 		/* pops 4 */
 		lua_pop(L, 1);
 	}
+	
+	return 1;
+}
+
+static char string_buffer[1024*4];
+
+int lf_table_tostring(struct lua_State *L)
+{
+	/* 1: table 2: prefix, 3: postfix */
+	size_t prefix_len, postfix_len;
+	size_t total_len = 0;
+	size_t item_len = 0;
+	const char *prefix = lua_tolstring(L, 2, &prefix_len);
+	const char *postfix = lua_tolstring(L, 3, &postfix_len);
+	char *buffer;
+	char *current;
+	const char *item;
+	
+	/* first, figure out the total size */
+	
+	/* 4: iterator */
+	lua_pushnil(L);
+	while(lua_next(L, 1))
+	{
+		/* 5: value */
+		if(lua_type(L, -1) == LUA_TSTRING)
+		{
+			lua_tolstring(L, -1, &item_len);
+			total_len += prefix_len+item_len+postfix_len;
+		}
+		
+		/* pops 5 */
+		lua_pop(L, 1);		
+	}
+	
+	/* now allocate the buffer and start building the complete string */
+	if(total_len < sizeof(string_buffer))
+		buffer = string_buffer;
+	else
+		buffer = malloc(total_len);
+		
+	current = buffer;
+
+	/* 4: iterator */
+	lua_pushnil(L);
+	while(lua_next(L, 1))
+	{
+		/* 5: value */
+		if(lua_type(L, -1) == LUA_TSTRING)
+		{
+			item = lua_tolstring(L, -1, &item_len);
+			memcpy(current, prefix, prefix_len); current += prefix_len;
+			memcpy(current, item, item_len); current += item_len;
+			memcpy(current, postfix, postfix_len); current += postfix_len;
+		}
+		
+		/* pops 5 */
+		lua_pop(L, 1);		
+	}
+	
+	/* push the new string onto the stack and clean up */
+	lua_pushlstring(L, buffer, total_len);
+	if(buffer != string_buffer)
+		free(buffer);
 	
 	return 1;
 }

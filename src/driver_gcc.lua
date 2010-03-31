@@ -5,10 +5,10 @@ function DriverGCC_Common(cpp, label, cache, exe, output, input, settings)
 	if settings.invoke_count ~= cache.nr then
 		cache.nr = settings.invoke_count
 		local cc = settings.cc
-		local d = tbl_to_str(cc.defines, "-D", " ")
-		local i = tbl_to_str(cc.includes, '-I "', '" ')
-		local i = i .. tbl_to_str(cc.systemincludes, '-isystem "', '" ')
-		local i = i .. tbl_to_str(cc.frameworks, '-framework ', ' ')
+		local d = TableToString(cc.defines, "-D", " ")
+		local i = TableToString(cc.includes, '-I "', '" ')
+		local i = i .. TableToString(cc.systemincludes, '-isystem "', '" ')
+		local i = i .. TableToString(cc.frameworks, '-framework ', ' ')
 		local f = cc.flags:ToString()
 		if cpp then
 			f = f .. cc.cpp_flags:ToString()
@@ -47,12 +47,12 @@ end
 
 function DriverGCC_Link(label, output, inputs, settings)
 	local e = settings.link.exe .. " -o " .. output
-	local e = e .. " " .. settings.link.inputflags .. " " .. tbl_to_str(inputs, '', ' ') 
-	local e = e .. tbl_to_str(settings.link.extrafiles, '', ' ')
-	local e = e .. tbl_to_str(settings.link.libpath, '-L', ' ')
-	local e = e .. tbl_to_str(settings.link.libs, '-l', ' ')
-	local e = e .. tbl_to_str(settings.link.frameworkpath, '-F', ' ')
-	local e = e .. tbl_to_str(settings.link.frameworks, '-framework ', ' ')
+	local e = e .. " " .. settings.link.inputflags .. " " .. TableToString(inputs, '', ' ') 
+	local e = e .. TableToString(settings.link.extrafiles, '', ' ')
+	local e = e .. TableToString(settings.link.libpath, '-L', ' ')
+	local e = e .. TableToString(settings.link.libs, '-l', ' ')
+	local e = e .. TableToString(settings.link.frameworkpath, '-F', ' ')
+	local e = e .. TableToString(settings.link.frameworks, '-framework ', ' ')
 	local e = e .. settings.link.flags:ToString()
 	AddJob(output, label, e)
 end
@@ -61,7 +61,7 @@ end
 
 function DriverGCC_Lib(output, inputs, settings)
 	local e = settings.lib.exe .. " rcu " .. output
-	local e = e .. " " .. tbl_to_str(inputs, '', ' ') .. settings.lib.flags:ToString()
+	local e = e .. " " .. TableToString(inputs, '', ' ') .. settings.lib.flags:ToString()
 	return e
 end
 
@@ -77,12 +77,12 @@ function DriverGCC_DLL(label, output, inputs, settings)
 	end
 
 	local e = settings.dll.exe .. shared_flags .. " -o " .. output
-	local e = e .. " " .. settings.dll.inputflags .. " " .. tbl_to_str(inputs, '', ' ') 
-	local e = e .. tbl_to_str(settings.dll.extrafiles, '', ' ')
-	local e = e .. tbl_to_str(settings.dll.libpath, '-L', ' ')
-	local e = e .. tbl_to_str(settings.dll.libs, '-l', ' ')
-	local e = e .. tbl_to_str(settings.dll.frameworkpath, '-F', ' ')
-	local e = e .. tbl_to_str(settings.dll.frameworks, '-framework ', ' ')
+	local e = e .. " " .. settings.dll.inputflags .. " " .. TableToString(inputs, '', ' ') 
+	local e = e .. TableToString(settings.dll.extrafiles, '', ' ')
+	local e = e .. TableToString(settings.dll.libpath, '-L', ' ')
+	local e = e .. TableToString(settings.dll.libs, '-l', ' ')
+	local e = e .. TableToString(settings.dll.frameworkpath, '-F', ' ')
+	local e = e .. TableToString(settings.dll.frameworks, '-framework ', ' ')
 	local e = e .. settings.dll.flags:ToString()
 	AddJob(output, label, e)
 end

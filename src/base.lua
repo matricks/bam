@@ -172,19 +172,6 @@ function str_replace(s, pattern, what)
 	return string.gsub(s, pattern, function(v) return what end)
 end
 
--- make a table into a string
--- [TODO: Should be in C?]
--- [TODO: Should be removed?]
-function tbl_to_str(tbl, prefix, postfix)
-	local s = ""
-	for index,value in ipairs(tbl) do
-		if IsString(value) then
-			s = s .. prefix .. value .. postfix
-		end
-	end
-	return s
-end
-
 function NewTable()
 	local t = {}
 
@@ -215,12 +202,7 @@ function NewFlagTable()
 			return self.string
 		end
 		
-		local s = ""
-		for key,value in pairs(self) do
-			if type(value) == type("") then
-				s = s .. value .. " "
-			end
-		end
+		local s = TableToString(self, nil, " ")
 		
 		self.string = s
 		self.string_version = self.version
@@ -280,6 +262,18 @@ function TableLock(tbl)
 	end
 	setmetatable(tbl, mt)
 end
+
+--[[@UNITTESTS
+	catch="<a><b>" : TableToString({"a", "b"}, "<", ">")
+@END]]--
+--[[@FUNCTION TableToString(tbl, prefix, postfix)
+	Takes every string element in the ^tbl^ table, prepends ^prefix^ and appends ^postfix^
+	to each element and returns the result.
+	{{{{
+	TableToString({"a", "b"}, "<", ">") -- Returns "<a><b>"
+	}}}}
+@END]]--
+TableToString = bam_table_tostring
 
 --[[@UNITTESTS
 	err=0 : for s in TableWalk({"", {"", {""}, ""}, "", {}, {""}}) do end

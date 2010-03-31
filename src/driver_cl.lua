@@ -1,9 +1,9 @@
 
 ----- cl compiler ------
 function DriverCL_Common(cpp, settings)
-	local defs = tbl_to_str(settings.cc.defines, "-D", " ") .. " "
-	local incs = tbl_to_str(settings.cc.includes, '-I"', '" ')
-	local incs = incs .. tbl_to_str(settings.cc.systemincludes, '-I"', '" ')
+	local defs = TableToString(settings.cc.defines, "-D", " ") .. " "
+	local incs = TableToString(settings.cc.includes, '-I"', '" ')
+	local incs = incs .. TableToString(settings.cc.systemincludes, '-I"', '" ')
 	local flags = settings.cc.flags:ToString()
 	if cpp then
 		flags = flags .. settings.cc.cpp_flags:ToString()
@@ -71,17 +71,17 @@ function DriverCL_BuildResponse(exec, output, input)
 end
 
 function DriverCL_Lib(output, inputs, settings)
-	local input =  tbl_to_str(inputs, "", " ")
+	local input =  TableToString(inputs, "", " ")
 	local exe = str_replace(settings.lib.exe, "/", "\\")
 	local exec = exe .. " /nologo " .. settings.lib.flags:ToString() .. " /OUT:" .. output
 	return DriverCL_BuildResponse(exec, output, input)
 end
 
 function DriverCL_Link_Common(label, output, inputs, settings, part, extra)
-	local input =  tbl_to_str(inputs, "", " ")
+	local input =  TableToString(inputs, "", " ")
 	local flags = part.flags:ToString()
-	local libs  = tbl_to_str(part.libs, "", ".lib ")
-	local libpaths = tbl_to_str(part.libpath, "/libpath:\"", "\" ")
+	local libs  = TableToString(part.libs, "", ".lib ")
+	local libpaths = TableToString(part.libpath, "/libpath:\"", "\" ")
 	local exe = str_replace(part.exe, "/", "\\")
 	if settings.debug > 0 then flags = flags .. "/DEBUG " end
 	local exec = exe .. " /nologo /incremental:no " .. extra .. " " .. flags .. libpaths .. libs .. " /OUT:" .. output
