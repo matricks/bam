@@ -1,6 +1,5 @@
 -- just install a better name for the functions and tables
 ScriptArgs = _bam_scriptargs
-Execute = os.execute
 IsString = bam_isstring
 IsTable = bam_istable
 MakeDirectory = bam_mkdir
@@ -10,18 +9,6 @@ SetTouch = bam_set_touch
 AddOutput = bam_add_output
 
 --[[@GROUP Common @END]]--
-
---[[@UNITTESTS
-	err=1; find="expected a settings object": CheckSettings(nil)
-	err=1; find="expected a settings object": CheckSettings("")
-	err=1; find="expected a settings object": CheckSettings({})
-	err=0 : CheckSettings(NewSettings())
-@END]]--
-function CheckSettings(settings)
-	if not IsTable(settings) or settings._is_settingsobject == nil then
-		error("expected a settings object, got an " .. type(settings) .. " instead")
-	end
-end
 
 --[[@FUNCTION CheckVersion
 	Tells bam what version this script is written for. It will either
@@ -38,6 +25,21 @@ function CheckVersion(version)
 	end
 end
 
+--[[@FUNCTION Execute(command)
+	Executes the ^command^ in the shell and returns the error code.
+@END]]--
+Execute = os.execute
+
+--[[@FUNCTION ExecuteSilent(command)
+	Does the same as ^Execute(command)^ but supresses stdout and stderr of
+	that command.
+@END]]--
+if family == "windows" then
+	ExecuteSilent = function(command) return os.execute(command .. " >nul 2>&1") end
+else
+	ExecuteSilent = function(command) return os.execute(command .. " >/dev/null 2>/dev/null") end
+end
+
 --[[@GROUP Path Manipulation @END]]--
 
 --[[@UNITTESTS
@@ -52,7 +54,7 @@ end
 	catch="../path/file.name.ext" : Path("../test/../path/file.name.ext")
 @END]]--
 --[[@FUNCTION Path(str)
-	Normalizes the path in ^str^ by removing ".." and "." from it.
+	Normalizes the path ^str^ by removing ".." and "." from it.
 
 	{{{{
 	Path("test/./path/../file.name.ext") -- Returns "test/file.name.ext"
@@ -112,7 +114,6 @@ PathFileExt = bam_path_ext
 @END]]--
 PathFilename = bam_path_filename
 
---[TODO: Should be in C]
 --[[@UNITTESTS
 	err=1 : PathJoin(nil)
 	catch="a/b" : PathJoin("a/b", "")
@@ -124,7 +125,8 @@ PathFilename = bam_path_filename
 @END]]--
 --[[@FUNCTION PathJoin(base, add)
 	Joins the two paths ^base^ and ^add^ together and returns a
-	normalized path.
+	normalized path. This function haldes trailing path separators in
+	the ^base^ argument.
 		
 	{{{{
 	PathJoin("test/path/", "../filename.ext") -- Returns "test/filename.ext"
@@ -132,6 +134,7 @@ PathFilename = bam_path_filename
 	}}}}	
 	
 @END]]--
+--PathJoin = bam_path_join
 function PathJoin(base, add)
 	if string.len(base) == 0 then
 		return Path(add)
@@ -167,56 +170,6 @@ end
 @END]]--
 PathPath = bam_path_path
 
--- [TODO: Should be in C?]
-function str_replace(s, pattern, what)
-	return string.gsub(s, pattern, function(v) return what end)
-end
-
-function NewTable()
-	local t = {}
-
-	t.Add = function(self, ...)
-		for i,what in ipairs({...}) do
-			table.insert(self, what)
-		end
-		self.version = self.version + 1
-	end
-
-	t.Merge = function(self, source)
-		for k,v in ipairs(source) do
-			table.insert(self, v)
-		end
-		self.version = self.version + 1
-	end
-
-	t.version = 0
-
-	return t
-end
-
-function NewFlagTable()
-	local t = NewTable()
-
-	t.ToString = function(self)
-		if self.string_version == self.version then
-			return self.string
-		end
-		
-		local s = TableToString(self, nil, " ")
-		
-		self.string = s
-		self.string_version = self.version
-		
-		return s
-	end
-
-	t.string_version = 0
-	t.string = ""
-
-	return t
-end
-
-
 --[[@GROUP Tables @END]]--
 
 --[[@FUNCTION TableDeepCopy(tbl)
@@ -225,12 +178,20 @@ end
 @END]]--
 TableDeepCopy = bam_table_deepcopy
 
+--[[ TODO: implement in C ]]
 --[[@UNITTESTS
 	err=0 : TableFlatten({"", {"", {""}, ""}, "", {}, {""}})
 	err=1 : TableFlatten({"", {"", {""}, ""}, 1, {""}})
 @END]]--
 --[[@FUNCTION TableFlatten(tbl)
-	Flattens a tree of tables
+	Does a deep walk of the ^tbl^ table for strings and generates a new
+	flat table with the strings. If it occurs anything else then a table
+	or string, it will generate an error.
+	
+	{{{{
+	-- Returns {"a", "b", "c", "d", "e", "f"}
+	TableFlatten({"a", {"b", {"c"}, "d"}, "e", {}, {"f"}})
+	}}}}
 @END]]--
 function TableFlatten(varargtable)
 	function flatten(collection, varargtable)
@@ -269,6 +230,7 @@ end
 --[[@FUNCTION TableToString(tbl, prefix, postfix)
 	Takes every string element in the ^tbl^ table, prepends ^prefix^ and appends ^postfix^
 	to each element and returns the result.
+	
 	{{{{
 	TableToString({"a", "b"}, "<", ">") -- Returns "<a><b>"
 	}}}}
@@ -300,7 +262,7 @@ _bam_tools = {}
 @END]]--
 --[[@FUNCTION
 	Adds a new tool called ^name^ to bam. The ^func^ will be called
-	when NewSettings function is invoked with the settings object as
+	when ^NewSettings^ function is invoked with the settings object as
 	first parameter.
 @END]]--
 function AddTool(name, func)
@@ -308,10 +270,23 @@ function AddTool(name, func)
 end
 
 --[[@UNITTESTS
+	err=1; find="expected a settings object": CheckSettings(nil)
+	err=1; find="expected a settings object": CheckSettings("")
+	err=1; find="expected a settings object": CheckSettings({})
+	err=0 : CheckSettings(NewSettings())
+@END]]--
+function CheckSettings(settings)
+	if not IsTable(settings) or settings._is_settingsobject == nil then
+		error("expected a settings object, got an " .. type(settings) .. " instead")
+	end
+end
+
+--[[@UNITTESTS
 @END]]--
 --[[@FUNCTION
-	Create a new settings object with the settings for all the
-	registered tools.
+	Create a new settings table with the settings for all the registered
+	tools. This table is passed to many of the tools and contains how
+	they should act.
 @END]]--
 function NewSettings()
 	local settings = {}
@@ -333,16 +308,12 @@ function NewSettings()
 	for _, tool in pairs(_bam_tools) do
 		tool(settings)
 	end
+	
+	-- HACK: setup default drivers
+	SetDefaultDrivers(settings)
 
-	TableLock(settings)
-	
-	-- set default drivers
-	if family == "windows" then
-		SetDriversCL(settings)
-	else
-		SetDriversGCC(settings)
-	end
-	
+	-- lock the table and return
+	TableLock(settings)	
 	return settings
 end
 
@@ -453,6 +424,7 @@ end
 	will be created by the command line specified in ^command^ string.
 	The ^label^ is printed out before ^command^ is runned. You can also
 	add extra parameters, those will become for dependencies for the job.
+	
 	{{{{
 		AddJob("myapp.o", "compiling myapp.c", "gcc -c myapp.c -o myapp.o")
 		AddDependency("myapp.o", "myapp.c")
@@ -463,7 +435,7 @@ end
 	}}}}
 	You can also add several dependencies at once like this:
 	{{{{
-		AddJob("myapp", "linking myapp", "gcc myapp1.o myapp2.o -o myapp.o", {"myapp1.o", "myapp1.o"})
+		AddJob("myapp", "linking myapp", "gcc myapp1.o myapp2.o myapp3.o -o myapp.o", {"myapp1.o", "myapp2.o"}, "myapp3.o")
 	}}}}
 @END]]--
 -- TODO: Implement this in C
@@ -481,320 +453,60 @@ AddDependency = bam_add_dependency
 --[[@FUNCTION AddDependencySearch(filename, paths, dependencies)
 @END]]--
 AddDependencySearch = bam_add_dependency_search
---[[
-function AddDependencySearch(filename, paths, ...)
-	bam_add_dependency_search(filename, paths, ...)
-	AddDependency(output, {...})
-end]]--
-
-
--- TODO: document
-AddConstraintShared = bam_add_constraint_shared
-AddConstraintExclusive = bam_add_constraint_exclusive
 
 function Default_Intermediate_Output(settings, input)
 	return PathBase(input) .. settings.config_ext
 end
 
-function DriverNull()
-	error("no driver set")
+-- [TODO: Should be in C?]
+function str_replace(s, pattern, what)
+	return string.gsub(s, pattern, function(v) return what end)
 end
 
---[[@GROUP Actions @END]]--
+function NewTable()
+	local t = {}
 
------------------------- C/C++ COMPILE ------------------------
+	t.Add = function(self, ...)
+		for i,what in ipairs({...}) do
+			table.insert(self, what)
+		end
+		self.version = self.version + 1
+	end
 
-function InitCommonCCompiler(settings)
-	settings.cc = {}
-	settings.cc._c_cache = { nr = 0, str = "" }
-	settings.cc._cxx_cache = { nr = 0, str = "" }
-	settings.cc.extension = ""
-	settings.cc.c_exe = ""
-	settings.cc.cxx_exe = ""
-	settings.cc.DriverCTest = DriverNull
-	settings.cc.DriverC = DriverNull
-	settings.cc.DriverCXX = DriverNull
-	settings.cc.flags = NewFlagTable()
-	settings.cc.c_flags = NewFlagTable()
-	settings.cc.cpp_flags = NewFlagTable()
-	settings.cc.includes = NewTable()
-	settings.cc.systemincludes = NewTable()
-	settings.cc.defines = NewTable()
-	settings.cc.frameworks = NewTable()
-	settings.cc.Output = Default_Intermediate_Output
-	settings.cc.optimize = 0
-	
-	TableLock(settings.cc)
+	t.Merge = function(self, source)
+		for k,v in ipairs(source) do
+			table.insert(self, v)
+		end
+		self.version = self.version + 1
+	end
+
+	t.version = 0
+
+	return t
 end
 
-function CCompiler(settings, input)
-	local outname = settings.cc.Output(settings, input) .. settings.cc.extension
-	settings.cc.DriverC(settings.labelprefix .. "c " .. input, outname, input, settings)
-	AddDependency(outname, input)
-	bam_dependency_cpp(input, settings.cc.includes)
-	return outname
-end
+function NewFlagTable()
+	local t = NewTable()
 
-function CXXCompiler(settings, input)
-	local outname = settings.cc.Output(settings, input) .. settings.cc.extension
-	settings.cc.DriverCXX(settings.labelprefix .. "c++ " .. input, outname, input, settings)
-	AddDependency(outname, input)
-	bam_dependency_cpp(input, settings.cc.includes)	
-	return outname
-end
-
-
-AddTool("c", function (settings)
-	InitCommonCCompiler(settings)
-	settings.filemappings["c"] = CCompiler
-	settings.filemappings["m"] = CCompiler
-end)
-
-AddTool("cxx", function (settings)
-	InitCommonCCompiler(settings)
-	settings.filemappings["cpp"] = CXXCompiler
-	settings.filemappings["cxx"] = CXXCompiler
-	settings.filemappings["c++"] = CXXCompiler
-	settings.filemappings["cc"] = CXXCompiler
-end)
-
------------------------- COMPILE ACTION ------------------------
-	
--- Compiles C, Obj-C and C++ files
---[[@UNITTESTS
-	err=1; find="expected a settings object": Compile(nil)
-	err=1; find="compiler returned a nil": s = NewSettings(); s.filemappings["c"] = function()end; Compile(s, "test.c")
-	err=0 : s = NewSettings(); Compile(s)
-@END]]--
---[[@FUNCTION
-	TODO
-@END]]--
-function Compile(settings, ...)
-	CheckSettings(settings)
-	local outputs = {}
-	
-	settings.invoke_count = settings.invoke_count + 1
-
-	for inname in TableWalk({...}) do
-		-- fetch correct compiler
-		local ext = PathFileExt(inname)
-		local Compiler = settings.filemappings[ext]
-
-		if not Compiler then
-			error("'"..inname.."' has unknown extention '"..ext.."' which there are no compiler for")
+	t.ToString = function(self)
+		if self.string_version == self.version then
+			return self.string
 		end
 		
-		local objectfile = Compiler(settings, inname)
-		if not IsString(objectfile) then
-			error("compiler returned a "..type(objectfile).." instead of a string")
-		end
-		table.insert(outputs, objectfile)
+		local s = TableToString(self, nil, " ")
+		
+		self.string = s
+		self.string_version = self.version
+		
+		return s
 	end
-	
-	-- return the output
-	return outputs	
+
+	t.string_version = 0
+	t.string = ""
+
+	return t
 end
 
-function CTestCompile(settings, code, options)
-	return settings.cc.DriverCTest(code, options)
-end
+AddConstraintShared = bam_add_constraint_shared
+AddConstraintExclusive = bam_add_constraint_exclusive
 
---[[@FUNCTION
-	e
-@END]]--
-function Copy(outputdir, ...)
-	local outputs = {}
-
-	local copy_command = "cp"
-	local copy_append = ""
-
-	if family == "windows" then
-		copy_command = "copy /b" -- binary copy
-		copy_append = " >nul 2>&1" -- suppress output
-	end
-	
-	-- compile all the files
-	for inname in TableWalk({...}) do
-		output = Path(outputdir .. "/" .. PathFilename(inname))
-		input = Path(inname)
-
-		local srcfile = input
-		local dstfile = output
-		if family == "windows" then
-			srcfile = str_replace(srcfile, "/", "\\")
-			dstfile = str_replace(dstfile, "/", "\\")
-		end
-
-		AddJob(output,
-			"copy " .. input .. " -> " .. output,
-			copy_command .. " " .. srcfile .. " " .. dstfile .. copy_append)
-
-		-- make sure that the files timestamps are updated correctly
-		SetTouch(output)
-		AddDependency(output, input)
-		table.insert(outputs, output)
-	end
-	
-	return outputs
-end
-
-
------------------------- LINK ------------------------
-
-AddTool("link", function (settings)
-	settings.link = {}
-	settings.link.Driver = DriverNull
-	settings.link.Output = Default_Intermediate_Output
-	settings.link.LibMangle = function(name) error("no LibMangle function set") end
-	settings.link.extension = ""
-	settings.link.exe = ""
-	settings.link.inputflags = ""
-	settings.link.flags = NewFlagTable()
-	settings.link.libs = NewTable()
-	settings.link.frameworks = NewTable()
-	settings.link.frameworkpath = NewTable()
-	settings.link.libpath = NewTable()
-	settings.link.extrafiles = NewTable()
-	
-	TableLock(settings.link)
-end)
-
---[[@FUNCTION
-	TODO
-@END]]--
-function Link(settings, output, ...)
-	CheckSettings(settings)
-	
-	local inputs = TableFlatten({...})
-
-	output = settings.link.Output(settings, output) .. settings.link.extension
-	settings.link.Driver(settings.labelprefix .. "link " .. output, output, inputs, settings)
-
-	-- all the files
-	for index, inname in ipairs(inputs) do
-		AddDependency(output, inname)
-	end
-	
-	for index, inname in ipairs(settings.link.extrafiles) do
-		AddDependency(output, inname)
-	end
-	
-	-- add the libaries
-	local libs = {}
-	local paths = {}
-	
-	for index, inname in ipairs(settings.link.libs) do
-		table.insert(libs, settings.lib.prefix .. inname .. settings.lib.extension)
-	end
-
-	for index, inname in ipairs(settings.link.libpath) do
-		table.insert(paths, inname)
-	end
-	
-	AddDependencySearch(output, paths, libs)
-
-	return output
-end
-
------------------------- SHARED LIBRARY ACTION ------------------------
-
-AddTool("dll", function (settings)
-	settings.dll = {}
-	settings.dll.Driver = DriverNull
-	settings.dll.prefix = ""
-	settings.dll.extension = ""
-	settings.dll.Output = Default_Intermediate_Output
-	settings.dll.exe = ""
-	settings.dll.inputflags = ""
-	settings.dll.flags = NewFlagTable()
-	settings.dll.libs = NewTable()
-	settings.dll.frameworks = NewTable()
-	settings.dll.frameworkpath = NewTable()
-	settings.dll.libpath = NewTable()
-	settings.dll.extrafiles = NewTable()
-
-	TableLock(settings.dll)
-end)
-
---[[@FUNCTION
-	TODO
-@END]]--
-function SharedLibrary(settings, output, ...)
-	CheckSettings(settings)
-	
-	local inputs = TableFlatten({...})
-
-	output = settings.dll.Output(settings, PathJoin(PathPath(output), settings.dll.prefix .. PathFilename(output))) .. settings.dll.extension
-	settings.dll.Driver(settings.labelprefix .. "dll ".. output, output, inputs, settings)
-
-	for index, inname in ipairs(inputs) do
-		AddDependency(output, inname)
-	end
-
-	-- add the libaries
-	local libs = {}
-	local paths = {}
-	
-	for index, inname in ipairs(settings.dll.libs) do
-		table.insert(libs, settings.dll.prefix .. inname .. settings.lib.extension)
-	end
-
-	for index, inname in ipairs(settings.dll.libpath) do
-		table.insert(paths, inname)
-	end
-	
-	AddDependencySearch(output, paths, libs)
-	
-	return output
-end
-
-
------------------------- STATIC LIBRARY ACTION ------------------------
-
-AddTool("lib", function (settings)
-	settings.lib = {}
-	settings.lib.Driver = DriverNull
-	settings.lib.Output = Default_Intermediate_Output
-	settings.lib.prefix = ""
-	settings.lib.extension = ""
-	settings.lib.exe = ""
-	settings.lib.flags = NewFlagTable()
-	
-	TableLock(settings.lib)
-end)
-
---[[@FUNCTION
-	TODO
-@END]]--
-function StaticLibrary(settings, output, ...)
-	CheckSettings(settings)
-	
-	local inputs = TableFlatten({...})
-
-	output = settings.lib.Output(settings, PathJoin(PathPath(output), settings.lib.prefix .. PathFilename(output))) .. settings.lib.extension
-
-	AddJob(output, settings.labelprefix .. "lib " .. output, settings.lib.Driver(output, inputs, settings))
-
-	for index, inname in ipairs(inputs) do
-		AddDependency(output, inname)
-	end
-
-	return output
-end
-
-
---[[@GROUP Other @END]]--
-
---- SilentExecute
-function _execute_silent_win(command) return os.execute(command .. " >nul 2>&1") end
-function _execute_silent_unix(command) return os.execute(command .. " >/dev/null 2>/dev/null") end
-
---[[@FUNCTION ExecuteSilent(command)
-	Executes a command in the shell and returns the error code. It supresses stdout and stderr
-	of that command.
-@END]]--
-if family == "windows" then
-	ExecuteSilent = _execute_silent_win
-else
-	ExecuteSilent = _execute_silent_unix
-end

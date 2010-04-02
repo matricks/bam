@@ -9,6 +9,19 @@ class Node:
 		self.indexname = ""
 		self.tag = ""
 		self.nodes = []
+	def Sorted(self):
+		names = []
+		for n in self.nodes:
+			names += [n.name]
+		names.sort()
+		new_list = []
+		for name in names:
+			for n in self.nodes:
+				if n.name == name:
+					new_list += [n]
+					break
+		self.nodes = new_list
+		return self
 
 # tags
 group_tag = "@GROUP"

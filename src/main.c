@@ -104,14 +104,15 @@ static struct OPTION options[] = {
 	@END*/
 
 	/*@OPTION Script Arguments ( name=value )
-		TODO: Add documentation
+		Sets a script argument. These arguments can be fetched form the build script
+		by accessing the ^ScriptArgs^ table.
 	@END*/
 
 	{1, 0, 0						, "\n Execution:", ""},
 
 	/*@OPTION Abort on error ( -a )
 		Setting this will cause bam to abort the build process when an error has occured.
-		Normally it would continue as far as it can
+		Normally it would continue as far as it can.
 	@END*/
 	{1, 0,&option_abort_on_error	, "-a", "abort on error"},
 
@@ -204,7 +205,7 @@ static struct OPTION options[] = {
 	@END*/
 	{1, 0, &option_debug_nodes		, "--debug-nodes", "prints all the nodes with dependencies"},
 
-	/*@OPTION Debug: Dump Nodes Detailed( --debug-detail )
+	/*@OPTION Debug: Dump Nodes Detailed ( --debug-detail )
 		Dumps all nodes in the dependency graph, their state and their
 		dependent nodes. This is useful if you are writing your own
 		actions to verify that dependencies are correctly added.
