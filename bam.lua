@@ -16,13 +16,13 @@ end
 
 txt2c_tool = Link(s, "src/tools/txt2c", Compile(s, "src/tools/txt2c.c"))
 
-base_files = {"src/base.lua", "src/driver_gcc.lua", "src/driver_cl.lua"}
+base_files = {"src/base.lua", "src/tools.lua", "src/driver_gcc.lua", "src/driver_cl.lua"}
 internal_base = "src/internal_base.h"
 AddJob(
 	internal_base, 
 	"embedding lua code",
-	"src/tools/txt2c " .. tbl_to_str(base_files, " ", "") .. " > "..internal_base,
-	txt2c_tool, base_files)
+	"src/tools/txt2c " .. TableToString(base_files, " ", "") .. " > "..internal_base)
+AddDependency(internal_base, txt2c_tool, base_files)
 
 s.cc.includes:Add("src/lua")
 bam = Link(s, "bam", Compile(s, Collect("src/*.c", "src/lua/*.c")))

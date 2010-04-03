@@ -6,7 +6,7 @@ function DriverCL_Common(cpp, settings)
 	local incs = incs .. TableToString(settings.cc.systemincludes, '-I"', '" ')
 	local flags = settings.cc.flags:ToString()
 	if cpp then
-		flags = flags .. settings.cc.cpp_flags:ToString()
+		flags = flags .. settings.cc.cxx_flags:ToString()
 	else
 		flags = flags .. settings.cc.c_flags:ToString()
 	end

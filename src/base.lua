@@ -225,14 +225,14 @@ function TableLock(tbl)
 end
 
 --[[@UNITTESTS
-	catch="<a><b>" : TableToString({"a", "b"}, "<", ">")
+	catch="[a][b]" : TableToString({"a", "b"}, "[", "]")
 @END]]--
 --[[@FUNCTION TableToString(tbl, prefix, postfix)
 	Takes every string element in the ^tbl^ table, prepends ^prefix^ and appends ^postfix^
 	to each element and returns the result.
 	
 	{{{{
-	TableToString({"a", "b"}, "<", ">") -- Returns "<a><b>"
+	TableToString({"a", "b"}, "[", "]") -- Returns "[a][b]"
 	}}}}
 @END]]--
 TableToString = bam_table_tostring
@@ -265,8 +265,8 @@ _bam_tools = {}
 	when ^NewSettings^ function is invoked with the settings object as
 	first parameter.
 @END]]--
-function AddTool(name, func)
-	_bam_tools[name] = func
+function AddTool(func)
+	table.insert(_bam_tools, func)
 end
 
 --[[@UNITTESTS
@@ -293,16 +293,8 @@ function NewSettings()
 	
 	settings._is_settingsobject = true
 	settings.invoke_count = 0
-	settings.Copy = TableDeepCopy
 	
-	settings.filemappings = {}
-
-	settings.config_name = ""
-	settings.config_ext = ""
-	settings.labelprefix = ""
-	
-	settings.debug = 1
-	settings.optimize = 0
+	SetCommonSettings(settings)
 	
 	-- add all tools
 	for _, tool in pairs(_bam_tools) do

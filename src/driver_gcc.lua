@@ -11,7 +11,7 @@ function DriverGCC_Common(cpp, label, cache, exe, output, input, settings)
 		local i = i .. TableToString(cc.frameworks, '-framework ', ' ')
 		local f = cc.flags:ToString()
 		if cpp then
-			f = f .. cc.cpp_flags:ToString()
+			f = f .. cc.cxx_flags:ToString()
 		else
 			f = f .. cc.c_flags:ToString()
 		end
