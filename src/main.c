@@ -333,6 +333,7 @@ int register_lua_globals(struct CONTEXT *context)
 	lua_register(context->lua, L_FUNCTION_PREFIX"table_walk", lf_table_walk);
 	lua_register(context->lua, L_FUNCTION_PREFIX"table_deepcopy", lf_table_deepcopy);
 	lua_register(context->lua, L_FUNCTION_PREFIX"table_tostring", lf_table_tostring);
+	lua_register(context->lua, L_FUNCTION_PREFIX"table_flatten", lf_table_flatten);
 
 	/* error handling */
 	lua_register(context->lua, "errorfunc", lf_errorfunc);

@@ -583,6 +583,49 @@ int lf_table_deepcopy(struct lua_State *L)
 	return 1;
 }
 
+static int flatten_index;
+
+/* flattens a table into a simple table with strigns */
+static int lf_table_flatten_r(struct lua_State *L, int table_index)
+{	
+	/* +1: iterator */
+	lua_pushnil(L);
+	while(lua_next(L, table_index))
+	{
+		/* +2: value */
+		if(lua_istable(L, -1))
+			lf_table_flatten_r(L, lua_gettop(L));
+		else if(lua_type(L, -1) == LUA_TSTRING)
+		{
+			lua_pushnumber(L, flatten_index); /* +3: key */
+			lua_pushvalue(L, -2); /* +4: value */
+			lua_settable(L, 2); /* pops +3 and +4 */
+			
+			flatten_index++;
+		}
+		else
+		{
+			/* other value */
+			luaL_error(L, "encountered something besides a string or a table");
+		}
+		
+		/* pops +2 */
+		lua_pop(L, 1);
+	}
+	
+	return 1;
+}
+
+int lf_table_flatten(struct lua_State *L)
+{
+	/* 1: table to copy, 2: new table */
+	size_t s = lua_objlen(L, -1);
+	flatten_index = 1;
+	lua_createtable(L, 0, s);
+	lf_table_flatten_r(L, 1);
+	return 1;
+}
+
 static char string_buffer[1024*4];
 
 int lf_table_tostring(struct lua_State *L)

@@ -178,7 +178,6 @@ PathPath = bam_path_path
 @END]]--
 TableDeepCopy = bam_table_deepcopy
 
---[[ TODO: implement in C ]]
 --[[@UNITTESTS
 	err=0 : TableFlatten({"", {"", {""}, ""}, "", {}, {""}})
 	err=1 : TableFlatten({"", {"", {""}, ""}, 1, {""}})
@@ -193,23 +192,7 @@ TableDeepCopy = bam_table_deepcopy
 	TableFlatten({"a", {"b", {"c"}, "d"}, "e", {}, {"f"}})
 	}}}}
 @END]]--
-function TableFlatten(varargtable)
-	function flatten(collection, varargtable)
-		for i,v in pairs(varargtable) do
-			if IsTable(v) then
-				flatten(collection, v)
-			elseif IsString(v) then
-				table.insert(collection, v)
-			else
-				error("unexpected " .. type(v) .. " in table")
-			end		
-		end
-	end
-
-	local inputs = {}
-	flatten(inputs, varargtable)
-	return inputs
-end
+TableFlatten = bam_table_flatten
 
 --[[@FUNCTION TableLock(tbl)
 	Locks the table ^tbl^ so no new keys can be added. Trying to add a new
