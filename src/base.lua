@@ -45,11 +45,13 @@ end
 --[[@UNITTESTS
 	err=1 : Path(nil)
 	err=1 : Path({})
+	err=1 : Path("asdf", "asdf")
 	catch="" : Path("")
 	catch="" : Path("/")
 	catch="/b.c/file.ext" : Path("/a/../b.c/./file.ext")
 	catch="/b.c" : Path("/a/../b.c/./")
 	catch="/a" : Path("/a/b/..")
+	catch="/a" : Path("/a/b/../")
 	catch="../../b.c" : Path("../../a/../b.c/./")
 	catch="../path/file.name.ext" : Path("../test/../path/file.name.ext")
 @END]]--
@@ -116,12 +118,15 @@ PathFilename = bam_path_filename
 
 --[[@UNITTESTS
 	err=1 : PathJoin(nil)
+	err=1 : PathJoin("asdf", "asdf", "asdf")
 	catch="a/b" : PathJoin("a/b", "")
 	catch="a/b" : PathJoin("a/b/", "")
 	catch="a/b" : PathJoin("a", "b")
 	catch="a" : PathJoin("", "a")
 	catch="a/b" : PathJoin("", "a/b")
 	catch="a" : PathJoin("a/b", "..")
+	catch="a/b" : PathJoin("a/b/", "")
+	catch="a/b" : PathJoin("a/", "b/")
 @END]]--
 --[[@FUNCTION PathJoin(base, add)
 	Joins the two paths ^base^ and ^add^ together and returns a
@@ -134,25 +139,7 @@ PathFilename = bam_path_filename
 	}}}}	
 	
 @END]]--
---PathJoin = bam_path_join
-function PathJoin(base, add)
-	if string.len(base) == 0 then
-		return Path(add)
-	end
-	
-	if string.sub(base, -1) == "/" then
-		if string.len(add) == 0 then
-			return string.sub(base, 0, string.len(base)-1)
-		end
-		return Path(base .. add)
-	end
-	
-	if string.len(add) == 0 then
-		return Path(base)
-	end
-	
-	return Path(base .. "/" .. add)
-end
+PathJoin = bam_path_join
 
 --[[@UNITTESTS
 	err=1 : PathPath(nil)

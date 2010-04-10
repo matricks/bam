@@ -9,7 +9,7 @@ extern int path_directory(const char *path, char *directory, int size);
 extern int path_normalize(char *path);
 
 /* joins to paths together and normalizes them. returns 0 on success */
-extern int path_join(const char *base, const char *extend, char *output, int size);
+extern int path_join(const char *base, int base_len, const char *extend, int extend_len, char *output, int size);
 
 /* returns 1 if the path is absolute, else it returns 0 */
 extern int path_isabs(const char *path);

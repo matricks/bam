@@ -239,43 +239,57 @@ int path_isnice(const char *path)
 }
 
 /* return zero on success */
-int path_join(const char *base, const char *extend, char *output, int size)
+int path_join(const char *base, int base_len, const char *extend, int extend_len, char *output, int size)
 {
 	int i;
-	int elen = strlen(extend);
-	int blen;
+	if(extend_len < 0)
+		extend_len = strlen(extend);
 	
 	if(path_isabs(extend))
 	{
 		/* just copy the extend path */
-		if(elen+1 > size)
-			return 1;
+		if(extend_len+1 > size)
+		{
+			fprintf(stderr, "'%s' + '%s' results in a too long path\n", base, extend);
+			return __LINE__;
+		}
 		
-		for(i = 0; i < elen+1; i++)
-			output[i] = extend[i];
-
+		memcpy(output, extend, extend_len+1);
 		path_normalize(output);
 		return 0;
 	}
 	
-	blen = strlen(base);
+	if(base_len < 0)
+		base_len = strlen(base);
 	
-	if(blen+elen+2 > size)
-		return 1;
+	/* +2 for separator and null terminator */
+	if(base_len+extend_len+2 > size)
+	{
+		fprintf(stderr, "'%s' + '%s' results in a too long path\n", base, extend);
+		return __LINE__;
+	}
 
-	if(!path_isabs(base))
-		return 1;
+	/* no base path, just use extend path then */
+	if(base_len == 0)
+	{
+		memcpy(output, extend, extend_len+1);
+		path_normalize(output);
+		return 0;
+	}
 	
 	/* copy base path */
-	for(i = 0; i < blen; i++)
-		output[i] = base[i];
+	memcpy(output, base, base_len);
 	
-	/* add separator */
-	output[blen] = PATH_SEPARATOR;
+	/* append path separator if needed */
+	if(!path_is_separator(base[base_len-1]))
+	{
+		output[base_len] = PATH_SEPARATOR;
+		base_len++;
+	}
 	
 	/* append the extra path, and null-terminator*/
-	for(i = 0; i < elen+1; i++)
-		output[blen+1+i] = extend[i];
+	for(i = 0; i < extend_len+1; i++)
+		output[base_len+i] = extend[i];
 	
 	/* normalize path and return success */
 	path_normalize(output);
@@ -287,12 +301,24 @@ int lf_path_join(lua_State *L)
 {
 	char buffer[1024*2];
 	int n = lua_gettop(L);
-	if(n < 2)
+	int err;
+	const char *base;
+	const char *extend;
+	size_t base_len, extend_len;
+
+	if(n != 2)
 		luaL_error(L, "path_join: incorrect number of arguments");
+
+	luaL_checktype(L, 1, LUA_TSTRING);
+	luaL_checktype(L, 2, LUA_TSTRING);
 	
-	if(!path_join(lua_tostring(L, 1), lua_tostring(L, 2), buffer, 2*1024))
+	base = lua_tolstring(L, 1, &base_len);
+	extend = lua_tolstring(L, 2, &extend_len);
+	err = path_join(base, base_len, extend, extend_len, buffer, 2*1024);
+	if(err != 0)
 	{
-		luaL_error(L, "path_join: couldn't join\n\t%s\n  and\n\t%s",
+		luaL_error(L, "path_join: error %d, couldn't join\n\t'%s'\n  and\n\t'%s'",
+			err,
 			lua_tostring(L, 1),
 			lua_tostring(L, 2));
 	}
@@ -306,8 +332,11 @@ int lf_path_isnice(lua_State *L)
 {
 	int n = lua_gettop(L);
 	const char *path = 0;
-	if(n < 1)
+
+	if(n != 1)
 		luaL_error(L, "path_isnice: incorrect number of arguments");
+
+	luaL_checktype(L, 1, LUA_TSTRING);
 	
 	path = lua_tostring(L, 1);
 	lua_pushnumber(L, path_isnice(path));
@@ -319,12 +348,12 @@ int lf_path_normalize(lua_State *L)
 	int n = lua_gettop(L);
 	const char *path = 0;
 
-	if(n < 1)
+	if(n != 1)
 		luaL_error(L, "path_normalize: incorrect number of arguments");
+
+	luaL_checktype(L, 1, LUA_TSTRING);
 	
 	path = lua_tostring(L, 1);
-	if(!path)
-		luaL_error(L, "path_normalize: got null-string");
 	
 	if(path_isnice(path))
 	{

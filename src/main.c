@@ -463,7 +463,6 @@ static int lookup_deferred_searches(struct CONTEXT *context)
 	struct STRINGLIST *dep;
 	struct STRINGLIST *path;
 	char buffer[MAX_PATH_LENGTH];
-	size_t total;
 	int result;
 	
 	for(lookup = context->firstlookup; lookup; lookup = lookup->next)
@@ -480,21 +479,9 @@ static int lookup_deferred_searches(struct CONTEXT *context)
 			/* check all the other directories */
 			for(path = lookup->firstpath; path; path = path->next)
 			{
-				/* +1 for the extra / */
-				total = dep->len+path->len+1;
-				
-				/* +1 for null */
-				if(total+1 >= MAX_PATH_LENGTH)
-				{
-					printf("%s: error: '%s/%s' is longer then %d", session.name, path->str, dep->str, MAX_PATH_LENGTH);
-					return -1;
-				}
-
 				/* build the path, "%s/%s" */
-				memcpy(buffer, path->str, path->len);
-				buffer[path->len] = '/';
-				memcpy(buffer+path->len+1, dep->str, dep->len);
-				buffer[total] = 0;
+				if(path_join(path->str, path->len, dep->str, dep->len, buffer, sizeof(buffer)) != 0)
+					return -1;
 				
 				result = lookup_checkpath(context, lookup->node, buffer);
 				if(result == 1)
@@ -538,7 +525,7 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 			return -1;
 		}
 		
-		if(path_join(cwd, path, context->script_directory, sizeof(context->script_directory)))
+		if(path_join(cwd, -1, path, -1, context->script_directory, sizeof(context->script_directory)))
 		{
 			printf("%s: error: path too long when joining '%s' and '%s'\n", session.name, cwd, path);
 			return -1;

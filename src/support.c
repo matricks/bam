@@ -382,7 +382,7 @@ int lf_listdir(lua_State *L)
 	else
 	{
 		char buffer[1024];
-		path_join(context_get_path(L), lua_tostring(L,1), buffer, sizeof(buffer));
+		path_join(context_get_path(L), -1, lua_tostring(L,1), -1, buffer, sizeof(buffer));
 		list_directory(buffer, listdir_callback, &info);
 	}
 

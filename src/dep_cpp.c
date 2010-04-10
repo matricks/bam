@@ -11,6 +11,7 @@
 #include "context.h"
 #include "mem.h"
 #include "support.h"
+#include "session.h"
 
 static int processline(char *line, char **start, char **end, int *systemheader)
 {
@@ -225,40 +226,33 @@ static int dependency_cpp_callback(void *user, const char *filename, int sys)
 	struct NODE *node = depinfo->node;
 	struct NODE *depnode;
 	struct CPPDEPINFO recurseinfo;
-	char buf[512];
-	char normal[512];
+	char buf[MAX_PATH_LENGTH];
+	char normal[MAX_PATH_LENGTH];
 	int check_system = sys;
 	int found = 0;
+	
+	/*fprintf(stderr, "%s\n", filename);*/
 	
 	if(!sys)
 	{
 		/* "normal.header" */
-		int flen = strlen(node->filename)-1; 
-		int flen2 = strlen(filename);
+		int flen = strlen(node->filename)-1;
 		while(flen)
 		{
 			if(node->filename[flen] == '/')
 				break;
 			flen--;
 		}
-
-		if(flen == 0)
-			memcpy(buf, filename, flen2+1);
-		else
-		{
-			memcpy(buf, node->filename, flen+1);
-			memcpy(buf+flen+1, filename, flen2);
-			buf[flen+flen2+1] = 0;
-		}
+		path_join(node->filename, flen, filename, -1, buf, sizeof(buf));
 		
-		if(!file_exist(buf) && !node_find(node->graph, filename))
+		if(file_exist(buf) || node_find(node->graph, buf))
+			found = 1;
+		else
 		{
 			/* file does not exist */
-			memcpy(normal, buf, 512);
+			memcpy(normal, buf, sizeof(normal));
 			check_system = 1;
 		}
-		else
-			found = 1;
 	}
 
 	if(check_system)
@@ -276,14 +270,10 @@ static int dependency_cpp_callback(void *user, const char *filename, int sys)
 		{
 			struct CPPDEPPATH *cur;
 			int flen = strlen(filename);
-			int plen;
 
 			for(cur = depinfo->first_path; cur; cur = cur->next)
 			{
-				plen = strlen(cur->path);
-				memcpy(buf, cur->path, plen);
-				memcpy(buf+plen, filename, flen+1); /* copy the 0-term aswell */
-				
+				path_join(cur->path, -1, filename, flen, buf, sizeof(buf));
 				if(file_exist(buf) || node_find(node->graph, buf))
 				{
 					found = 1;
@@ -298,7 +288,7 @@ static int dependency_cpp_callback(void *user, const char *filename, int sys)
 			if(sys)
 				return 0;
 			else
-				memcpy(buf, normal, 512);
+				memcpy(buf, normal, sizeof(normal));
 		}
 	}
 	

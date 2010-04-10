@@ -1,6 +1,6 @@
 
 /* max path length for bam */
-#define MAX_PATH_LENGTH 512
+#define MAX_PATH_LENGTH 1024
 
 /* session - holds all the settings for this bam session */
 struct SESSION
