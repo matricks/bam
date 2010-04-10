@@ -413,11 +413,7 @@ end
 		AddJob("myapp", "linking myapp", "gcc myapp1.o myapp2.o myapp3.o -o myapp.o", {"myapp1.o", "myapp2.o"}, "myapp3.o")
 	}}}}
 @END]]--
--- TODO: Implement this in C
-function AddJob(output, label, command, ...)
-	bam_add_job(output, label, command)
-	AddDependency(output, {...})
-end
+AddJob = bam_add_job
 
 --[[@FUNCTION AddDependency(filename, ...)
 	Adds dependencies to a job. The files specified in the argument list gets added.

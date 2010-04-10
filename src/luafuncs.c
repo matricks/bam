@@ -16,34 +16,60 @@
 #include "mem.h"
 #include "session.h"
 
-/* add_job(string output, string label, string command) */
-int lf_add_job(lua_State *L)
+/* value for deep walks */
+static struct
 {
-	struct NODE *node;
-	struct CONTEXT *context;
+	void (*callback)(lua_State*, void*);
+	void *user;
+} deepwalkinfo;
+
+static void deep_walk_r(lua_State *L, int table_index)
+{
 	int i;
-	
-	if(lua_gettop(L) != 3)
-		luaL_error(L, "add_job: incorrect number of arguments");
+	for(i = 1;; i++)
+	{
+		/* +1 value */
+		lua_rawgeti(L, table_index, i);
+		
+		if(lua_istable(L, -1))
+			deep_walk_r(L, lua_gettop(L));
+		else if(lua_type(L, -1) == LUA_TSTRING)
+			deepwalkinfo.callback(L, deepwalkinfo.user);
+		else if(lua_type(L, -1) == LUA_TNIL)
+			break;
+		else
+		{
+			/* other value */
+			luaL_error(L, "encountered something besides a string or a table");
+		}
 
-	luaL_checktype(L, 1, LUA_TSTRING);
-	luaL_checktype(L, 2, LUA_TSTRING);
-	luaL_checktype(L, 3, LUA_TSTRING);
-	
-	/* fetch contexst from lua */
-	context = context_get_pointer(L);
-
-	/* create the node */
-	i = node_create(&node, context->graph, lua_tostring(L,1), lua_tostring(L,2), lua_tostring(L,3));
-	if(i == NODECREATE_NOTNICE)
-		luaL_error(L, "add_job: node '%s' is not nice", lua_tostring(L,1));
-	else if(i == NODECREATE_EXISTS)
-		luaL_error(L, "add_job: node '%s' already exists", lua_tostring(L,1));
-	else if(i != NODECREATE_OK)
-		luaL_error(L, "add_job: unknown error creating node '%s'", lua_tostring(L,1));
-	return 0;
+		/* pop +1 */
+		lua_pop(L, 1);
+	}
 }
 
+static void deep_walk(lua_State *L, int start, int stop, void (*callback)(lua_State*, void*), void *user)
+{
+	int i;
+	deepwalkinfo.callback = callback;
+	deepwalkinfo.user = user;
+
+	for(i = start; i <= stop; i++)
+	{
+		if(lua_istable(L, i))
+			deep_walk_r(L, i);
+		else if(lua_type(L, i) == LUA_TSTRING)
+		{
+			lua_pushvalue(L, i);
+			deepwalkinfo.callback(L, user);
+			lua_pop(L, 1);
+		}
+		else
+		{
+			luaL_error(L, "encountered something besides a string or a table");
+		}
+	}
+}
 
 /* add_pseudo(string node) */
 int lf_add_pseudo(lua_State *L)
@@ -99,6 +125,18 @@ int lf_add_output(lua_State *L)
 	return 0;
 }
 
+struct NODEATTRIB_CBINFO
+{
+	struct NODE *node;
+	struct NODE *(*callback)(struct NODE*, const char *);
+};
+
+static void callback_node_attrib(lua_State *L, void *user)
+{
+	struct NODEATTRIB_CBINFO *info = (struct NODEATTRIB_CBINFO *)user;
+	if(!info->callback(info->node, lua_tostring(L, -1)))
+		luaL_error(L, "could not add '%s' to '%s'", lua_tostring(L, -1), lua_tostring(L, 1));
+}
 
 /* add_dependency(string node, string dependency) */
 static int add_node_attribute(lua_State *L, const char *funcname, struct NODE *(*callback)(struct NODE*, const char *))
@@ -106,7 +144,7 @@ static int add_node_attribute(lua_State *L, const char *funcname, struct NODE *(
 	struct NODE *node;
 	struct CONTEXT *context;
 	int n = lua_gettop(L);
-	int i;
+	struct NODEATTRIB_CBINFO cbinfo;
 	
 	if(n < 2)
 		luaL_error(L, "%s: to few arguments", funcname);
@@ -120,36 +158,50 @@ static int add_node_attribute(lua_State *L, const char *funcname, struct NODE *(
 		luaL_error(L, "%s: couldn't find node with name '%s'", funcname, lua_tostring(L,1));
 	
 	/* seek deps */
-	/* TODO: do a proper table walk? */
-	for(i = 2; i <= n; ++i)
-	{
-		/* handle the case if we get a table into this function as well */
-		if(lua_istable(L, n))
-		{
-			lua_pushnil(L);
-			while(lua_next(L, n))
-			{
-				luaL_checktype(L, -1, LUA_TSTRING);
-				if(!callback(node, lua_tostring(L, -1)))
-					luaL_error(L, "%s: could not add '%s' to '%s'", funcname, lua_tostring(L, -1), lua_tostring(L,1));
-								
-				lua_pop(L, 1);
-			}
-		}
-		else
-		{
-			luaL_checktype(L, n, LUA_TSTRING);
-			if(!callback(node, lua_tostring(L,n)))
-				luaL_error(L, "%s: could not add '%s' to '%s'", funcname, lua_tostring(L,n), lua_tostring(L,1));
-		}
-	}
-	
+	cbinfo.node = node;
+	cbinfo.callback = callback;
+	deep_walk(L, 2, n, callback_node_attrib, &cbinfo);
 	return 0;
 }
 
 int lf_add_dependency(lua_State *L) { return add_node_attribute(L, "add_dependency", node_add_dependency); }
 int lf_add_constraint_shared(lua_State *L) { return add_node_attribute(L, "add_constraint_shared", node_add_constraint_shared); }
 int lf_add_constraint_exclusive(lua_State *L) { return add_node_attribute(L, "add_constraint_exclusive", node_add_constraint_exclusive); }
+
+/* add_job(string output, string label, string command, ...) */
+int lf_add_job(lua_State *L)
+{
+	struct NODE *node;
+	struct CONTEXT *context;
+	struct NODEATTRIB_CBINFO cbinfo;
+	int i;
+	
+	if(lua_gettop(L) < 3)
+		luaL_error(L, "add_job: too few arguments");
+
+	luaL_checktype(L, 1, LUA_TSTRING);
+	luaL_checktype(L, 2, LUA_TSTRING);
+	luaL_checktype(L, 3, LUA_TSTRING);
+	
+	/* fetch contexst from lua */
+	context = context_get_pointer(L);
+
+	/* create the node */
+	i = node_create(&node, context->graph, lua_tostring(L,1), lua_tostring(L,2), lua_tostring(L,3));
+	if(i == NODECREATE_NOTNICE)
+		luaL_error(L, "add_job: node '%s' is not nice", lua_tostring(L,1));
+	else if(i == NODECREATE_EXISTS)
+		luaL_error(L, "add_job: node '%s' already exists", lua_tostring(L,1));
+	else if(i != NODECREATE_OK)
+		luaL_error(L, "add_job: unknown error creating node '%s'", lua_tostring(L,1));
+		
+	/* seek deps */
+	cbinfo.node = node;
+	cbinfo.callback = node_add_dependency;
+	deep_walk(L, 4, lua_gettop(L), callback_node_attrib, &cbinfo);
+	
+	return 0;
+}
 
 int lf_set_touch(struct lua_State *L)
 {

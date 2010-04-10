@@ -11,11 +11,11 @@ end
 function SetCommonSettings(settings)
 	settings.Copy = TableDeepCopy
 	
-	--[[@FUNCTION name
+	--[[@FUNCTION config_name
 		Name of the settings.
 		TODO: explain when you could use it
 	@END]]
-	settings.name = ""
+	settings.config_name = ""
 
 	--[[@FUNCTION config_ext
 		A short postfix that you can append to files that have been built
@@ -55,9 +55,9 @@ function Compile(settings, ...)
 	CheckSettings(settings)
 	local outputs = {}
 	local mappings = settings.compile.filemappings
+	local insert = table.insert
 	
 	settings.invoke_count = settings.invoke_count + 1
-
 	for inname in TableWalk({...}) do
 		-- fetch correct compiler
 		local ext = PathFileExt(inname)
@@ -67,11 +67,7 @@ function Compile(settings, ...)
 			error("'"..inname.."' has unknown extention '"..ext.."' which there are no compiler for")
 		end
 		
-		local objectfile = Compiler(settings, inname)
-		if not IsString(objectfile) then
-			error("compiler returned a "..type(objectfile).." instead of a string")
-		end
-		table.insert(outputs, objectfile)
+		insert(outputs, Compiler(settings, inname))
 	end
 	
 	-- return the output
@@ -192,18 +188,20 @@ function InitCommonCCompiler(settings)
 end
 
 function CompileC(settings, input)
-	local outname = settings.cc.Output(settings, input) .. settings.cc.extension
-	settings.cc.DriverC(settings.labelprefix .. "c " .. input, outname, input, settings)
+	local cc = settings.cc
+	local outname = cc.Output(settings, input) .. cc.extension
+	cc.DriverC(settings.labelprefix .. "c " .. input, outname, input, settings)
 	AddDependency(outname, input)
-	bam_dependency_cpp(input, settings.cc.includes)
+	bam_dependency_cpp(input, cc.includes)
 	return outname
 end
 
 function CompileCXX(settings, input)
-	local outname = settings.cc.Output(settings, input) .. settings.cc.extension
-	settings.cc.DriverCXX(settings.labelprefix .. "c++ " .. input, outname, input, settings)
+	local cc = settings.cc
+	local outname = cc.Output(settings, input) .. cc.extension
+	cc.DriverCXX(settings.labelprefix .. "c++ " .. input, outname, input, settings)
 	AddDependency(outname, input)
-	bam_dependency_cpp(input, settings.cc.includes)	
+	bam_dependency_cpp(input, cc.includes)
 	return outname
 end
 
@@ -297,13 +295,8 @@ function Link(settings, output, ...)
 	settings.link.Driver(settings.labelprefix .. "link " .. output, output, inputs, settings)
 
 	-- all the files
-	for index, inname in ipairs(inputs) do
-		AddDependency(output, inname)
-	end
-	
-	for index, inname in ipairs(settings.link.extrafiles) do
-		AddDependency(output, inname)
-	end
+	AddDependency(output, inputs)
+	AddDependency(output, settings.link.extrafiles)
 	
 	-- add the libaries
 	local libs = {}
