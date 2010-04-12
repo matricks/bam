@@ -26,6 +26,14 @@ call %VSPATH%vsvars32.bat
 :compile
 @cl /D_CRT_SECURE_NO_DEPRECATE /O2 /nologo src/tools/txt2c.c /Fesrc/tools/txt2c.exe
 @src\tools\txt2c src/base.lua src/tools.lua src/driver_gcc.lua src/driver_cl.lua > src\internal_base.h
-@cl /D_CRT_SECURE_NO_DEPRECATE /W3 /TC /DEBUG /Zi /nologo /I src/lua src/*.c src/lua/*.c /Febam.exe
+@src\tools\txt2c src/base.lua src/tools.lua src/driver_gcc.lua src/driver_cl.lua > src\internal_base.h
+
+@REM /Ox = max optimizations
+@REM /TC = compile as c
+@REM /Zi = generate debug database
+@REM /GS- = no stack checks
+@REM /GL = Whole program optimization (ltcg)
+@REM /LTCG = link time code generation
+@cl /D_CRT_SECURE_NO_DEPRECATE /W3 /O2 /TC /Zi /GS- /GL /nologo /I src/lua src/*.c src/lua/*.c /Febam.exe /link /LTCG
 @del *.obj
 
