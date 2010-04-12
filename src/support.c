@@ -3,6 +3,7 @@
 #include <lauxlib.h>
 #include <stdlib.h>
 #include <time.h>
+#include <errno.h>
 
 #include "platform.h"
 #include "path.h"
@@ -224,11 +225,15 @@ time_t file_timestamp(const char *filename)
 
 int file_createdir(const char *path)
 {
+	int r;
 #ifdef BAM_FAMILY_WINDOWS
-	return _mkdir(path);
+	r = _mkdir(path);
 #else
-	return mkdir(path, 0755);
+	r = mkdir(path, 0755);
 #endif
+	if(r == 0 || errno == EEXIST)
+		return 0;
+	return -1;
 }
 
 void file_touch(const char *filename)

@@ -4,6 +4,7 @@
 
 #include "mem.h"
 #include "context.h"
+#include "path.h"
 #include "node.h"
 #include "cache.h"
 #include "support.h"
@@ -102,7 +103,58 @@ static int constraints_check(struct NODE *node)
 	
 	return 0;
 }
-
+	
+static int create_path(const char *output_name)
+{
+	char buffer[MAX_PATH_LENGTH];
+	int i;
+	char t;
+	
+	/* fish out the directory */
+	if(path_directory(output_name, buffer, sizeof(buffer)) != 0)
+	{
+		fprintf(stderr, "path error: %s\n", buffer);
+		return -1;
+	}
+	
+	/* no directory in path */
+	if(buffer[0] == 0)
+		return 0;
+	
+	/* check if we need to do a deep walk */
+	if(file_createdir(buffer) == 0)
+		return 0;
+	
+	/* create dir by doing a deep walk */
+	i = 0;
+	while(1)
+	{
+		if((buffer[i] == '/') || (buffer[i] == 0))
+		{
+			/* insert null terminator */
+			t = buffer[i];
+			buffer[i] = 0;
+			
+			if(file_createdir(buffer) != 0)
+			{
+				fprintf(stderr, "path error2: %s\n", buffer);
+				return -1;
+			}
+			
+			/* restore the path */
+			buffer[i] = t;
+		}
+		
+		if(buffer[i] == 0)
+			break;
+		
+		i++;
+	}
+	
+	/* return success */
+	return 0;
+}
+	
 static int run_node(struct CONTEXT *context, struct NODE *node, int thread_id)
 {
 	static const char *format = 0;
@@ -150,6 +202,21 @@ static int run_node(struct CONTEXT *context, struct NODE *node, int thread_id)
 	}
 		
 	fflush(stdout);
+
+	/* create output path */
+	if(create_path(node->filename) != 0)
+	{
+		if(session.report_color)
+			printf("\033[01;31m");
+		
+		printf("%s: could not create output directory for '%s'\n", session.name, node->filename);
+
+		if(session.report_color)
+			printf("\033[00m");
+			
+		fflush(stdout);
+		return 1;
+	}
 	
 	/* add constraints count */
 	constraints_update(node, 1);
