@@ -77,9 +77,9 @@ Path = bam_path_normalize
 	Returns the everthing except the extention in the path.
 
 	{{{{
-	Path("test/path/file.name.ext") -- Returns "test/path/file.name"
-	Path("test/path/file.name") -- Returns "test/path/file"
-	Path("test/path/file") -- Returns "test/path/file"
+	PathBase("test/path/file.name.ext") -- Returns "test/path/file.name"
+	PathBase("test/path/file.name") -- Returns "test/path/file"
+	PathBase("test/path/file") -- Returns "test/path/file"
 	}}}}
 @END]]--
 PathBase = bam_path_base
