@@ -142,20 +142,20 @@ PathFilename = bam_path_filename
 PathJoin = bam_path_join
 
 --[[@UNITTESTS
-	err=1 : PathPath(nil)
-	err=1 : PathPath({})
-	catch="" : PathPath("")
-	catch="" : PathPath("/")
-	catch="/b.c" : PathPath("/a/../b.c/./file.ext")
+	err=1 : PathDir(nil)
+	err=1 : PathDir({})
+	catch="" : PathDir("")
+	catch="" : PathDir("/")
+	catch="/b.c" : PathDir("/a/../b.c/./file.ext")
 @END]]--
---[[@FUNCTION PathPath(str)
+--[[@FUNCTION PathDir(str)
 	Returns the path of the filename in ^str^.
 
 	{{{{
-	PathPath("test/path/file.name.ext") -- Returns "test/path"
+	PathDir("test/path/file.name.ext") -- Returns "test/path"
 	}}}}
 @END]]--
-PathPath = bam_path_path
+PathDir = bam_path_dir
 
 --[[@GROUP Tables @END]]--
 

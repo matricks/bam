@@ -310,7 +310,7 @@ int register_lua_globals(struct CONTEXT *context)
 	lua_register(context->lua, L_FUNCTION_PREFIX"path_isnice", lf_path_isnice);
 	
 	lua_register(context->lua, L_FUNCTION_PREFIX"path_ext", lf_path_ext);
-	lua_register(context->lua, L_FUNCTION_PREFIX"path_path", lf_path_path);
+	lua_register(context->lua, L_FUNCTION_PREFIX"path_dir", lf_path_dir);
 	lua_register(context->lua, L_FUNCTION_PREFIX"path_base", lf_path_base);
 	lua_register(context->lua, L_FUNCTION_PREFIX"path_filename", lf_path_filename);
 

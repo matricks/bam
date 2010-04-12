@@ -345,7 +345,7 @@ function SharedLibrary(settings, output, ...)
 	
 	local inputs = TableFlatten({...})
 
-	output = settings.dll.Output(settings, PathJoin(PathPath(output), settings.dll.prefix .. PathFilename(output))) .. settings.dll.extension
+	output = settings.dll.Output(settings, PathJoin(PathDir(output), settings.dll.prefix .. PathFilename(output))) .. settings.dll.extension
 	settings.dll.Driver(settings.labelprefix .. "dll ".. output, output, inputs, settings)
 
 	for index, inname in ipairs(inputs) do
@@ -394,7 +394,7 @@ function StaticLibrary(settings, output, ...)
 	
 	local inputs = TableFlatten({...})
 
-	output = settings.lib.Output(settings, PathJoin(PathPath(output), settings.lib.prefix .. PathFilename(output))) .. settings.lib.extension
+	output = settings.lib.Output(settings, PathJoin(PathDir(output), settings.lib.prefix .. PathFilename(output))) .. settings.lib.extension
 
 	AddJob(output, settings.labelprefix .. "lib " .. output, settings.lib.Driver(output, inputs, settings))
 

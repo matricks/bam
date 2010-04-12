@@ -438,7 +438,7 @@ int lf_path_base(lua_State *L)
 }
 
 
-static int path_path_length(const char *path)
+static int path_dir_length(const char *path)
 {
 	const char *cur = path;
 	int total = 0;
@@ -455,29 +455,29 @@ static int path_path_length(const char *path)
 }
 
 /*  */
-int lf_path_path(lua_State *L)
+int lf_path_dir(lua_State *L)
 {
 	char buffer[1024];
 	int n = lua_gettop(L);
 	const char *path = 0;
 	if(n < 1)
-		luaL_error(L, "path_path: incorrect number of arguments");
+		luaL_error(L, "path_dir: incorrect number of arguments");
 
 	path = lua_tostring(L, 1);
 	if(!path)
-		luaL_error(L, "path_path: argument is not a string");
+		luaL_error(L, "path_dir: argument is not a string");
 	
 	/* check if we can take the easy way out */
 	if(path_isnice(path))
 	{
-		lua_pushlstring(L, path, path_path_length(path));
+		lua_pushlstring(L, path, path_dir_length(path));
 		return 1;
 	}
 	
 	/* we must normalize the path as well */
 	strncpy(buffer, path, sizeof(buffer));
 	path_normalize(buffer);
-	lua_pushlstring(L, buffer, path_path_length(buffer));
+	lua_pushlstring(L, buffer, path_dir_length(buffer));
 	return 1;
 }
 

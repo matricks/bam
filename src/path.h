@@ -28,7 +28,7 @@ extern int lf_path_join(struct lua_State *L);
 extern int lf_path_normalize(struct lua_State *L);
 
 extern int lf_path_ext(struct lua_State *L);
-extern int lf_path_path(struct lua_State *L);
+extern int lf_path_dir(struct lua_State *L);
 extern int lf_path_base(struct lua_State *L);
 extern int lf_path_filename(struct lua_State *L);
 
