@@ -204,6 +204,7 @@ static int run_node(struct CONTEXT *context, struct NODE *node, int thread_id)
 	fflush(stdout);
 
 	/* create output path */
+	/* TODO: perhaps we can skip running this if we know that the file exists on disk already */
 	if(create_path(node->filename) != 0)
 	{
 		if(session.report_color)
