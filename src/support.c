@@ -2,6 +2,7 @@
 #include <lua.h>
 #include <lauxlib.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <time.h>
 #include <errno.h>
 
@@ -9,6 +10,7 @@
 #include "path.h"
 #include "context.h"
 #include "session.h"
+#include "support.h"
 
 #ifdef BAM_FAMILY_BEOS
     #include <sched.h>
@@ -100,6 +102,38 @@
 	{
 		Sleep(1);
 	}
+	
+	PLUGINFUNC plugin_load(const char *filename)
+	{
+		fprintf(stderr, "plugins are not supported on this platform\n");
+		return NULL;
+#if 0
+		
+		char buffer[MAX_PATH_LENGTH];
+		const char *error;
+		HMODULE handle;
+		FARPROC func;
+		
+		snprintf(buffer, sizeof(buffer), "%s.dll", filename);
+
+		handle = LoadLibrary(buffer)
+		if(!handle == NULL)
+		{
+			fprintf(stderr, "error loading plugin '%s'\n", buffer);
+			return NULL;
+		}
+		
+		func = GetProcAddress(handle, "plugin_main");
+		if(func)
+		{
+			CloseHandle(handle);
+			fprintf(stderr, "error fetching plugin main from '%s'\n", buffer);
+			return NULL;
+		}
+		
+		return (PLUGINFUNC)func;
+#endif
+	}	
 
 #else
 	#define D_TYPE_HACK
@@ -109,6 +143,7 @@
 	#define __USE_BSD
 #endif
 	#include <dirent.h>
+	#include <dlfcn.h>
 	#include <unistd.h>
 	#include <sys/types.h>
 	#include <sys/signal.h>
@@ -200,7 +235,39 @@
 	void threads_yield()
 	{
 		sched_yield();
-	}	
+	}
+	
+	PLUGINFUNC plugin_load(const char *filename)
+	{
+		char buffer[MAX_PATH_LENGTH];
+		const char *error;
+		void *handle;
+		void *func;
+		
+		snprintf(buffer, sizeof(buffer), "./%s.so", filename);
+
+		handle = dlopen(buffer, RTLD_LAZY);
+		if(!handle)
+		{
+			fputs(dlerror(), stderr);
+			fputs("\n", stderr);
+			
+			return NULL;
+		}
+		
+		func = dlsym(handle, "plugin_main");
+		error = dlerror();
+
+		if(error)
+		{
+			fputs(error, stderr);
+			fputs("\n", stderr);
+			dlclose(handle);
+			return NULL;
+		}
+		
+		return (PLUGINFUNC)func;
+	}
 #endif
 
 time_t timestamp() { return time(NULL); }
