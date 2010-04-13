@@ -105,26 +105,21 @@
 	
 	PLUGINFUNC plugin_load(const char *filename)
 	{
-		fprintf(stderr, "plugins are not supported on this platform\n");
-		return NULL;
-#if 0
-		
 		char buffer[MAX_PATH_LENGTH];
-		const char *error;
 		HMODULE handle;
 		FARPROC func;
 		
-		snprintf(buffer, sizeof(buffer), "%s.dll", filename);
+		_snprintf(buffer, sizeof(buffer), "%s.dll", filename);
 
-		handle = LoadLibrary(buffer)
-		if(!handle == NULL)
+		handle = LoadLibrary(buffer);
+		if(handle == NULL)
 		{
 			fprintf(stderr, "error loading plugin '%s'\n", buffer);
 			return NULL;
 		}
 		
 		func = GetProcAddress(handle, "plugin_main");
-		if(func)
+		if(func == NULL)
 		{
 			CloseHandle(handle);
 			fprintf(stderr, "error fetching plugin main from '%s'\n", buffer);
@@ -132,7 +127,6 @@
 		}
 		
 		return (PLUGINFUNC)func;
-#endif
 	}	
 
 #else
