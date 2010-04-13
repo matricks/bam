@@ -28,6 +28,7 @@ exit
 call %VSPATH%vsvars32.bat
 
 :compile
+@echo === building bam ===
 @cl /D_CRT_SECURE_NO_DEPRECATE /O2 /nologo src/tools/txt2c.c /Fesrc/tools/txt2c.exe
 @src\tools\txt2c src/base.lua src/tools.lua src/driver_gcc.lua src/driver_cl.lua > src\internal_base.h
 
@@ -40,5 +41,13 @@ call %VSPATH%vsvars32.bat
 @REM /GL = Whole program optimization (ltcg)
 @REM /LTCG = link time code generation
 @cl /D_CRT_SECURE_NO_DEPRECATE /DLUA_BUILD_AS_DLL /W3 /O2 /TC /Zi /GS- /GL /nologo /I src/lua src/*.c src/lua/*.c /Febam.exe /link /LTCG
+
+@echo === building example plugin ===
+
+@cl /nologo /c examples/plugin/hello.c /Isrc
+@link /nologo /dll hello.obj bam.lib /def:windows_plugin.def
+
+@REM clean up
+@del hello.lib hello.exp bam.exp hello.exp
 @del *.obj
 
