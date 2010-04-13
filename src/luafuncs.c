@@ -4,6 +4,7 @@
 #include <malloc.h>
 
 /* lua includes */
+#define LUA_CORE /* make sure that we don't try to import these functions */
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>

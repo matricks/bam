@@ -37,6 +37,7 @@ call %VSPATH%vsvars32.bat
 @REM /GS- = no stack checks
 @REM /GL = Whole program optimization (ltcg)
 @REM /LTCG = link time code generation
+@REM /DLUA_BUILD_AS_DLL = export lua functions
 @cl /D_CRT_SECURE_NO_DEPRECATE /DLUA_BUILD_AS_DLL /W3 /O2 /TC /Zi /GS- /GL /nologo /I src/lua src/*.c src/lua/*.c /Febam.exe /link /LTCG
 @del *.obj
 

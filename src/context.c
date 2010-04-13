@@ -1,3 +1,4 @@
+#define LUA_CORE /* make sure that we don't try to import these functions */
 #include <lua.h>
 #include <lauxlib.h>
 #include <stdlib.h> /* system() */

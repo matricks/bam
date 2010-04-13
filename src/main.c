@@ -8,6 +8,7 @@
 #include <time.h>
 
 /* lua includes */
+#define LUA_CORE /* make sure that we don't try to import these functions */
 #include <lua.h>
 #include <lualib.h> /* luaL_openlibs */
 #include <lauxlib.h> /* luaL_loadfile */
