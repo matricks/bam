@@ -6,6 +6,10 @@ if exist "%VCINSTALLDIR%" (
 )
 
 @REM Check for Visual Studio
+if exist "%VS100COMNTOOLS%" (
+	set VSPATH="%VS100COMNTOOLS%"
+	goto set_env
+)
 if exist "%VS90COMNTOOLS%" (
 	set VSPATH="%VS90COMNTOOLS%"
 	goto set_env
@@ -26,7 +30,6 @@ call %VSPATH%vsvars32.bat
 :compile
 @cl /D_CRT_SECURE_NO_DEPRECATE /O2 /nologo src/tools/txt2c.c /Fesrc/tools/txt2c.exe
 @src\tools\txt2c src/base.lua src/tools.lua src/driver_gcc.lua src/driver_cl.lua > src\internal_base.h
-@src\tools\txt2c src/base.lua src/tools.lua src/driver_gcc.lua src/driver_cl.lua > src\internal_base.h
 
 @REM /Ox = max optimizations
 @REM /TC = compile as c
@@ -34,6 +37,6 @@ call %VSPATH%vsvars32.bat
 @REM /GS- = no stack checks
 @REM /GL = Whole program optimization (ltcg)
 @REM /LTCG = link time code generation
-@cl /D_CRT_SECURE_NO_DEPRECATE /W3 /O2 /TC /Zi /GS- /GL /nologo /I src/lua src/*.c src/lua/*.c /Febam.exe /link /LTCG
+@cl /D_CRT_SECURE_NO_DEPRECATE /DLUA_BUILD_AS_DLL /W3 /O2 /TC /Zi /GS- /GL /nologo /I src/lua src/*.c src/lua/*.c /Febam.exe /link /LTCG
 @del *.obj
 
