@@ -1,18 +1,13 @@
 #include <time.h>
 
-struct STRINGLIST
-{
-	struct STRINGLIST *next;
-	const char *str;
-	size_t len;
-};
+struct CONTEXT;
 
-struct LOOKUP
+struct DEFERRED
 {
-	struct LOOKUP *next;
+	struct DEFERRED *next;
 	struct NODE *node;
-	struct STRINGLIST *firstdep;
-	struct STRINGLIST *firstpath;
+	int (*run)(struct CONTEXT *context, struct DEFERRED *info);
+	void *user;
 };
 
 struct CONTEXT
@@ -33,8 +28,8 @@ struct CONTEXT
 
 	/* this heap is used for dependency lookups that has to happen after we 
 		parsed the whole file */
-	struct HEAP *lookupheap;
-	struct LOOKUP *firstlookup;
+	struct HEAP *deferredheap;
+	struct DEFERRED *firstdeferred;
 	
 	time_t globaltimestamp;
 	time_t buildtime;

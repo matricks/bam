@@ -57,6 +57,9 @@ function Compile(settings, ...)
 	local mappings = settings.compile.filemappings
 	local insert = table.insert
 	
+	-- TODO: this here is aware of the different compilers, should be moved somewhere
+	bam_add_dependency_cpp_set_paths(settings.cc.includes)
+	
 	settings.invoke_count = settings.invoke_count + 1
 	for inname in TableWalk({...}) do
 		-- fetch correct compiler
@@ -192,7 +195,7 @@ function CompileC(settings, input)
 	local outname = cc.Output(settings, input) .. cc.extension
 	cc.DriverC(settings.labelprefix .. "c " .. input, outname, input, settings)
 	AddDependency(outname, input)
-	bam_dependency_cpp(input, cc.includes)
+	bam_add_dependency_cpp(input)
 	return outname
 end
 
@@ -201,7 +204,7 @@ function CompileCXX(settings, input)
 	local outname = cc.Output(settings, input) .. cc.extension
 	cc.DriverCXX(settings.labelprefix .. "c++ " .. input, outname, input, settings)
 	AddDependency(outname, input)
-	bam_dependency_cpp(input, cc.includes)
+	bam_add_dependency_cpp(input)
 	return outname
 end
 

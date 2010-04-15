@@ -17,6 +17,37 @@
 #include "mem.h"
 #include "session.h"
 
+void build_stringlist(lua_State *L, struct HEAP *heap, struct STRINGLIST **first, int table_index)
+{
+	struct STRINGLIST *listitem;
+	const char *orgstr;
+	size_t len;
+
+	int i;
+	for(i = 1;; i++)
+	{
+		/* +1 value */
+		lua_rawgeti(L, table_index, i);
+		
+		if(lua_type(L, -1) == LUA_TNIL)
+			break;
+			
+		/* allocate and fix copy the string */
+		orgstr = lua_tolstring(L, -1, &len);
+		listitem = (struct STRINGLIST *)mem_allocate(heap, sizeof(struct STRINGLIST) + len + 1);
+		listitem->str = (const char *)(listitem+1);
+		listitem->len = len;
+		memcpy(listitem+1, orgstr, len+1);
+		
+		/* add it to the list */
+		listitem->next = *first;
+		*first = listitem;
+		
+		/* pop value */
+		lua_pop(L, 1);
+	}
+}
+
 /* value for deep walks */
 static struct
 {
@@ -246,72 +277,6 @@ int lf_set_filter(struct lua_State *L)
 	memcpy(node->filter, str, len+1);
 	return 0;
 }
-
-
-static void build_stringlist(lua_State *L, struct HEAP *heap, struct STRINGLIST **first, int tableindex)
-{
-	struct STRINGLIST *listitem;
-	const char *orgstr;
-	size_t len;
-
-	lua_pushnil(L);
-	while (lua_next(L, tableindex) != 0)
-	{
-		/* allocate and fix copy the string */
-		orgstr = lua_tolstring(L, -1, &len);
-		listitem = (struct STRINGLIST *)mem_allocate(heap, sizeof(struct STRINGLIST) + len + 1);
-		listitem->str = (const char *)(listitem+1);
-		listitem->len = len;
-		memcpy(listitem+1, orgstr, len+1);
-		
-		/* add it to the list */
-		listitem->next = *first;
-		*first = listitem;
-		
-		/* pop value, keep key for iteration */
-		lua_pop(L, 1);
-	}
-}
-
-/* add_dependency(string node, table paths, table deps) */
-int lf_add_dependency_search(lua_State *L)
-{
-	struct NODE *node;
-	struct CONTEXT *context;
-	struct LOOKUP *lookup;
-	
-	if(lua_gettop(L) != 3)
-		luaL_error(L, "add_dep_search: expected 3 arguments");
-	luaL_checktype(L, 1, LUA_TSTRING);
-
-	context = context_get_pointer(L);
-
-	/* check all parameters */
-	node = node_find(context->graph, lua_tostring(L,1));
-	if(!node)
-		luaL_error(L, "add_dep_search: couldn't find node with name '%s'", lua_tostring(L,1));
-	if(lua_type(L,2) != LUA_TTABLE)
-		luaL_error(L, "add_dep_search: expected table as second argument");
-	if(lua_type(L,3) != LUA_TTABLE)
-		luaL_error(L, "add_dep_search: expected table as third argument");
-	
-	/* allocate the lookup */
-	lookup = (struct LOOKUP*)mem_allocate(context->lookupheap, sizeof(struct LOOKUP));
-	lookup->node = node;
-	lookup->firstpath = NULL;
-	lookup->firstdep = NULL;
-	
-	/* build the string lists */
-	build_stringlist(L, context->lookupheap, &lookup->firstpath, 2);
-	build_stringlist(L, context->lookupheap, &lookup->firstdep, 3);
-	
-	/* link it in */
-	lookup->next = context->firstlookup;
-	context->firstlookup = lookup;
-	
-	return 0;
-}
-
 
 /* default_target(string filename) */
 int lf_default_target(lua_State *L)

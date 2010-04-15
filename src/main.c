@@ -18,7 +18,6 @@
 #include "node.h"
 #include "path.h"
 #include "support.h"
-#include "dep_cpp.h"
 #include "context.h"
 #include "cache.h"
 #include "luafuncs.h"
@@ -298,12 +297,16 @@ int register_lua_globals(struct CONTEXT *context)
 	lua_register(context->lua, L_FUNCTION_PREFIX"add_output", lf_add_output);
 	lua_register(context->lua, L_FUNCTION_PREFIX"add_pseudo", lf_add_pseudo);
 	lua_register(context->lua, L_FUNCTION_PREFIX"add_dependency", lf_add_dependency);
-	lua_register(context->lua, L_FUNCTION_PREFIX"add_dependency_search", lf_add_dependency_search);
 	lua_register(context->lua, L_FUNCTION_PREFIX"add_constraint_shared", lf_add_constraint_shared);
 	lua_register(context->lua, L_FUNCTION_PREFIX"add_constraint_exclusive", lf_add_constraint_exclusive);
 	lua_register(context->lua, L_FUNCTION_PREFIX"default_target", lf_default_target);
 	lua_register(context->lua, L_FUNCTION_PREFIX"set_touch", lf_set_touch);
 	lua_register(context->lua, L_FUNCTION_PREFIX"set_filter", lf_set_filter);
+
+	/* advanced dependency checkers */
+	lua_register(context->lua, L_FUNCTION_PREFIX"add_dependency_cpp_set_paths", lf_add_dependency_cpp_set_paths);
+	lua_register(context->lua, L_FUNCTION_PREFIX"add_dependency_cpp", lf_add_dependency_cpp);
+	lua_register(context->lua, L_FUNCTION_PREFIX"add_dependency_search", lf_add_dependency_search);
 
 	/* path manipulation */
 	lua_register(context->lua, L_FUNCTION_PREFIX"path_join", lf_path_join);
@@ -339,9 +342,6 @@ int register_lua_globals(struct CONTEXT *context)
 
 	/* error handling */
 	lua_register(context->lua, "errorfunc", lf_errorfunc);
-	
-	/* dependency accelerator functions */
-	lua_register(context->lua, L_FUNCTION_PREFIX"dependency_cpp", lf_dependency_cpp);
 
 	/* create arguments table */
 	lua_pushstring(context->lua, CONTEXT_LUA_SCRIPTARGS_TABLE);
@@ -433,67 +433,15 @@ int register_lua_globals(struct CONTEXT *context)
 	return error;
 }
 
-/* returns 0 on no find, 1 on find and -1 on error */
-static int lookup_checkpath(struct CONTEXT *context, struct NODE *node, const char *path)
+static int run_deferred_functions(struct CONTEXT *context)
 {
-	struct NODE *depnode;
-
-	/* search up the node and add it if we need */
-	depnode = node_find(context->graph, path);
-	if(depnode)
+	struct DEFERRED *cur;
+	for(cur = context->firstdeferred; cur; cur = cur->next)
 	{
-		if(!node_add_dependency_withnode(node, depnode))
+		if(cur->run(context, cur))
 			return -1;
-		return 1;
 	}
-	
-	/* check if it exists on the disk */
-	if(file_exist(path))
-	{
-		if(!node_add_dependency(node, path))
-			return -1;
-		return 1;
-	}
-	
-	return 0;
-}
 
-/* this functions takes the whole deferred lookup list and searches for the file */
-static int lookup_deferred_searches(struct CONTEXT *context)
-{
-	struct LOOKUP *lookup;
-	struct STRINGLIST *dep;
-	struct STRINGLIST *path;
-	char buffer[MAX_PATH_LENGTH];
-	int result;
-	
-	for(lookup = context->firstlookup; lookup; lookup = lookup->next)
-	{
-		for(dep = lookup->firstdep; dep; dep = dep->next)
-		{
-			/* check the current directory */
-			result = lookup_checkpath(context, lookup->node, dep->str);
-			if(result == 1)
-				continue;
-			if(result == -1)
-				return -1;
-
-			/* check all the other directories */
-			for(path = lookup->firstpath; path; path = path->next)
-			{
-				/* build the path, "%s/%s" */
-				if(path_join(path->str, path->len, dep->str, dep->len, buffer, sizeof(buffer)) != 0)
-					return -1;
-				
-				result = lookup_checkpath(context, lookup->node, buffer);
-				if(result == 1)
-					break;
-				if(result == -1)
-					return -1;
-			}
-		}
-	}
-	
 	return 0;
 }
 
@@ -571,10 +519,10 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 		return -1;
 	}
 	
-	/* process deferred lookups */
-	if(lookup_deferred_searches(context) != 0)
+	/* run deferred functions */
+	if(run_deferred_functions(context) != 0)
 		return -1;
-	
+		
 	/* */	
 	if(session.verbose)
 		printf("%s: making build target\n", session.name);
@@ -681,7 +629,7 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	/* zero out and create memory heap, graph */
 	memset(&context, 0, sizeof(struct CONTEXT));
 	context.graphheap = mem_create();
-	context.lookupheap = mem_create();
+	context.deferredheap = mem_create();
 	context.graph = node_create_graph(context.graphheap);
 	context.exit_on_error = option_abort_on_error;
 	context.buildtime = timestamp();
@@ -702,7 +650,7 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	setup_error = bam_setup(&context, scriptfile, targets, num_targets);
 
 	/* done with the loopup heap */
-	mem_destroy(context.lookupheap);
+	mem_destroy(context.deferredheap);
 
 	/* if we have a separate lua heap, just destroy it */
 	if(context.luaheap)
@@ -782,7 +730,6 @@ static void abortsignal(int i)
 	printf("%s: signal cought, waiting for jobs to finish\n", session.name);
 	session.abort = 1;
 }
-
 
 void install_abort_signal()
 {

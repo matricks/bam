@@ -1,3 +1,5 @@
+/* max path length for bam */
+#define MAX_PATH_LENGTH 1024
 
 /* returns a pointer to the filename, /foo/bar.a -> bar.a */
 extern const char *path_filename(const char *path);

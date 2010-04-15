@@ -236,9 +236,14 @@
 		char buffer[MAX_PATH_LENGTH];
 		const char *error;
 		void *handle;
-		void *func;
+		PLUGINFUNC func;
 		
-		snprintf(buffer, sizeof(buffer), "./%s.so", filename);
+		if(strlen(filename) > sizeof(buffer) - 10)
+			return (PLUGINFUNC)0;
+		
+		strcpy(buffer, "./");
+		strcat(buffer, filename);
+		strcpy(buffer, ".so");
 
 		handle = dlopen(buffer, RTLD_LAZY);
 		if(!handle)
@@ -249,7 +254,7 @@
 			return NULL;
 		}
 		
-		func = dlsym(handle, "plugin_main");
+		func = (PLUGINFUNC)dlsym(handle, "plugin_main");
 		error = dlerror();
 
 		if(error)
@@ -260,7 +265,7 @@
 			return NULL;
 		}
 		
-		return (PLUGINFUNC)func;
+		return func;
 	}
 #endif
 

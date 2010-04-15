@@ -13,6 +13,7 @@
 #include "mem.h"
 #include "support.h"
 #include "session.h"
+#include "luafuncs.h"
 
 static int processline(char *line, char **start, char **end, int *systemheader)
 {
@@ -201,23 +202,11 @@ static int dependency_cpp_run(struct CONTEXT *context, struct NODE *node,
 	return errorcode;
 }
 
-struct CPPDEPPATH
-{
-	char *path;
-	struct CPPDEPPATH *next;
-};
-
 struct CPPDEPINFO
 {
 	struct CONTEXT *context;
 	struct NODE *node;
-	struct CPPDEPPATH *first_path;
-};
-
-struct SCANNER_CPP
-{
-	struct SCANNER scanner;
-	struct CPPDEPPATH *first_path;
+	struct STRINGLIST *paths;
 };
 
 /* */
@@ -231,8 +220,6 @@ static int dependency_cpp_callback(void *user, const char *filename, int sys)
 	char normal[MAX_PATH_LENGTH];
 	int check_system = sys;
 	int found = 0;
-	
-	/*fprintf(stderr, "%s\n", filename);*/
 	
 	if(!sys)
 	{
@@ -269,12 +256,12 @@ static int dependency_cpp_callback(void *user, const char *filename, int sys)
 		}
 		else
 		{
-			struct CPPDEPPATH *cur;
+			struct STRINGLIST *cur;
 			int flen = strlen(filename);
 
-			for(cur = depinfo->first_path; cur; cur = cur->next)
+			for(cur = depinfo->paths; cur; cur = cur->next)
 			{
-				path_join(cur->path, -1, filename, flen, buf, sizeof(buf));
+				path_join(cur->str, cur->len, filename, flen, buf, sizeof(buf));
 				if(file_exist(buf) || node_find(node->graph, buf))
 				{
 					found = 1;
@@ -302,7 +289,7 @@ static int dependency_cpp_callback(void *user, const char *filename, int sys)
 	/* do the dependency walk */
 	if(found && !depnode->depchecked)
 	{
-		recurseinfo.first_path = depinfo->first_path;
+		recurseinfo.paths = depinfo->paths;
 		recurseinfo.node = depnode;
 		recurseinfo.context = depinfo->context;
 		if(dependency_cpp_run(depinfo->context, depnode, dependency_cpp_callback, &recurseinfo) != 0)
@@ -312,81 +299,53 @@ static int dependency_cpp_callback(void *user, const char *filename, int sys)
 	return 0;
 }
 
-/* */
-int lf_dependency_cpp(lua_State *L)
+static struct STRINGLIST *current_includepaths = NULL;
+
+static int dependency_cpp_do_run(struct CONTEXT *context, struct DEFERRED *info)
 {
-	struct NODE *node;
-	struct CONTEXT *context;
-	struct HEAP *includeheap;
 	struct CPPDEPINFO depinfo;
-	struct CPPDEPPATH *cur_path;
-	struct CPPDEPPATH *prev_path;
-	int n = lua_gettop(L);
-	const char *string;
-	size_t string_length;
-	
-	if(n != 2)
-		luaL_error(L, "dependency_cpp: incorrect number of arguments");
-
-	if(!lua_isstring(L,1))
-		luaL_error(L, "dependency_cpp: expected string");
-
-	if(!lua_istable(L,2))
-		luaL_error(L, "dependency_cpp: expected table");
-	
-	/* fetch context */
-	context = context_get_pointer(L);
-	node = node_find(context->graph, lua_tostring(L,1));
-	
-	/* */
-	if(!node)
-		luaL_error(L, "dependency_cpp: node '%s' not found", lua_tostring(L,1));
-	
-	/* create a heap to store the includes paths in */
-	includeheap = mem_create();
-
-	/* fetch the system include paths */
-	lua_pushnil(L);
-	cur_path = 0x0;
-	prev_path = 0x0;
-	depinfo.first_path = 0x0;
-	while(lua_next(L, 2))
-	{
-		if(lua_type(L,-1) == LUA_TSTRING)
-		{
-			/* allocate the path */
-			string = lua_tolstring(L, -1, &string_length);
-			cur_path = (struct CPPDEPPATH*)mem_allocate(includeheap, sizeof(struct CPPDEPPATH)+string_length+2);
-			cur_path->path = (char *)(cur_path+1);
-			cur_path->next = 0x0;
-		
-			/* copy path and terminate with a / */
-			memcpy(cur_path->path, string, string_length);
-			cur_path->path[string_length] = '/';
-			cur_path->path[string_length+1] = 0;
-		
-			/* add it to the chain */
-			if(prev_path)
-				prev_path->next = cur_path;
-			else
-				depinfo.first_path = cur_path;
-			prev_path = cur_path;
-		}
-		
-		/* pop the value, keep the key */
-		lua_pop(L, 1);
-	}
-	
-	/* do the dependency walk */
 	depinfo.context = context;
-	depinfo.node = node;
-	if(dependency_cpp_run(context, node, dependency_cpp_callback, &depinfo) != 0)
-	{
-		mem_destroy(includeheap);
-		luaL_error(L, "dependency_cpp: error during depencency check");
-	}
+	depinfo.node = info->node;
+	depinfo.paths = (struct STRINGLIST *)info->user;
+	if(dependency_cpp_run(context, depinfo.node, dependency_cpp_callback, &depinfo) != 0)
+		return -1;
+	return 0;
+}
 
-	/* free the include heap */
-	mem_destroy(includeheap);
+/* */
+int lf_add_dependency_cpp_set_paths(lua_State *L)
+{
+	struct CONTEXT *context;
+	int n = lua_gettop(L);
+	
+	if(n != 1)
+		luaL_error(L, "add_dependency_cpp_set_paths: incorrect number of arguments");
+	luaL_checktype(L, 1, LUA_TTABLE);
+	
+	context = context_get_pointer(L);
+	current_includepaths = NULL;
+	build_stringlist(L, context->deferredheap, &current_includepaths, 1);
+	return 0;
+}
+
+/* */
+int lf_add_dependency_cpp(lua_State *L)
+{
+	struct CONTEXT *context;
+	struct DEFERRED *deferred;
+	int n = lua_gettop(L);
+	
+	if(n != 1)
+		luaL_error(L, "add_dependency_cpp_set: incorrect number of arguments");
+	luaL_checkstring(L,1);
+	
+	context = context_get_pointer(L);
+	
+	deferred = (struct DEFERRED *)mem_allocate(context->deferredheap, sizeof(struct DEFERRED));
+	deferred->node = node_find(context->graph, lua_tostring(L,1));
+	deferred->user = current_includepaths;
+	deferred->run = dependency_cpp_do_run;
+	deferred->next = context->firstdeferred;
+	context->firstdeferred = deferred;
 	return 0;
 }
