@@ -15,7 +15,6 @@ for v in sys.argv:
 	if v == "-v":
 		verbose = True
 
-
 bam = "../../bam"
 if os.name == 'nt':
 	bam = "..\\..\\bam"
@@ -83,6 +82,8 @@ def test(name, moreflags="", should_fail=0):
 
 def difftest(name, flags1, flags2):
 	global failed_tests
+	if len(tests) and not name in tests:
+		return
 	testname = "difftest: %s '%s' vs '%s': "%(name, flags1, flags2)
 	print testname,
 	ret1, report1 = run_bam(name, flags1)
@@ -212,9 +213,9 @@ shutil.rmtree(output_path, True)
 copytree("tests", output_path)
 os.mkdir(os.path.join(output_path, "unit"))
 
-
 # run smaller unit tests
-unittests()
+if len(tests) == 0:
+	unittests()
 
 # run bigger test cases
 test("cyclic")
@@ -229,6 +230,7 @@ test("multi_target", "SHOULD_NOT_EXIST", 1)
 test("multi_target", "CORRECT_ONE")
 test("collect_wrong", "", 1)
 test("locked", "", 1)
+test("cxx_dep")
 test("collect_recurse")
 test("sharedlib")
 test("deadlock")
