@@ -225,6 +225,9 @@ int node_walk(
 	was specified to node_walk */
 void node_walk_revisit(struct NODEWALK *walk, struct NODE *node);
 
+/* string hashing function */
+unsigned int string_hash(const char *str_in);
+
 /* node debug dump functions */
 void node_debug_dump(struct GRAPH *graph);
 void node_debug_dump_detailed(struct GRAPH *graph);
