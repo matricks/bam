@@ -80,11 +80,11 @@ end
 function SetDriversGCC(settings)
 	if settings.cc then
 		settings.cc.extension = ".o"
-		settings.cc.c_exe = "gcc"
-		settings.cc.cxx_exe = "g++"
+		settings.cc.exe_c = "gcc"
+		settings.cc.exe_cxx = "g++"
 		settings.cc.DriverCTest = DriverGCC_CTest
-		settings.cc.DriverC = DriverGCC_Get("c_exe", "_c_cache", "c_flags")
-		settings.cc.DriverCXX = DriverGCC_Get("cxx_exe", "_cxx_cache", "cxx_flags")
+		settings.cc.DriverC = DriverGCC_Get("exe_c", "_c_cache", "flags_c")
+		settings.cc.DriverCXX = DriverGCC_Get("exe_cxx", "_cxx_cache", "flags_cxx")
 	end
 	
 	if settings.link then

@@ -7,6 +7,13 @@ function SetDefaultDrivers(settings)
 	end
 end
 
+
+@<group>
+@</group>
+@begin GROUP
+
+@end
+
 --[[@GROUP Common Settings (settings) @END]]--
 function SetCommonSettings(settings)
 	settings.Copy = TableDeepCopy
@@ -46,15 +53,27 @@ end
 @END]]--
 --[[@FUNCTION Compile(settings, ...)
 	Compiles a set of files using the supplied settings. It uses
-	^settings.compile.filemappings^ to map the input extension to a compiler
-	function. The function takes 2 parameters, the first being the settings
-	table and the other one input filename. It adds the nessesary jobs and
-	dependencies and returns the name of the generated object file.
+	^settings.compile.mappings^ to map the input extension to a compiler
+	function. A compiler functions should look like ^Compiler(settings, input)^
+	where ^settings^ is the settings object and ^input^ is the filename
+	of the file to compile. The function should return a string that
+	contains the object file that it will generate.
+
+	{{{{
+	function MyCompiler(settings, input)
+	\t-- compile stuff
+	\treturn output
+	end
+	
+	settings.compile.mappings[".my"] = MyCompiler
+	objects = Compile(settings, "code.my") -- Invokes the MyCompiler function
+	}}}}
+	
 @END]]--
 function Compile(settings, ...)
 	CheckSettings(settings)
 	local outputs = {}
-	local mappings = settings.compile.filemappings
+	local mappings = settings.compile.mappings
 	local insert = table.insert
 	
 	-- TODO: this here is aware of the different compilers, should be moved somewhere
@@ -74,7 +93,7 @@ function Compile(settings, ...)
 	end
 	
 	-- return the output
-	return outputs	
+	return outputs
 end
 
 function CTestCompile(settings, code, options)
@@ -82,16 +101,23 @@ function CTestCompile(settings, code, options)
 end
 
 AddTool(function (settings)
-	--[[@FUNCTION filemappings
-		Table that matches extentions to a compiler function.
+	--[[@FUNCTION Compile Settings (settings.compile)
+		<table>
+		<tr><td>^mappings^</td><td>
+		Table that matches extentions to a compiler function. See the
+		Compile function for a reference how this table is used.
+		</td></tr>
+		</table>
 	@END]]
 	settings.compile = {}
-	settings.compile.filemappings = {}
+	settings.compile.mappings = {}
 end)
 
 ------------------------ C/C++ COMPILE ------------------------
 
---[[@GROUP C/C++ Compiler Settings (settings.cc) @END]]--
+--[[@FUNCTION C/C++ Settings (settings.cc)
+<table>
+@PAUSE]]
 
 function DriverNull()
 	error("no driver set")
@@ -104,38 +130,58 @@ function InitCommonCCompiler(settings)
 	settings.cc._c_cache = { nr = 0, str = "" }
 	settings.cc._cxx_cache = { nr = 0, str = "" }
 
-	--[[@FUNCTION extension
-		Extention that the object files should have.
-	@END]]
-	settings.cc.extension = ""
+	--[[@RESUME
+		<tr><td>^defines^</td><td>
+		Table of defines that should be set when compiling.
+		
+		{{{{
+			settings.cc.defines:Add("ANSWER=42")
+		}}}}
+		</td></tr>
+	@PAUSE]]
+	settings.cc.defines = NewTable()
 
-	--[[@FUNCTION c_exe
-		Name (and path) of the executable that is the C compiler
-	@END]]
-	settings.cc.c_exe = ""
-
-	--[[@FUNCTION cxx_exe
-		Same as c_exe but for the C++ compiler
-	@END]]
-	settings.cc.cxx_exe = ""
-
-	--[[@FUNCTION DriverCTest
-	@END]]
+	--[[@RESUME
+	@PAUSE]]
 	settings.cc.DriverCTest = DriverNull
 	
-	--[[@FUNCTION DriverC
+	--[[@RESUME
+		<tr><td>^DriverC^</td><td>
 		Function that drives the C compiler. Function is responsible
 		for building the command line and adding the job to compile the
 		input file.
-	@END]]
+		</td></tr>
+	@PAUSE]]
 	settings.cc.DriverC = DriverNull
 	
-	--[[@FUNCTION DriverCXX
+	--[[@RESUME
+		<tr><td>^DriverCXX^</td><td>
 		Same as DriverC but for the C++ compiler.
-	@END]]
+		</td></tr>
+	@PAUSE]]
 	settings.cc.DriverCXX = DriverNull
-	
-	--[[@FUNCTION flags
+
+	--[[@RESUME
+		<tr><td>^exe_c^</td><td>Name (and path) of the executable that is the C compiler</td></tr>
+	@PAUSE]]
+	settings.cc.exe_c = ""
+
+	--[[@RESUME
+		<tr><td>^exe_cxx^</td><td>Same as c_exe but for the C++ compiler</td></tr>
+	@PAUSE]]
+	settings.cc.exe_cxx = ""
+
+	--[[@RESUME
+		<tr><td>^extension^</td><td>
+		Extention that the object files should have. Usally ".o" or ".obj"
+		depending on compiler tool chain.
+		</td></tr>
+	@PAUSE]]
+	settings.cc.extension = ""
+
+		
+	--[[@RESUME
+		<tr><td>^flags^</td><td>
 		Table of flags that will be appended to the command line to the
 		C/C++ compiler. These flags are used for both the C and C++
 		compiler.
@@ -143,50 +189,68 @@ function InitCommonCCompiler(settings)
 		{{{{
 			settings.cc.flags:Add("-O2", "-g")
 		}}}}
-	@END]]
+		</td></tr>
+	@PAUSE]]
 	settings.cc.flags = NewFlagTable()
 	
-	--[[@FUNCTION c_flags
+	--[[@RESUME
+		<tr><td>^flags_c^</td><td>
 		Same as flags but specific for the C compiler.
-	@END]]
-	settings.cc.c_flags = NewFlagTable()
+		</td></tr>
+	@PAUSE]]
+	settings.cc.flags_c = NewFlagTable()
 
-	--[[@FUNCTION cxx_flags
-		Same as flags but specific for the C compiler.
-	@END]]
-	settings.cc.cxx_flags = NewFlagTable()
-	
-	--[[@FUNCTION includes
+	--[[@RESUME
+		<tr><td>^flags_cxx^</td><td>
+		Same as flags but specific for the C++ compiler.
+		</td></tr>
+	@PAUSE]]
+	settings.cc.flags_cxx = NewFlagTable()
+
+	--[[@RESUME
+		<tr><td>^frameworks^</td><td>
+		Mac OS X specific. What frameworks to use when compiling.
+		</td></tr>
+	@PAUSE]]
+	settings.cc.frameworks = NewTable()
+			
+	--[[@RESUME
+		<tr><td>^includes^</td><td>
 		Table of paths where to find headers.
-	@END]]
-	settings.cc.includes = NewTable()
-	
-	--[[@FUNCTION systemincludes
-		Table of paths where to find system headers.
-	@END]]
-	settings.cc.systemincludes = NewTable()
-	
-	--[[@FUNCTION defines
-		Table of defines that should be set when compiling.
 		
 		{{{{
-			settings.cc.defines:Add("ANSWER=42")
-		}}}}
-	@END]]
-	settings.cc.defines = NewTable()
-
-	--[[@FUNCTION frameworks
-		Mac OS X specific. What frameworks to use when compiling.
-	@END]]
-	settings.cc.frameworks = NewTable()
+			settings.cc.includes:Add("my/include/directory")
+		}}}}		
+		</td></tr>
+	@PAUSE]]
+	settings.cc.includes = NewTable()
 	
-	--[[@FUNCTION Output(path)
+	--[[@RESUME
+		<tr><td>^Output(settings, path)^</td><td>
 		Function that should transform the input path
 		into the output path. The appending of the extension is done
 		automaticly.
-	@END]]
+		
+		{{{{
+			settings.cc.Output = function(settings, input)
+			&nbsp;&nbsp;&nbsp;&nbsp;return PathBase(input) .. settings.config_ext
+			end
+		}}}}
+		</td></tr>
+	@PAUSE]]
 	settings.cc.Output = Default_Intermediate_Output
+	
+	--[[@RESUME
+		<tr><td>^systemincludes^</td><td>
+		Mac OS X specific. Table of paths where to find system headers.
+		</td></tr>
+	@PAUSE]]
+	settings.cc.systemincludes = NewTable()
 
+	--[[@RESUME
+		</table>
+	@END]]
+	
 	TableLock(settings.cc)
 end
 
@@ -224,10 +288,31 @@ AddTool(function (settings)
 end)
 
 --[[@GROUP Other @END]]--
---[[@FUNCTION
-	e
+
+--[[@FUNCTION CopyFile(dst, src)
 @END]]--
-function Copy(outputdir, ...)
+if family == "windows" then
+	function CopyFile(dst, src)
+		AddJob(dst,
+			"copy " .. src .. " -> " .. dst,
+			"copy /b " .. str_replace(src, "/", "\\") .. " " .. str_replace(dst, "/", "\\") .. " >nul 2>&1",
+			src)
+		SetTouch(dst) -- make sure to update timestamp
+		return dst
+	end
+else
+	function CopyFile(dst, src)
+		AddJob(dst,
+			"copy " .. src .. " -> " .. dst,
+			"cp " .. src .. " " .. dst,
+			src)
+		SetTouch(dst)
+		return dst
+	end
+end
+
+-- TODO: remove
+function old_Copy(outputdir, ...)
 	local outputs = {}
 
 	local copy_command = "cp"
@@ -268,24 +353,6 @@ end
 
 --[[@GROUP Link @END]]--
 
-AddTool(function (settings)
-	settings.link = {}
-	settings.link.Driver = DriverNull
-	settings.link.Output = Default_Intermediate_Output
-	settings.link.LibMangle = function(name) error("no LibMangle function set") end
-	settings.link.extension = ""
-	settings.link.exe = ""
-	settings.link.inputflags = ""
-	settings.link.flags = NewFlagTable()
-	settings.link.libs = NewTable()
-	settings.link.frameworks = NewTable()
-	settings.link.frameworkpath = NewTable()
-	settings.link.libpath = NewTable()
-	settings.link.extrafiles = NewTable()
-	
-	TableLock(settings.link)
-end)
-
 --[[@FUNCTION
 	TODO
 @END]]--
@@ -318,6 +385,116 @@ function Link(settings, output, ...)
 	return output
 end
 
+
+--[[@FUNCTION Settings (settings.link)
+<table>
+@PAUSE]]
+
+AddTool(function (settings)
+	settings.link = {}
+	
+	--[[@RESUME
+		<tr><td>^Driver^</td><td>
+		Function that drives the linker. Function is responsible
+		for building the command line and adding the job to link the
+		input files into an executable.
+		</td></tr>
+	@PAUSE]]	
+	settings.link.Driver = DriverNull
+
+	--[[@RESUME
+		<tr><td>^exe^</td><td>
+		Path to the executable to use as linker.
+		</td></tr>
+	@PAUSE]]	
+	settings.link.exe = ""
+	
+	--[[@RESUME
+		<tr><td>^extension^</td><td>
+		Extention of the executable. Usally "" on most platform but can
+		be ".exe" on platforms like Windows.
+		</td></tr>
+	@PAUSE]]	
+	settings.link.extension = ""
+
+	--[[@RESUME
+		<tr><td>^extrafiles^</td><td>
+		A table of additional files that should be linked against. These
+		files will be treated as normal objects when linking.
+		</td></tr>
+	@PAUSE]]	
+	settings.link.extrafiles = NewTable()
+
+	--[[@RESUME
+		<tr><td>^flags^</td><td>
+		Table of raw flags to send to the linker.
+		{{{{
+			settings.link.flags:Add("-v")
+		}}}}
+		</td></tr>
+	@PAUSE]]	
+	settings.link.flags = NewFlagTable()
+
+	--[[@RESUME
+		<tr><td>^frameworks^</td><td>
+		Mac OS X specific. A table of frameworks to link against.
+		</td></tr>
+	@PAUSE]]	
+	settings.link.frameworks = NewTable()
+
+	--[[@RESUME
+		<tr><td>^frameworkpath^</td><td>
+		Mac OS X specific. A table of paths were to find frameworks.
+		</td></tr>
+	@PAUSE]]	
+	settings.link.frameworkpath = NewTable()
+
+	--[[@RESUME
+		<tr><td>^libs^</td><td>
+		Table of library files to link with.
+		{{{{
+			settings.link.libs:Add("pthread")
+		}}}}
+		</td></tr>
+	@PAUSE]]	
+	settings.link.libs = NewTable()
+
+	--[[@RESUME
+		<tr><td>^libpath^</td><td>
+		A table of paths of where to find library files that could be
+		included in the linking process.
+		</td></tr>
+	@PAUSE]]	
+	settings.link.libpath = NewTable()
+	
+	--[[@RESUME
+		<tr><td>^Output^</td><td>
+		Function that should transform the input path
+		into the output path. The appending of the extension is done
+		automaticly.
+		
+		{{{{
+			settings.link.Output = function(settings, input)
+			&nbsp;&nbsp;&nbsp;&nbsp;return PathBase(input) .. settings.config_ext
+			end
+		}}}}
+		</td></tr>
+	@PAUSE]]	
+	settings.link.Output = Default_Intermediate_Output
+	
+	--[[@RESUME
+		<tr><td>inputflags (REMOVE?)</td><td>
+		</td></tr>
+	@PAUSE]]	
+	settings.link.inputflags = ""
+
+	--[[@RESUME
+		</table>
+	@END]]
+		
+	TableLock(settings.link)
+end)
+
 ------------------------ SHARED LIBRARY ACTION ------------------------
 
 --[[@GROUP SharedLibrary @END]]--
@@ -340,7 +517,7 @@ AddTool(function (settings)
 	TableLock(settings.dll)
 end)
 
---[[@FUNCTION
+--[[@<FUNCTION
 	TODO
 @END]]--
 function SharedLibrary(settings, output, ...)

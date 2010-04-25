@@ -140,13 +140,25 @@ class HTMLOutput(Output):
 					padding: 5px ;
 					background-color: #eeeeee ;
 				}
+				
+				td {
+					border-width: 1px;
+					border-style: dotted;
+					padding: 2px;
+				}
 			
 				.identifier {
 					font-family: monospace ;
 				}
+				
+				li {
+					list-style-type: none;
+				}
+				
 			--></style>
 			</head>
 			<body>
+			<!-- COMMENTS "BASE" -->
 			<hr/>
 			%s<h1>%s</h1>
 			<small>%s</small>
@@ -184,8 +196,12 @@ class HTMLOutput(Output):
 		body = re.sub('{{{{', '<pre>', body)
 		body = re.sub('}}}}', '</pre>', body)
 		body = re.sub('!IMG (?P<filename>.+)', '<img src="\g<filename>"/>', body)
+		body = re.sub('\\\\t', '&nbsp;&nbsp;&nbsp;&nbsp;', body)
 		body = re.sub('\n\n', '</p><p>', body)
+		
+		
 		body = '<p class="body">' + body + '</p>\n'
+		body += '\n<!-- COMMENTS "%s" -->\n' % (node.indexname)
 		return body
 
 def ParseTextFile(rootnode, filename, addbr=False):
@@ -225,9 +241,14 @@ def ParseFile(rootnode, filename):
 						break
 		elif state == 1:
 			if end_tag in line:
+				state = 3
+			elif "@PAUSE" in line:
 				state = 2
 			else:
 				body += line.strip() + "\n"
+		elif state == 2:
+			if "@RESUME" in line:
+				state = 1
 		else:
 			if tag == function_tag:
 				if len(title) == 0:

@@ -11,14 +11,14 @@ you started quickly.
 }}}}
 
 Line 1 creates a new settings object. This contains all the settings
-on how to compile, link etc. See NewSettings.
+on how to compile, link etc. See [NewSettings].
 
 Line 2 gathers all the files under the src/ directory which has .c as
 extention. Collect returns a table of strings which are the files.
-See Collect.
+See [Collect].
 
 Line 3 compiles the source using the specified settings and returns a
-table of the object files. See Compile.
+table of the object files. See [Compile].
 
 Line 4 links the object files to an executable named "my_app", using
-the specified settings. See Link.
+the specified settings. See [Link].
