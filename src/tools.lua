@@ -7,13 +7,6 @@ function SetDefaultDrivers(settings)
 	end
 end
 
-
-@<group>
-@</group>
-@begin GROUP
-
-@end
-
 --[[@GROUP Common Settings (settings) @END]]--
 function SetCommonSettings(settings)
 	settings.Copy = TableDeepCopy
@@ -48,7 +41,7 @@ end
 -- Compiles C, Obj-C and C++ files
 --[[@UNITTESTS
 	err=1; find="expected a settings object": Compile(nil)
-	err=1; find="compiler returned a nil": s = NewSettings(); s.filemappings["c"] = function()end; Compile(s, "test.c")
+	err=1; find="compiler returned a nil": s = NewSettings(); s.mappings["c"] = function()end; Compile(s, "test.c")
 	err=0 : s = NewSettings(); Compile(s)
 @END]]--
 --[[@FUNCTION Compile(settings, ...)
@@ -275,16 +268,16 @@ end
 
 AddTool(function (settings)
 	InitCommonCCompiler(settings)
-	settings.compile.filemappings["c"] = CompileC
-	settings.compile.filemappings["m"] = CompileC
+	settings.compile.mappings["c"] = CompileC
+	settings.compile.mappings["m"] = CompileC
 end)
 
 AddTool(function (settings)
 	InitCommonCCompiler(settings)
-	settings.compile.filemappings["cpp"] = CompileCXX
-	settings.compile.filemappings["cxx"] = CompileCXX
-	settings.compile.filemappings["c++"] = CompileCXX
-	settings.compile.filemappings["cc"] = CompileCXX
+	settings.compile.mappings["cpp"] = CompileCXX
+	settings.compile.mappings["cxx"] = CompileCXX
+	settings.compile.mappings["c++"] = CompileCXX
+	settings.compile.mappings["cc"] = CompileCXX
 end)
 
 --[[@GROUP Other @END]]--
