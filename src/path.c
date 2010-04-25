@@ -145,7 +145,7 @@ int path_normalize(char *path)
 			if(srcptr[0] == 0)
 			{
 				/* end of string, zero terminate and return, strip ending '/' if it exists */
-				if(dstptr != path && dstptr[-1] == '/')
+				if(dstptr != path && path_is_separator(dstptr[-1]))
 					dstptr[-1] = 0;
 				dstptr[0] = 0;
 				return 0;
