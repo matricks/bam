@@ -96,7 +96,7 @@ int path_normalize(char *path)
 						/* case where we are at the start so append ../ to the start of the string */
 						dstptr[0] = '.';
 						dstptr[1] = '.';
-						dstptr[2] = '/';
+						dstptr[2] = PATH_SEPARATOR;
 						dstptr += 3;
 						srcptr += 3;
 						
@@ -382,7 +382,7 @@ static const char *path_ext(const char *filename)
 	{
 		if(*cur == '.')
 			ext = cur;
-		if(*cur == '/')
+		if(path_is_separator(*cur))
 			ext = (const char *)0x0;
 	}
 	if(!ext)
@@ -429,7 +429,7 @@ int lf_path_base(lua_State *L)
 	{
 		if(*cur == '.')
 			new_len = count;
-		else if(*cur == '/')
+		else if(path_is_separator(*cur))
 			new_len = org_len;
 	}
 		
@@ -445,7 +445,7 @@ static int path_dir_length(const char *path)
 	int len = -1;
 	for(; *cur; cur++, total++)
 	{
-		if(*cur == '/')
+		if(path_is_separator(*cur))
 			len = (int)(cur-path);
 	}
 
