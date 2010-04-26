@@ -13,14 +13,22 @@
 #define WRITE_BUFFERNODES (WRITE_BUFFERSIZE/sizeof(struct CACHENODE))
 #define WRITE_BUFFERDEPS (WRITE_BUFFERSIZE/sizeof(unsigned))
 
+
 /* header info */
-static const unsigned bamendianness = 0x01020304;
 static char bamheader[8] = {
 	'B','A','M',0, /* signature */
-	0,3,           /* version */
 	sizeof(void*), /* pointer size */
-	0, /*((char*)&bamendianness)[0] */ /* TODO: endianness check */
+	0,0,0           /* version hash */
 };
+
+static void cache_setup_header()
+{
+	/* save a hashed version of the date and time in the header */
+	unsigned hash = string_hash(__DATE__ __TIME__);
+	bamheader[5] = hash&0xff;
+	bamheader[6] = (hash>>8)&0xff;
+	bamheader[7] = (hash>>16)&0xff;
+}
 
 /* 	detect if we can use unix styled io. we do this because fwrite
 	can use it's own buffers and bam already to it's buffering nicely
@@ -236,6 +244,8 @@ int cache_save(const char *filename, struct GRAPH *graph)
 	if(!io_valid(info.fp))
 		return -1;
 	
+	cache_setup_header();
+	
 	if(write_header(&info) || write_nodes(&info))
 	{
 		/* error occured, trunc the cache file so we don't leave a corrupted file */
@@ -271,6 +281,8 @@ struct CACHE *cache_load(const char *filename)
 	
 	bytesread = io_read(fp, buffer, filesize);
 	io_close(fp);
+
+	cache_setup_header();
 	
 	/* verify read and headers */
 	cache = (struct CACHE *)buffer;
@@ -280,7 +292,7 @@ struct CACHE *cache_load(const char *filename)
 		memcmp(cache->header, bamheader, sizeof(bamheader)) != 0 ||
 		filesize < sizeof(struct CACHE)+cache->num_nodes*sizeof(struct CACHENODE))
 	{
-		printf("%s: warning: cache failed to load. not using cache\n", session.name);
+		printf("%s: warning: cache file is invalid, generating new one\n", session.name);
 		free(buffer);
 		return 0;
 	}

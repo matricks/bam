@@ -163,7 +163,7 @@ static struct OPTION options[] = {
 	/*@OPTION Report Format ( -r [b][s][c] )
 		Sets the format of the progress report when building.
 		<ul>
-			<li>b</li> - Use a progress bar showing the precenage.
+			<li>b</li> - Use a progress bar showing the percentage.
 			<li>s</li> - Show each step when building. (default)
 			<li>c</li> - Use ANSI colors.
 		</ul>

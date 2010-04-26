@@ -38,7 +38,7 @@ static const unsigned char tolower_table[256] = {
 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239,
 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255};
 
-static unsigned int string_hash(const char *str_in)
+unsigned int string_hash(const char *str_in)
 {
 	unsigned int h = 0;
 	const unsigned char *str = (const unsigned char *)str_in;
@@ -48,7 +48,7 @@ static unsigned int string_hash(const char *str_in)
 }
 #else
 /* normal unix version */
-static unsigned int string_hash(const char *str)
+unsigned int string_hash(const char *str)
 {
 	unsigned int h = 0;
 	for (; *str; str++)
