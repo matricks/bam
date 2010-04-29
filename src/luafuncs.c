@@ -550,6 +550,10 @@ static int lf_table_walk_iter(struct lua_State *L)
 int lf_table_walk(struct lua_State *L)
 {
 	struct WALKDATA *data;
+
+	if(lua_gettop(L) != 1)
+		luaL_error(L, "table_walk: incorrect number of arguments");
+	luaL_checktype(L, 1, LUA_TTABLE);
 	
 	/* 1: table to iterate over */
 	lua_pushcfunction(L, lf_table_walk_iter); /* 2: iterator function */
@@ -570,8 +574,14 @@ int lf_table_walk(struct lua_State *L)
 /* does a deep copy of a table */
 int lf_table_deepcopy(struct lua_State *L)
 {
+	size_t s;
+	
+	if(lua_gettop(L) != 1)
+		luaL_error(L, "table_flatten: incorrect number of arguments");
+	luaL_checktype(L, 1, LUA_TTABLE);
+	
 	/* 1: table to copy, 2: new table */
-	size_t s = lua_objlen(L, -1);
+	s = lua_objlen(L, -1);
 	lua_createtable(L, 0, s);
 	
 	/* 3: iterator */
@@ -603,7 +613,7 @@ int lf_table_deepcopy(struct lua_State *L)
 
 static int flatten_index;
 
-/* flattens a table into a simple table with strigns */
+/* flattens a table into a simple table with strings */
 static int lf_table_flatten_r(struct lua_State *L, int table_index)
 {	
 	/* +1: iterator */
@@ -636,8 +646,14 @@ static int lf_table_flatten_r(struct lua_State *L, int table_index)
 
 int lf_table_flatten(struct lua_State *L)
 {
+	size_t s;
+	
+	if(lua_gettop(L) != 1)
+		luaL_error(L, "table_flatten: incorrect number of arguments");
+	luaL_checktype(L, 1, LUA_TTABLE);
+		
 	/* 1: table to copy, 2: new table */
-	size_t s = lua_objlen(L, -1);
+	s = lua_objlen(L, -1);
 	flatten_index = 1;
 	lua_createtable(L, 0, s);
 	lf_table_flatten_r(L, 1);
@@ -652,11 +668,21 @@ int lf_table_tostring(struct lua_State *L)
 	size_t prefix_len, postfix_len;
 	size_t total_len = 0;
 	size_t item_len = 0;
-	const char *prefix = lua_tolstring(L, 2, &prefix_len);
-	const char *postfix = lua_tolstring(L, 3, &postfix_len);
+	const char *prefix;
+	const char *postfix;
 	char *buffer;
 	char *current;
 	const char *item;
+	
+	if(lua_gettop(L) != 3)
+		luaL_error(L, "table_tostring: incorrect number of arguments");
+	
+	luaL_checktype(L, 1, LUA_TTABLE);
+	luaL_checktype(L, 2, LUA_TSTRING);
+	luaL_checktype(L, 3, LUA_TSTRING);
+
+	prefix = lua_tolstring(L, 2, &prefix_len);
+	postfix = lua_tolstring(L, 3, &postfix_len);
 	
 	/* first, figure out the total size */
 	

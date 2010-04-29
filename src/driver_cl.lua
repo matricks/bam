@@ -78,7 +78,7 @@ function DriverCL_Lib(output, inputs, settings)
 end
 
 function DriverCL_Link_Common(label, output, inputs, settings, part, extra)
-	local input =  TableToString(inputs, "", " ") .. TableToString(part.extrafiels, "", " ")
+	local input =  TableToString(inputs, "", " ") .. TableToString(part.extrafiles, "", " ")
 	local flags = part.flags:ToString()
 	local libs  = TableToString(part.libs, "", ".lib ")
 	local libpaths = TableToString(part.libpath, "/libpath:\"", "\" ")
