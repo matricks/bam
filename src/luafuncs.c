@@ -572,13 +572,9 @@ int lf_table_walk(struct lua_State *L)
 }
 
 /* does a deep copy of a table */
-int lf_table_deepcopy(struct lua_State *L)
+static int table_deepcopy_r(struct lua_State *L)
 {
 	size_t s;
-	
-	if(lua_gettop(L) != 1)
-		luaL_error(L, "table_flatten: incorrect number of arguments");
-	luaL_checktype(L, 1, LUA_TTABLE);
 	
 	/* 1: table to copy, 2: new table */
 	s = lua_objlen(L, -1);
@@ -591,7 +587,7 @@ int lf_table_deepcopy(struct lua_State *L)
 		/* 4: value */
 		if(lua_istable(L, -1))
 		{
-			lf_table_deepcopy(L); /* 5: new table */
+			table_deepcopy_r(L); /* 5: new table */
 			lua_pushvalue(L, -3); /* 6: key */
 			lua_pushvalue(L, -2); /* 7: value */
 			lua_settable(L, -6); /* pops 6 and 7 */
@@ -609,6 +605,15 @@ int lf_table_deepcopy(struct lua_State *L)
 	}
 	
 	return 1;
+}
+
+int lf_table_deepcopy(struct lua_State *L)
+{
+	if(lua_gettop(L) != 1)
+		luaL_error(L, "table_deepcopy: incorrect number of arguments");
+	luaL_checktype(L, 1, LUA_TTABLE);
+	
+	return table_deepcopy_r(L);
 }
 
 static int flatten_index;
@@ -678,8 +683,6 @@ int lf_table_tostring(struct lua_State *L)
 		luaL_error(L, "table_tostring: incorrect number of arguments");
 	
 	luaL_checktype(L, 1, LUA_TTABLE);
-	luaL_checktype(L, 2, LUA_TSTRING);
-	luaL_checktype(L, 3, LUA_TSTRING);
 
 	prefix = lua_tolstring(L, 2, &prefix_len);
 	postfix = lua_tolstring(L, 3, &postfix_len);

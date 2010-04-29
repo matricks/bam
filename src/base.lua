@@ -160,6 +160,12 @@ PathDir = bam_path_dir
 
 --[[@GROUP Tables @END]]--
 
+--[[@UNITTESTS
+	err=1 : TableDeepCopy(nil)
+	err=1 : TableDeepCopy("")
+	err=1 : TableDeepCopy({}, {})
+	err=0 : TableDeepCopy({{{"a"}, "b"}, "c", "d", {"e", "f"}})
+@END]]--	
 --[[@FUNCTION TableDeepCopy(tbl)
 	Makes a deep copy of the table ^tbl^ resulting in a complete separate
 	table.

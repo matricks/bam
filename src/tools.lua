@@ -104,6 +104,7 @@ AddTool(function (settings)
 	@END]]
 	settings.compile = {}
 	settings.compile.mappings = {}
+	TableLock(settings.compile)
 end)
 
 ------------------------ C/C++ COMPILE ------------------------
@@ -302,6 +303,12 @@ else
 		SetTouch(dst)
 		return dst
 	end
+end
+
+--[[@FUNCTION CopyToDirectory(dst, src)
+@END]]--
+function CopyToDirectory(dst, src)
+	return CopyFile(PathJoin(dst, PathFilename(src)), src)
 end
 
 -- TODO: remove
