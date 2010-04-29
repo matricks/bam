@@ -188,6 +188,10 @@ TableDeepCopy = bam_table_deepcopy
 @END]]--
 TableFlatten = bam_table_flatten
 
+--[[@UNITTESTS
+	err=0 : t = {a = 1}; TableLock(t); t.a = 2
+	err=1 : t = {a = 1}; TableLock(t); t.b = 2
+@END]]--
 --[[@FUNCTION TableLock(tbl)
 	Locks the table ^tbl^ so no new keys can be added. Trying to add a new
 	key will result in an error.
@@ -259,6 +263,9 @@ function CheckSettings(settings)
 end
 
 --[[@UNITTESTS
+	err=0 : NewSettings()
+	err=1 : t = NewSettings(); t.cc.DOES_NOT_EXIST = 1
+	err=1 : t = NewSettings():Copy(); t.cc.DOES_NOT_EXIST = 1
 @END]]--
 --[[@FUNCTION
 	Create a new settings table with the settings for all the registered

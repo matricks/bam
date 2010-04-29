@@ -603,6 +603,11 @@ static int table_deepcopy_r(struct lua_State *L)
 		/* pops 4 */
 		lua_pop(L, 1);
 	}
+
+	
+	/* transfer the meta table */
+	if(lua_getmetatable(L, -2))
+		lua_setmetatable(L, -2);
 	
 	return 1;
 }
