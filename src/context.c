@@ -447,6 +447,7 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 
 	time_t oldtimestamp = node->timestamp; /* to keep track of if this node changes */
 	int olddirty = node->dirty;
+	struct NODELINK *oldjobdep = node->firstjobdep;
 	
 	if(node->depth < walkinfo->depth)
 		node->depth = walkinfo->depth;
@@ -537,7 +538,7 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 		propagate the dirty state and timestamp.
 		this can cause us to go outside the targeted
 		nodes and into nodes that are not targeted. be aware */
-	if(olddirty != node->dirty || oldtimestamp != node->timestamp)
+	if(olddirty != node->dirty || oldtimestamp != node->timestamp || oldjobdep != node->firstjobdep)
 	{
 		for(parent = node->firstparent; parent; parent = parent->next)
 			node_walk_revisit(walkinfo, parent->node);
