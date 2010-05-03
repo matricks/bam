@@ -134,6 +134,9 @@ static int dependency_cpp_run(struct CONTEXT *context, struct NODE *node,
 	/* don't run depcheck twice */
 	if(node->depchecked)
 		return 0;
+		
+	/* mark the node for caching */
+	node_cached(node);
 	
 	/* check if we have the dependencies in the cache frist */
 	cacheinfo.context = context;
@@ -281,21 +284,24 @@ static int dependency_cpp_callback(void *user, const char *filename, int sys)
 	}
 	
 	/* */
-	path_normalize(buf);
-	depnode = node_add_dependency(node, buf);
-	if(!depnode)
-		return 2;
-	
-	/* do the dependency walk */
-	if(found && !depnode->depchecked)
+	if(found)
 	{
-		recurseinfo.paths = depinfo->paths;
-		recurseinfo.node = depnode;
-		recurseinfo.context = depinfo->context;
-		if(dependency_cpp_run(depinfo->context, depnode, dependency_cpp_callback, &recurseinfo) != 0)
-			return 3;
-	}
+		path_normalize(buf);
+		depnode = node_add_dependency(node, buf);
+		if(!depnode)
+			return 2;
 	
+		/* do the dependency walk */
+		if(!depnode->depchecked)
+		{
+			recurseinfo.paths = depinfo->paths;
+			recurseinfo.node = depnode;
+			recurseinfo.context = depinfo->context;
+			if(dependency_cpp_run(depinfo->context, depnode, dependency_cpp_callback, &recurseinfo) != 0)
+				return 3;
+		}
+	}
+		
 	return 0;
 }
 

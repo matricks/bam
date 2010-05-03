@@ -64,6 +64,8 @@ struct GRAPH *node_create_graph(struct HEAP *heap)
 	struct GRAPH *graph = (struct GRAPH*)mem_allocate(heap, sizeof(struct GRAPH));
 	if(!graph)
 		return (struct GRAPH *)0x0;
+		
+	memset(graph, 0, sizeof(struct GRAPH));
 
 	/* init */
 	graph->heap = heap;
@@ -284,6 +286,17 @@ struct NODE *node_add_constraint_shared(struct NODE *node, const char *filename)
 struct NODE *node_add_constraint_exclusive(struct NODE *node, const char *filename)
 {
 	return node_add_constraint(&node->constraint_exclusive, node, filename);
+}
+
+void node_cached(struct NODE *node)
+{
+	node->cached = 1;
+}
+
+void node_set_pseudo(struct NODE *node)
+{
+	node->timestamp = 1;
+	node->timestamp_raw = 1;
 }
 
 /* functions to handle with bit array access */

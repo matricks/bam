@@ -184,6 +184,7 @@ static int write_nodes(struct WRITEINFO *info)
 		
 		cachenode->hashid = node->hashid;
 		cachenode->cmdhash = node->cachehash;
+		cachenode->cached = node->cached;
 		cachenode->timestamp_raw = node->timestamp_raw;
 		cachenode->deps = (unsigned*)((long)dep_index);
 		cachenode->filename = (char*)((long)string_index);
@@ -340,7 +341,7 @@ int cache_do_dependency(
 	
 	/* search the cache */
 	cachenode = cache_find_byhash(context->cache, node->hashid);
-	if(cachenode && cachenode->timestamp_raw == node->timestamp_raw)
+	if(cachenode && cachenode->cached && cachenode->timestamp_raw == node->timestamp_raw)
 	{
 		if(node->depchecked)
 			return 1;
@@ -351,7 +352,8 @@ int cache_do_dependency(
 		for(i = cachenode->deps_num-1; i >= 0; i--)
 		{
 			depcachenode = cache_find_byindex(context->cache, cachenode->deps[i]);
-			callback(node_add_dependency(node, depcachenode->filename), user);
+			if(depcachenode->cached)
+				callback(node_add_dependency(node, depcachenode->filename), user);
 		}
 		
 		return 1;

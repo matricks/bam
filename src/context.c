@@ -473,6 +473,11 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 				node->dirty = NODEDIRTY_GLOBALSTAMP;
 		}
 	}
+	else if(node->timestamp_raw == 0)
+	{
+		printf("%s: error: '%s' does not exist and no way to generate it\n", session.name, node->filename);
+		return 1;
+	}
 	
 	/* check against all the dependencies */
 	for(dep = node->firstdep; dep; dep = dep->next)

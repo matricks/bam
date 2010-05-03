@@ -126,7 +126,8 @@ int lf_add_pseudo(lua_State *L)
 		luaL_error(L, "add_pseudo: node '%s' already exists", lua_tostring(L,1));
 	else if(i != NODECREATE_OK)
 		luaL_error(L, "add_pseudo: unknown error creating node '%s'", lua_tostring(L,1));
-
+		
+	node_set_pseudo(node);
 	return 0;
 }
 
@@ -154,6 +155,7 @@ int lf_add_output(lua_State *L)
 		luaL_error(L, "add_output: couldn't find node with name '%s'", lua_tostring(L,2));
 	
 	node_add_dependency_withnode(other_output, output);
+	node_set_pseudo(other_output);
 	return 0;
 }
 

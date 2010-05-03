@@ -535,6 +535,7 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 
 		if(node_create(&context->target, context->graph, "_bam_buildtarget", 0, 0))
 			return -1;
+		node_set_pseudo(context->target);
 			
 		if(num_targets)
 		{

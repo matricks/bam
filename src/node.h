@@ -102,6 +102,7 @@ struct NODE
 	unsigned counted:1; /* set if we have counted this node towards the number of targets to build */
 	unsigned targeted:1; /* set if this node is targeted for a build */
 	unsigned touch:1; /* when built, touch the output file as well */
+	unsigned cached:1; /* set if the node should be considered as cached */
 	
 	volatile unsigned workstatus:2; /* build status of the node, NODESTATUS_* flags */
 };
@@ -114,8 +115,9 @@ struct CACHENODE
 	unsigned hashid;
 	time_t timestamp_raw;
 	char *filename;
-	
 	unsigned cmdhash;
+
+	unsigned cached:1;
 	
 	unsigned deps_num;
 	unsigned *deps; /* index id, not hashid */
@@ -128,7 +130,7 @@ struct GRAPH
 	struct NODE *first;
 	struct NODE *last;
 	struct HEAP *heap;
-	
+
 	/* needed when saving the cache */
 	int num_nodes;
 	int num_deps;
@@ -178,6 +180,8 @@ struct NODE *node_get(struct GRAPH *graph, const char *filename);
 struct NODE *node_add_dependency(struct NODE *node, const char *filename);
 struct NODE *node_add_dependency_withnode(struct NODE *node, struct NODE *depnode);
 struct NODE *node_add_job_dependency_withnode(struct NODE *node, struct NODE *depnode);
+void node_set_pseudo(struct NODE *node);
+void node_cached(struct NODE *node);
 
 struct NODE *node_add_constraint_shared(struct NODE *node, const char *filename);
 struct NODE *node_add_constraint_exclusive(struct NODE *node, const char *filename);
