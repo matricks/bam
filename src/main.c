@@ -36,9 +36,6 @@
 #ifdef BAM_FAMILY_WINDOWS
 	#include <direct.h>
 	#define getcwd _getcwd /* stupid msvc is calling getcwd non-ISO-C++ conformant */
-	#define CACHE_FILENAME "bamcache.dat"
-#else
-	#define CACHE_FILENAME ".bamcache"
 #endif
 
 #define DEFAULT_REPORT_STYLE "s"
@@ -72,7 +69,6 @@ static int option_debug_trace_vm = 0;
 
 static int option_print_help = 0;
 
-static const char *option_cache = CACHE_FILENAME; /* -k filename*/
 static const char *option_script = "bam.lua"; /* -f filename */
 static const char *option_threads_str = "0";
 static const char *option_report_str = DEFAULT_REPORT_STYLE;
@@ -80,6 +76,9 @@ static const char *option_targets[128] = {0};
 static int option_num_targets = 0;
 static const char *option_scriptargs[128] = {0};
 static int option_num_scriptargs = 0;
+
+/* filename of the cache, will be filled in at start up, ".bam/xxxxxxxx" = 14 top */
+static char cache_filename[16] = {0};
 
 /* session object */
 struct SESSION session = {
@@ -180,11 +179,6 @@ static struct OPTION options[] = {
 				
 	{1, 0, 0						, "\n Other:", ""},
 
-	/*@OPTION Cache ( -k FILENAME )
-		Specifies what cache file to use instead of the default.
-	@END*/
-	{1, &option_cache,0				, "-k", "set cache file to use (default: " CACHE_FILENAME ")"},
-	
 	/*@OPTION No cache ( -n )
 		Do not use cache when building.
 	@END*/
@@ -288,6 +282,7 @@ static void *lua_alloctor_malloc(void *ud, void *ptr, size_t osize, size_t nsize
 int register_lua_globals(struct CONTEXT *context)
 {
 	int i, error = 0;
+	unsigned int cache_hash = 0;
 		
 	/* add standard libs */
 	luaL_openlibs(context->lua);
@@ -650,7 +645,16 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 
 	/* load cache (thread?) */
 	if(option_no_cache == 0)
-		context.cache = cache_load(option_cache);
+	{
+		/* create a hash of all the external variables that can cause the
+			script to generate different results */
+		unsigned int cache_hash = 0;
+		int i;
+		for(i = 0; i < option_num_scriptargs; i++)
+			cache_hash = string_hash_add(cache_hash, option_scriptargs[i]);
+		sprintf(cache_filename, ".bam/%08x", cache_hash);
+		context.cache = cache_load(cache_filename);
+	}
 
 	/* do the setup */
 	setup_error = bam_setup(&context, scriptfile, targets, num_targets);
@@ -700,7 +704,11 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 
 	/* save cache (thread?) */
 	if(option_no_cache == 0 && setup_error == 0)
-		cache_save(option_cache, context.graph);
+	{
+		/* create the cache directory */
+		file_createdir(".bam");
+		cache_save(cache_filename, context.graph);
+	}
 	
 	/* clean up */
 	mem_destroy(context.graphheap);

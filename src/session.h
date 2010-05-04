@@ -6,6 +6,8 @@ struct SESSION
 	int threads;
 	int verbose;
 	int simpleoutput;
+	
+	unsigned int cache_hash;
 
 	int lua_backtrace;
 	int lua_locals;

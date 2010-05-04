@@ -7,6 +7,7 @@
 #include "node.h"
 #include "platform.h"
 #include "session.h"
+#include "support.h"
 
 /* buffer sizes */
 #define WRITE_BUFFERSIZE (32*1024)
