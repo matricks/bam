@@ -125,7 +125,7 @@ def unittests():
 			self.line = ""
 			self.catch = None
 			self.find = None
-			self.err = None
+			self.err = 0 # expect 0 per default
 	
 	tests = []
 	state = 0
@@ -172,18 +172,23 @@ def unittests():
 		ret = p.returncode
 		
 		failed = False
-		if test.err != None and ret != test.err:
+		if ret != test.err:
 			failed = True
 			print "FAILED! error %d != %d" % (test.err, ret)
 		
 		if test.catch != None:
+			found = False
 			for l in report:
 				l = l.split("CATCH:", 1)
 				if len(l) == 2:
 					catched = l[1].strip()
-					if catched != test.catch:
-						failed = True
+					if catched == test.catch:
+						found = True
+					else:
 						print "FAILED! catch '%s' != '%s'" % (test.catch, catched)
+						
+			if not found:
+				failed = True
 		
 		if test.find != None:
 			found = False

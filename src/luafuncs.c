@@ -761,3 +761,39 @@ int lf_loadplugin(struct lua_State *L)
 	
 	return 0;
 }
+
+int lf_envvar_clear(struct lua_State *L)
+{
+	if(lua_gettop(L) != 1)
+		luaL_error(L, "envvar_clear: incorrect number of arguments");
+	
+	luaL_checktype(L, 1, LUA_TSTRING);
+	envvar_clear(lua_tostring(L, 1));
+	return 0;
+}
+
+int lf_envvar_get(struct lua_State *L)
+{
+	const char *p;
+	if(lua_gettop(L) != 1)
+		luaL_error(L, "envvar_set: incorrect number of arguments");
+	
+	luaL_checktype(L, 1, LUA_TSTRING);
+	p = envvar_get(lua_tostring(L, 1));
+	if(p)
+		lua_pushstring(L, p);
+	else
+		lua_pushnil(L);
+	return 1;
+}
+
+int lf_envvar_set(struct lua_State *L)
+{
+	if(lua_gettop(L) != 2)
+		luaL_error(L, "envvar_set: incorrect number of arguments");
+	
+	luaL_checktype(L, 1, LUA_TSTRING);
+	luaL_checktype(L, 2, LUA_TSTRING);
+	envvar_set(lua_tostring(L, 1), lua_tostring(L, 2));
+	return 0;
+}

@@ -41,6 +41,39 @@ else
 	ExecuteSilent = function(command) return os.execute(command .. " >/dev/null 2>/dev/null") end
 end
 
+
+--[[@GROUP Environment @END]]--
+
+--[[@UNITTESTS
+	err=1 : EnvironmentClear(nil)
+	err=1 : EnvironmentClear("DOES_NOT_EXIST", "DOES_NOT_EXIST")
+	err=0 : EnvironmentClear("DOES_NOT_EXIST")
+@END]]--
+--[[@FUNCTION EnvironmentClear(name)
+	Clears the environment variable ^name^.
+@END]]--
+EnvironmentClear = bam_envvar_clear
+
+--[[@UNITTESTS
+	err=1 : EnvironmentGet(nil)
+	err=1 : EnvironmentGet("DOES_NOT_EXIST", "DOES_NOT_EXIST")
+	err=0 : EnvironmentGet("DOES_NOT_EXIST")
+@END]]--
+--[[@FUNCTION EnvironmentGet(name)
+	Get the environment variable ^name^.
+@END]]--
+EnvironmentGet = bam_envvar_get
+
+--[[@UNITTESTS
+	err=1 : EnvironmentSet(nil)
+	err=1 : EnvironmentSet("DOES_NOT_EXIST", "NOW_IT_DOES", "TOO_MANY")
+	err=0 : EnvironmentSet("BAM_TEST_TEMP", "Hello World")
+@END]]--
+--[[@FUNCTION EnvironmentSet(name, value)
+	Set the environment variable ^name^ to ^value^.
+@END]]--
+EnvironmentSet = bam_envvar_set
+
 --[[@GROUP Path Manipulation @END]]--
 
 --[[@UNITTESTS
