@@ -305,49 +305,13 @@ else
 	end
 end
 
---[[@FUNCTION CopyToDirectory(dst, src)
+--[[@FUNCTION CopyToDirectory(dst, ...)
 @END]]--
-function CopyToDirectory(dst, src)
-	return CopyFile(PathJoin(dst, PathFilename(src)), src)
-end
-
--- TODO: remove
-function old_Copy(outputdir, ...)
-	local outputs = {}
-
-	local copy_command = "cp"
-	local copy_append = ""
-
-	if family == "windows" then
-		copy_command = "copy /b" -- binary copy
-		copy_append = " >nul 2>&1" -- suppress output
+function CopyToDirectory(dst, ...)
+	for src in TableWalk({...}) do
+		return CopyFile(PathJoin(dst, PathFilename(src)), src)
 	end
-	
-	-- compile all the files
-	for inname in TableWalk({...}) do
-		output = Path(outputdir .. "/" .. PathFilename(inname))
-		input = Path(inname)
-
-		local srcfile = input
-		local dstfile = output
-		if family == "windows" then
-			srcfile = str_replace(srcfile, "/", "\\")
-			dstfile = str_replace(dstfile, "/", "\\")
-		end
-
-		AddJob(output,
-			"copy " .. input .. " -> " .. output,
-			copy_command .. " " .. srcfile .. " " .. dstfile .. copy_append)
-
-		-- make sure that the files timestamps are updated correctly
-		SetTouch(output)
-		AddDependency(output, input)
-		table.insert(outputs, output)
-	end
-	
-	return outputs
 end
-
 
 ------------------------ LINK ------------------------
 
