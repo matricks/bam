@@ -113,14 +113,18 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 }
 
 /* finds a node based apun the filename */
-struct NODE *node_find(struct GRAPH *graph, const char *filename)
+struct NODE *node_find_byhash(struct GRAPH *graph, unsigned int hashid)
 {
-	unsigned int hashid = string_hash(filename);
 	struct NODETREELINK *link;
 	link = nodelinktree_find_closest(graph->nodehash[hashid&0xffff], hashid);
 	if(link && link->node->hashid == hashid)
 		return link->node;
 	return NULL;
+}
+
+struct NODE *node_find(struct GRAPH *graph, const char *filename)
+{
+	return node_find_byhash(graph, string_hash(filename));
 }
 
 /* this will return the existing node or create a new one */

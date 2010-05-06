@@ -526,6 +526,11 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 	/* mark as targeted */
 	if(!walkinfo->revisiting)
 		node->targeted = 1;
+		
+	/* invalidate the cache cmd hash if we are dirty because
+		we could be dirty because if a dependency is missing */
+	if(node->dirty)
+		node->cachehash = 0;
 	
 	/* count commands */
 	if(node->cmdline && node->dirty && !node->counted && node->targeted)

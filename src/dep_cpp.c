@@ -105,10 +105,27 @@ struct CACHERUNINFO
 static int dependency_cpp_run(struct CONTEXT *context, struct NODE *node,
 		int (*callback)(void *, const char *, int), void *userdata);
 
-static void cachehit_callback(struct NODE *node, void *user)
+static void cachehit_callback(struct NODE *node, struct CACHENODE *cachenode, void *user)
 {
 	struct CACHERUNINFO *info = (struct CACHERUNINFO *)user;
-	dependency_cpp_run(info->context, node, info->callback, info->userdata);
+	
+	/* check if the file has been removed */
+	struct NODE *existing_node = node_find_byhash(node->graph, cachenode->hashid);
+	if(existing_node)
+	{
+		struct NODE *newnode = node_add_dependency_withnode(node, existing_node);
+		dependency_cpp_run(info->context, newnode, info->callback, info->userdata);
+	}
+	else
+	{
+		if(file_timestamp(cachenode->filename) == 0)
+			node->dirty = NODEDIRTY_MISSING;
+		else
+		{
+			struct NODE *newnode = node_add_dependency(node, cachenode->filename);
+			dependency_cpp_run(info->context, newnode, info->callback, info->userdata);
+		}
+	}
 }
 
 /* dependency calculator for c/c++ preprocessor */
@@ -220,7 +237,6 @@ static int dependency_cpp_callback(void *user, const char *filename, int sys)
 	struct NODE *depnode;
 	struct CPPDEPINFO recurseinfo;
 	char buf[MAX_PATH_LENGTH];
-	char normal[MAX_PATH_LENGTH];
 	int check_system = sys;
 	int found = 0;
 	
@@ -241,7 +257,6 @@ static int dependency_cpp_callback(void *user, const char *filename, int sys)
 		else
 		{
 			/* file does not exist */
-			memcpy(normal, buf, sizeof(normal));
 			check_system = 1;
 		}
 	}
@@ -272,17 +287,8 @@ static int dependency_cpp_callback(void *user, const char *filename, int sys)
 				}
 			}
 		}
-	
-		/* no header found */
-		if(!found)
-		{
-			if(sys)
-				return 0;
-			else
-				memcpy(buf, normal, sizeof(normal));
-		}
 	}
-	
+
 	/* */
 	if(found)
 	{

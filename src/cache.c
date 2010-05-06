@@ -333,7 +333,7 @@ struct CACHENODE *cache_find_byhash(struct CACHE *cache, unsigned hashid)
 int cache_do_dependency(
 	struct CONTEXT *context,
 	struct NODE *node,
-	void (*callback)(struct NODE *node, void *user),
+	void (*callback)(struct NODE *node, struct CACHENODE *cachenode, void *user),
 	void *user)
 {
 	struct CACHENODE *cachenode;
@@ -354,7 +354,7 @@ int cache_do_dependency(
 		{
 			depcachenode = cache_find_byindex(context->cache, cachenode->deps[i]);
 			if(depcachenode->cached)
-				callback(node_add_dependency(node, depcachenode->filename), user);
+				callback(node, depcachenode, user);
 		}
 		
 		return 1;

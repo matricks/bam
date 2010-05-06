@@ -11,6 +11,6 @@ struct CACHENODE *cache_find_byindex(struct CACHE *cache, unsigned index);
 int cache_do_dependency(
 	struct CONTEXT *context,
 	struct NODE *node,
-	void (*callback)(struct NODE *node, void *user),
+	void (*callback)(struct NODE *node, struct CACHENODE *cachenode, void *user),
 	void *user);
 
