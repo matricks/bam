@@ -720,7 +720,7 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 		return setup_error;
 	}
 	else if(build_error)
-		printf("%s: error during build\n", session.name);
+		printf("%s: error: a build step failed\n", session.name);
 	else if(report_done)
 	{
 		if(context.num_commands == 0)
@@ -728,7 +728,10 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 		else
 		{
 			time_t s = time(0x0) - starttime;
-			printf("%s: done (%d:%.2d)\n", session.name, (int)(s/60), (int)(s%60));
+			if(s <= 1)
+				printf("%s: done\n", session.name);
+			else
+				printf("%s: done (%d:%.2d)\n", session.name, (int)(s/60), (int)(s%60));
 		}
 	}
 
