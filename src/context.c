@@ -459,20 +459,15 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 	if(node->cmdline)
 	{
 		/* dirty checking, check against cmdhash and global timestamp first */
-		if(!node->timestamp)
-			node->dirty = NODEDIRTY_MISSING;
-		else
+		cachenode = cache_find_byhash(context->cache, node->hashid);
+		if(cachenode)
 		{
-			cachenode = cache_find_byhash(context->cache, node->hashid);
-			if(cachenode)
-			{
-				node->cachehash = cachenode->cmdhash;
-				if(node->cachehash != node->cmdhash)
-					node->dirty = NODEDIRTY_CMDHASH;
-			}
-			else if(node->timestamp < context->globaltimestamp)
-				node->dirty = NODEDIRTY_GLOBALSTAMP;
+			node->cachehash = cachenode->cmdhash;
+			if(node->cachehash != node->cmdhash)
+				node->dirty = NODEDIRTY_CMDHASH;
 		}
+		else if(node->timestamp < context->globaltimestamp)
+			node->dirty = NODEDIRTY_GLOBALSTAMP;
 	}
 	else if(node->timestamp_raw == 0)
 	{

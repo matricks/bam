@@ -77,6 +77,9 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 		node->timestamp_raw = file_timestamp(filename);
 		node->timestamp = node->timestamp_raw;
 		
+		if(node->timestamp_raw == 0)
+			node->dirty = NODEDIRTY_MISSING;
+		
 		/* set filename */
 		node->filename_len = strlen(filename)+1;
 		node->filename = (char *)mem_allocate(graph->heap, node->filename_len);
