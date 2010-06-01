@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <malloc.h>
+#include <stdlib.h> /* malloc */
 
 /* lua includes */
 #define LUA_CORE /* make sure that we don't try to import these functions */
