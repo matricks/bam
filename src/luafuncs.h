@@ -37,11 +37,6 @@ int lf_listdir(struct lua_State *L);
 int lf_mkdir(struct lua_State *L);
 int lf_fileexist(struct lua_State *L);
 
-/* environment */
-int lf_envvar_clear(struct lua_State *L);
-int lf_envvar_get(struct lua_State *L);
-int lf_envvar_set(struct lua_State *L);
-
 /* table functions*/
 int lf_table_walk(struct lua_State *L);
 int lf_table_deepcopy(struct lua_State *L);

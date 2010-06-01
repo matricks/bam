@@ -128,25 +128,6 @@
 		
 		return (PLUGINFUNC)func;
 	}
-	
-	const char *envvar_get(const char *name)
-	{
-		return getenv(name);
-	}
-	
-	void envvar_clear(const char *name)
-	{
-		char buffer[1024*4];
-		_snprintf(buffer, sizeof(buffer), "%s=", name);
-		_putenv(buffer);
-	}
-	
-	void envvar_set(const char *name, const char *value)
-	{
-		char buffer[1024*4];
-		_snprintf(buffer, sizeof(buffer), "%s=%s", name, value);
-		_putenv(buffer);
-	}
 
 #else
 	#define D_TYPE_HACK
@@ -285,21 +266,6 @@
 		}
 		
 		return func;
-	}
-	
-	const char *envvar_get(const char *name)
-	{
-		return getenv(name);
-	}
-	
-	void envvar_clear(const char *name)
-	{
-		unsetenv(name);
-	}
-	
-	void envvar_set(const char *name, const char *value)
-	{
-		setenv(name, value);
 	}
 		
 #endif

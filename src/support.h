@@ -24,11 +24,6 @@ void file_touch(const char *filename);
 typedef int (*PLUGINFUNC)(struct lua_State *);
 PLUGINFUNC plugin_load(const char *filename);
 
-/* environment functions */
-const char *envvar_get(const char *name);
-void envvar_clear(const char *name);
-void envvar_set(const char *name, const char *value);
-
 /* string hashing function */
 unsigned int string_hash(const char *str_in);
 unsigned int string_hash_add(unsigned int base, const char *str_in);

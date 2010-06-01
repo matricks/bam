@@ -313,11 +313,6 @@ int register_lua_globals(struct CONTEXT *context)
 	lua_register(context->lua, L_FUNCTION_PREFIX"path_base", lf_path_base);
 	lua_register(context->lua, L_FUNCTION_PREFIX"path_filename", lf_path_filename);
 
-	/* environment */
-	lua_register(context->lua, L_FUNCTION_PREFIX"envvar_clear", lf_envvar_clear);
-	lua_register(context->lua, L_FUNCTION_PREFIX"envvar_get", lf_envvar_get);
-	lua_register(context->lua, L_FUNCTION_PREFIX"envvar_set", lf_envvar_set);
-
 	/* various support functions */
 	lua_register(context->lua, L_FUNCTION_PREFIX"collect", lf_collect);
 	lua_register(context->lua, L_FUNCTION_PREFIX"collectrecursive", lf_collectrecursive);
