@@ -282,7 +282,6 @@ static void *lua_alloctor_malloc(void *ud, void *ptr, size_t osize, size_t nsize
 int register_lua_globals(struct CONTEXT *context)
 {
 	int i, error = 0;
-	unsigned int cache_hash = 0;
 		
 	/* add standard libs */
 	luaL_openlibs(context->lua);
