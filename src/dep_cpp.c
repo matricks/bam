@@ -98,12 +98,12 @@ static int processline(char *line, char **start, char **end, int *systemheader)
 struct CACHERUNINFO
 {
 	struct CONTEXT *context;
-	int (*callback)(void *, const char *, int);
+	int (*callback)(struct NODE *, void *, const char *, int);
 	void *userdata;
 };
 
 static int dependency_cpp_run(struct CONTEXT *context, struct NODE *node,
-		int (*callback)(void *, const char *, int), void *userdata);
+		int (*callback)(struct NODE *, void *, const char *, int), void *userdata);
 
 static void cachehit_callback(struct NODE *node, struct CACHENODE *cachenode, void *user)
 {
@@ -130,7 +130,7 @@ static void cachehit_callback(struct NODE *node, struct CACHENODE *cachenode, vo
 
 /* dependency calculator for c/c++ preprocessor */
 static int dependency_cpp_run(struct CONTEXT *context, struct NODE *node,
-		int (*callback)(void *, const char *, int), void *userdata)
+		int (*callback)(struct NODE *, void *, const char *, int), void *userdata)
 {
 	char *linestart;
 	char *includestart;
@@ -211,7 +211,7 @@ static int dependency_cpp_run(struct CONTEXT *context, struct NODE *node,
 		{
 			*includeend = 0;
 			/* run callback */
-			errorcode = callback(userdata, includestart, systemheader);
+			errorcode = callback(node, userdata, includestart, systemheader);
 			if(errorcode)
 				break;
 		}
@@ -225,15 +225,13 @@ static int dependency_cpp_run(struct CONTEXT *context, struct NODE *node,
 struct CPPDEPINFO
 {
 	struct CONTEXT *context;
-	struct NODE *node;
 	struct STRINGLIST *paths;
 };
 
 /* */
-static int dependency_cpp_callback(void *user, const char *filename, int sys)
+static int dependency_cpp_callback(struct NODE *node, void *user, const char *filename, int sys)
 {
 	struct CPPDEPINFO *depinfo = (struct CPPDEPINFO *)user;
-	struct NODE *node = depinfo->node;
 	struct NODE *depnode;
 	struct CPPDEPINFO recurseinfo;
 	char buf[MAX_PATH_LENGTH];
@@ -301,7 +299,6 @@ static int dependency_cpp_callback(void *user, const char *filename, int sys)
 		if(!depnode->depchecked)
 		{
 			recurseinfo.paths = depinfo->paths;
-			recurseinfo.node = depnode;
 			recurseinfo.context = depinfo->context;
 			if(dependency_cpp_run(depinfo->context, depnode, dependency_cpp_callback, &recurseinfo) != 0)
 				return 3;
@@ -317,9 +314,8 @@ static int dependency_cpp_do_run(struct CONTEXT *context, struct DEFERRED *info)
 {
 	struct CPPDEPINFO depinfo;
 	depinfo.context = context;
-	depinfo.node = info->node;
 	depinfo.paths = (struct STRINGLIST *)info->user;
-	if(dependency_cpp_run(context, depinfo.node, dependency_cpp_callback, &depinfo) != 0)
+	if(dependency_cpp_run(context, info->node, dependency_cpp_callback, &depinfo) != 0)
 		return -1;
 	return 0;
 }
