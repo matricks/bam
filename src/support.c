@@ -131,11 +131,11 @@
 
 #else
 	#define D_TYPE_HACK
-	/* TODO: detect DT_DIR/DT_UNKNOWN */
 
 #ifdef D_TYPE_HACK
 	#define __USE_BSD
 #endif
+
 	#include <dirent.h>
 	#include <dlfcn.h>
 	#include <unistd.h>
@@ -145,13 +145,16 @@
 	#include <utime.h>
 	#include <pthread.h>
 
+/* disable D_TYPE_HACK if we don't have support for it */
+#if !defined(DT_DIR) || !defined(DT_UNKNOWN)
+	#undef D_TYPE_HACK
+#endif
+
 	static void list_directory(const char *path, void (*callback)(const char *filename, int dir, void *user), void *user)
 	{
 		DIR *dir;
 		struct dirent *entry;
-#ifndef D_TYPE_HACK
 		struct stat info;
-#endif
 		char buffer[1024];
 		char *startpoint;
 		
@@ -178,11 +181,18 @@
 		{
 			/* make the path absolute */
 			strcpy(startpoint, entry->d_name);
-
-#ifdef D_TYPE_HACK			
-			/* TODO: support DT_UNKNOWN */
+#ifdef D_TYPE_HACK
 			/* call the callback */
-			if(entry->d_type == DT_DIR)
+			if(entry->d_type == DT_UNKNOWN)
+			{
+				/* do stat to obtain if it's a directory or not */
+				stat(buffer, &info);
+				if(S_ISDIR(info.st_mode))
+					callback(buffer, 1, user);
+				else
+					callback(buffer, 0, user);
+			}
+			else if(entry->d_type == DT_DIR)
 				callback(buffer, 1, user);
 			else
 				callback(buffer, 0, user);
