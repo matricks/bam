@@ -246,7 +246,11 @@
 		char buffer[MAX_PATH_LENGTH];
 		const char *error;
 		void *handle;
-		PLUGINFUNC func;
+		union
+		{
+			PLUGINFUNC func;
+			void *ptr;
+		} func;
 		
 		if(strlen(filename) > sizeof(buffer) - 10)
 			return (PLUGINFUNC)0;
@@ -264,7 +268,7 @@
 			return NULL;
 		}
 		
-		func = (PLUGINFUNC)dlsym(handle, "plugin_main");
+		func.ptr = dlsym(handle, "plugin_main");
 		error = dlerror();
 
 		if(error)
@@ -275,7 +279,7 @@
 			return NULL;
 		}
 		
-		return func;
+		return func.func;
 	}
 		
 #endif
