@@ -338,7 +338,8 @@ CollectDirsRecursive = bam_collectdirsrecursive
 DefaultTarget = bam_default_target
 
 --[[@FUNCTION
-	TODO	
+	Creates a pseudo target named ^name^ and assigns a set of dependencies
+	specified by ^...^.
 @END]]--
 function PseudoTarget(name, ...)
 	local name = Path(name)
@@ -354,10 +355,16 @@ end
 
 --[[@GROUP Modules@END]]--
 
---[[@FUNCTION
-	TODO
+--[[@FUNCTION Import(filename)
+	Imports a script specified by ^filename^. A search for the script will be
+	done by first checking the current directory and then the paths specified
+	by the BAM_PACKAGES environment variable. Several paths can be specified
+	in the variable by separating them by a ':' character.
+
+	The importing script can figure out it's path by calling the
+	[ModuleFilename] function.
 @END]]--
-function Import(modname)
+function Import(filename)
 	local paths = {""}
 	local chunk = nil
 
@@ -371,10 +378,10 @@ function Import(modname)
 	end
 	
 	for k,v in pairs(paths) do
-		chunk = bam_loadfile(modname)
+		chunk = bam_loadfile(filename)
 		if chunk then
 			local current = _bam_modulefilename
-			_bam_modulefilename = modname
+			_bam_modulefilename = filename
 			bam_update_globalstamp(_bam_modulefilename)
 			chunk()
 			_bam_modulefilename = current
@@ -382,12 +389,13 @@ function Import(modname)
 		end
 	end
 
-	error(modname .. " not found")
+	error(filename .. " not found")
 end
 
 
 --[[@FUNCTION
-	TODO
+	Returns the filename of the current script being imported (by [Import])
+	as relative to the current working directory.
 @END]]--
 function ModuleFilename()
 	return _bam_modulefilename
@@ -422,7 +430,9 @@ AddJob = bam_add_job
 @END]]--
 AddDependency = bam_add_dependency
 
---[[@FUNCTION AddDependencySearch(filename, paths, dependencies)
+--[[@FUNCTION AddDependencySearch(filename, paths, ...)
+	Searches for dependencies in the specified ^paths^ and adds them to
+	the ^file^.
 @END]]--
 AddDependencySearch = bam_add_dependency_search
 
