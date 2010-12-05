@@ -83,54 +83,45 @@ int path_normalize(char *path)
 			/* "./" case, just skip the data */
 			srcptr += 2;
 		}
-		else if(srcptr[0] == '.'  && srcptr[1] == '.')
+		else if(srcptr[0] == '.'  && srcptr[1] == '.' && path_is_separator(srcptr[2]))
 		{
-			/* found ".." in path */
-			if(path_is_separator(srcptr[2]))
+			/* "../" case */
+			if(depth == 1)
 			{
-				/* "../" case */
-				if(depth == 1)
-				{
-					/* case where we are at the start so append ../ to the start of the string */
-					dstptr[0] = '.';
-					dstptr[1] = '.';
-					dstptr[2] = PATH_SEPARATOR;
-					dstptr += 3;
-					srcptr += 3;
-					
-					dirs[0] = dstptr;
-				}
-				else
-				{
-					/* normal case where we are in the middle like "a/b/../c" */
-					depth--;
-					dstptr = dirs[depth-1];
-					srcptr += 3;
-				}
-			}
-			else if(srcptr[2] == 0)
-			{
-				/* ".." case, .. at end of string */
-				if(depth == 1)
-				{
-					dstptr[0] = '.';
-					dstptr[1] = '.';
-					dstptr += 2;
-					srcptr += 2;
-					
-					dirs[0] = dstptr;
-				}
-				else
-				{
-					depth--;
-					dstptr = dirs[depth-1];
-					srcptr += 2;
-				}
+				/* case where we are at the start so append ../ to the start of the string */
+				dstptr[0] = '.';
+				dstptr[1] = '.';
+				dstptr[2] = PATH_SEPARATOR;
+				dstptr += 3;
+				srcptr += 3;
+				
+				dirs[0] = dstptr;
 			}
 			else
 			{
-				/* "..?" case */
-				return -1;
+				/* normal case where we are in the middle like "a/b/../c" */
+				depth--;
+				dstptr = dirs[depth-1];
+				srcptr += 3;
+			}
+		}
+		else if(srcptr[0] == '.'  && srcptr[1] == '.' && srcptr[2] == 0)
+		{
+			/* ".." case, .. at end of string */
+			if(depth == 1)
+			{
+				dstptr[0] = '.';
+				dstptr[1] = '.';
+				dstptr += 2;
+				srcptr += 2;
+				
+				dirs[0] = dstptr;
+			}
+			else
+			{
+				depth--;
+				dstptr = dirs[depth-1];
+				srcptr += 2;
 			}
 		}
 		else
@@ -153,6 +144,10 @@ int path_normalize(char *path)
 				*dstptr++ = *srcptr++;
 				dirs[depth] = dstptr;
 				depth++;
+				
+				/* condense multiple // */
+				while(path_is_separator(srcptr[0]) && srcptr[0])
+					srcptr++;
 			}
 			else
 			{

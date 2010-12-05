@@ -53,6 +53,8 @@ end
 	catch="/b.c" : Path("/a/../b.c/./")
 	catch="/.bc" : Path("/a/../.bc/./")
 	catch="/a" : Path("/a/b/..")
+	catch="/a/..b" : Path("/a/..b/")
+	catch="/a/b" : Path("/a//b/")
 	catch="/a" : Path("/a/b/../")
 	catch="/a" : Path("/a/.b/../")
 	catch="/a/.b" : Path("/a/.b")
