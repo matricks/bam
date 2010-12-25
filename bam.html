@@ -1,0 +1,1119 @@
+
+			<head>
+			<title>Bam Manual</title>
+			
+			<style type="text/css"><!--
+			
+				body {
+					color: #000000 ;
+					background-color: #FFFFFF ;
+					font-family: sans-serif ;
+					text-align: justify ;
+					margin-right: 20px ;
+					margin-left: 20px ;
+				}
+
+				h1, h2, h3, h4, h5 {
+					font-weight: normal ;
+					font-style: italic ;
+				}
+
+				a:link {
+					color: #000080 ;
+					background-color: inherit ;
+					text-decoration: none ;
+				}
+
+				a:visited {
+					background-color: inherit ;
+					text-decoration: none ;
+				}
+
+				a:link:hover, a:visited:hover {
+					color: #000080 ;
+					background-color: #E0E0FF ;
+				}
+
+				a:link:active, a:visited:active {
+					color: #FF0000 ;
+				}
+
+				hr {
+					border: 0 ;
+					height: 1px ;
+					color: #a0a0a0 ;
+					background-color: #a0a0a0 ;
+				}
+				
+				pre {
+					padding: 5px ;
+					background-color: #eeeeee ;
+				}
+				
+				td {
+					border-width: 1px;
+					border-style: dotted;
+					padding: 2px;
+				}
+			
+				.identifier {
+					font-family: monospace ;
+				}
+				
+				li {
+					list-style-type: none;
+				}
+				
+			--></style>
+			</head>
+			<body>
+			<!-- COMMENTS "BASE" -->
+			<hr/>
+			<img src="bam_logo.png"/><h1>Bam Manual</h1>
+			<small>This manual is a work in progress and is not complete.</small>
+			
+			<hr/>
+			Copyright &copy; 2010 Magnus Auvinen. Freely available under the terms of the zlib/libpng license.
+		
+<h2>Contents</h2><ul>
+<li><a href="#1">1 - Introduction</a></li><ul>
+</ul><p></p>
+<li><a href="#2">2 - Building Bam</a></li><ul>
+<li><a href="#2.1">2.1 - Unix-like Systems with GCC (Linux, *BSD, Mac OS X)</a></li><ul>
+</ul>
+<li><a href="#2.2">2.2 - Windows</a></li><ul>
+</ul>
+<li><a href="#2.3">2.3 - BeOS and Haiku</a></li><ul>
+</ul>
+<li><a href="#2.4">2.4 - Running the Test Suite</a></li><ul>
+</ul>
+</ul><p></p>
+<li><a href="#3">3 - Quick Start</a></li><ul>
+<li><a href="#3.1">3.1 - Your first script</a></li><ul>
+</ul>
+</ul><p></p>
+<li><a href="#4">4 - Custom Actions</a></li><ul>
+<li><a href="#4.1">4.1 - Dependency Graph</a></li><ul>
+</ul>
+<li><a href="#4.2">4.2 - Jobs</a></li><ul>
+</ul>
+<li><a href="#4.3">4.3 - Dependencies</a></li><ul>
+</ul>
+<li><a href="#4.4">4.4 - All Together</a></li><ul>
+</ul>
+<li><a href="#4.5">4.5 - Examples</a></li><ul>
+</ul>
+</ul><p></p>
+<li><a href="#5">5 - Command Line Reference</a></li><ul>
+<li><a href="#5.1">5.1 - Targets ( name )</a></li><ul>
+</ul>
+<li><a href="#5.2">5.2 - Script Arguments ( name=value )</a></li><ul>
+</ul>
+<li><a href="#5.3">5.3 - Abort on error ( -a )</a></li><ul>
+</ul>
+<li><a href="#5.4">5.4 - Clean ( -c )</a></li><ul>
+</ul>
+<li><a href="#5.5">5.5 - Dependent build ( -d )</a></li><ul>
+</ul>
+<li><a href="#5.6">5.6 - Dry Run ( --dry )</a></li><ul>
+</ul>
+<li><a href="#5.7">5.7 - Threading ( -j N )</a></li><ul>
+</ul>
+<li><a href="#5.8">5.8 - Script File ( -s FILENAME )</a></li><ul>
+</ul>
+<li><a href="#5.9">5.9 - Script Locals ( -l )</a></li><ul>
+</ul>
+<li><a href="#5.10">5.10 - Script Backtrace ( -t )</a></li><ul>
+</ul>
+<li><a href="#5.11">5.11 - Report Format ( -r [b][s][c] )</a></li><ul>
+</ul>
+<li><a href="#5.12">5.12 - Verbose ( -v )</a></li><ul>
+</ul>
+<li><a href="#5.13">5.13 - No cache ( -n )</a></li><ul>
+</ul>
+<li><a href="#5.14">5.14 - Help ( -h, --help )</a></li><ul>
+</ul>
+<li><a href="#5.15">5.15 - Debug: Dump Nodes ( --debug-nodes )</a></li><ul>
+</ul>
+<li><a href="#5.16">5.16 - Debug: Dump Nodes Detailed ( --debug-detail )</a></li><ul>
+</ul>
+<li><a href="#5.17">5.17 - Debug: Dump Jobs ( --debug-jobs )</a></li><ul>
+</ul>
+<li><a href="#5.18">5.18 - Debug: Dump Dot ( --debug-dot )</a></li><ul>
+</ul>
+<li><a href="#5.19">5.19 - Debug: Dump Jobs Dot ( --debug-jobs-dot )</a></li><ul>
+</ul>
+<li><a href="#5.20">5.20 - Debug: Trace VM ( --debug-trace-vm )</a></li><ul>
+</ul>
+<li><a href="#5.21">5.21 - Debug: Dump Internal Scripts ( --debug-dump-int )</a></li><ul>
+</ul>
+</ul><p></p>
+<li><a href="#6">6 - Function Reference</a></li><ul>
+<li><a href="#6.1">6.1 - Common</a></li><ul>
+<li><a href="#6.1.1">6.1.1 - CheckVersion</a></li><ul>
+</ul>
+<li><a href="#6.1.2">6.1.2 - Execute</a></li><ul>
+</ul>
+<li><a href="#6.1.3">6.1.3 - ExecuteSilent</a></li><ul>
+</ul>
+</ul>
+<li><a href="#6.2">6.2 - Files and Directories</a></li><ul>
+<li><a href="#6.2.1">6.2.1 - Collect</a></li><ul>
+</ul>
+<li><a href="#6.2.2">6.2.2 - CollectRecursive</a></li><ul>
+</ul>
+<li><a href="#6.2.3">6.2.3 - CollectDirs</a></li><ul>
+</ul>
+<li><a href="#6.2.4">6.2.4 - CollectDirsRecursive</a></li><ul>
+</ul>
+</ul>
+<li><a href="#6.3">6.3 - Job and Dependencies</a></li><ul>
+<li><a href="#6.3.1">6.3.1 - AddJob</a></li><ul>
+</ul>
+<li><a href="#6.3.2">6.3.2 - AddDependency</a></li><ul>
+</ul>
+<li><a href="#6.3.3">6.3.3 - AddDependencySearch</a></li><ul>
+</ul>
+</ul>
+<li><a href="#6.4">6.4 - Modules</a></li><ul>
+<li><a href="#6.4.1">6.4.1 - Import</a></li><ul>
+</ul>
+<li><a href="#6.4.2">6.4.2 - ModuleFilename</a></li><ul>
+</ul>
+</ul>
+<li><a href="#6.5">6.5 - Path Manipulation</a></li><ul>
+<li><a href="#6.5.1">6.5.1 - Path</a></li><ul>
+</ul>
+<li><a href="#6.5.2">6.5.2 - PathBase</a></li><ul>
+</ul>
+<li><a href="#6.5.3">6.5.3 - PathFileExt</a></li><ul>
+</ul>
+<li><a href="#6.5.4">6.5.4 - PathFilename</a></li><ul>
+</ul>
+<li><a href="#6.5.5">6.5.5 - PathJoin</a></li><ul>
+</ul>
+<li><a href="#6.5.6">6.5.6 - PathDir</a></li><ul>
+</ul>
+</ul>
+<li><a href="#6.6">6.6 - Settings</a></li><ul>
+<li><a href="#6.6.1">6.6.1 - AddTool</a></li><ul>
+</ul>
+<li><a href="#6.6.2">6.6.2 - NewSettings</a></li><ul>
+</ul>
+</ul>
+<li><a href="#6.7">6.7 - Tables</a></li><ul>
+<li><a href="#6.7.1">6.7.1 - TableDeepCopy</a></li><ul>
+</ul>
+<li><a href="#6.7.2">6.7.2 - TableFlatten</a></li><ul>
+</ul>
+<li><a href="#6.7.3">6.7.3 - TableLock</a></li><ul>
+</ul>
+<li><a href="#6.7.4">6.7.4 - TableToString</a></li><ul>
+</ul>
+<li><a href="#6.7.5">6.7.5 - TableWalk</a></li><ul>
+</ul>
+</ul>
+<li><a href="#6.8">6.8 - Targets</a></li><ul>
+<li><a href="#6.8.1">6.8.1 - DefaultTarget</a></li><ul>
+</ul>
+<li><a href="#6.8.2">6.8.2 - PseudoTarget</a></li><ul>
+</ul>
+</ul>
+</ul><p></p>
+<li><a href="#7">7 - Tool Reference</a></li><ul>
+<li><a href="#7.1">7.1 - Common Settings (settings)</a></li><ul>
+<li><a href="#7.1.1">7.1.1 - config_name</a></li><ul>
+</ul>
+<li><a href="#7.1.2">7.1.2 - config_ext</a></li><ul>
+</ul>
+<li><a href="#7.1.3">7.1.3 - labelprefix</a></li><ul>
+</ul>
+</ul>
+<li><a href="#7.2">7.2 - Compile</a></li><ul>
+<li><a href="#7.2.1">7.2.1 - Compile</a></li><ul>
+</ul>
+<li><a href="#7.2.2">7.2.2 - Compile Settings</a></li><ul>
+</ul>
+<li><a href="#7.2.3">7.2.3 - C/C++ Settings</a></li><ul>
+</ul>
+</ul>
+<li><a href="#7.3">7.3 - Link</a></li><ul>
+<li><a href="#7.3.1">7.3.1 - Link</a></li><ul>
+</ul>
+<li><a href="#7.3.2">7.3.2 - Settings</a></li><ul>
+</ul>
+</ul>
+<li><a href="#7.4">7.4 - Other</a></li><ul>
+<li><a href="#7.4.1">7.4.1 - CopyFile</a></li><ul>
+</ul>
+<li><a href="#7.4.2">7.4.2 - CopyToDirectory</a></li><ul>
+</ul>
+</ul>
+<li><a href="#7.5">7.5 - SharedLibrary</a></li><ul>
+</ul>
+<li><a href="#7.6">7.6 - StaticLibrary</a></li><ul>
+<li><a href="#7.6.1">7.6.1 - StaticLibrary</a></li><ul>
+</ul>
+</ul>
+</ul><p></p>
+<li><a href="#8">8 - License</a></li><ul>
+</ul><p></p>
+</ul><hr/>
+<h1><a name="Introduction"></a><a name="1">1</a> - <a name="Introduction">Introduction</a></h1>
+<p class="body">Bam is a build system with the focus on being having fast build times
+and flexiable build scripts. Instead of having a custom language it
+uses Lua to describe the build steps. It's written in clean C and
+is distrubuted under the liberal zlib licence. Available on many
+platforms including but not limited to Linux, Mac OS X and Windows.
+</p>
+
+<!-- COMMENTS "Introduction" -->
+
+<h1><a name="Building Bam"></a><a name="2">2</a> - <a name="Building Bam">Building Bam</a></h1>
+<p class="body"></p>
+
+<!-- COMMENTS "Building Bam" -->
+
+<h2><a name="Unix-like Systems with GCC (Linux, *BSD, Mac OS X)"></a><a name="2.1">2.1</a> - <a name="Unix-like Systems with GCC (Linux, *BSD, Mac OS X)">Unix-like Systems with GCC (Linux, *BSD, Mac OS X)</a></h2>
+<p class="body">
+Building bam is easy and have very few dependencies. Make sure
+that you have GCC and the pthreads library installed and
+run this command:</p><p><pre>sh make_unix.sh</pre></p><p>This will build Bam with optimizations turned on. If you want a
+debug version of Bam, you can invoke the script like this:</p><p><pre>sh make_unix.sh -O0 -g</pre></p><p>That will turn off the optimizations and include debug
+information in the build.</p><p></p>
+
+<!-- COMMENTS "Unix-like Systems with GCC (Linux, *BSD, Mac OS X)" -->
+
+<h2><a name="Windows"></a><a name="2.2">2.2</a> - <a name="Windows">Windows</a></h2>
+<p class="body">
+To build on windows you need to have either Microsoft Visual C++ or
+MinGW.</p><p>To build with Visual C++, just run press Start, Run and enter
+cmd.exe and press enter. Then navigate to the Bam directory and type this:</p><p><pre>make_win32_msvc.bat</pre></p><p>The batch file will automaticly detect the Visual C++ version and setup
+the compile environment and then build an optimized version of Bam. You
+should find the exe in the base directory of Bam. If it fails to detect
+Visual C++ you should have a shortcut in the start-menu for a Visual C++
+command-line that setups the compile environment.</p><p>To build with MinGW, make sure that you have a correct build
+environment setup in a console and then run this:</p><p><pre>make_win32_mingw.bat</pre></p><p>An optimized version of Bam will be built and the exe can be located in
+the base directory of Bam.</p><p></p>
+
+<!-- COMMENTS "Windows" -->
+
+<h2><a name="BeOS and Haiku"></a><a name="2.3">2.3</a> - <a name="BeOS and Haiku">BeOS and Haiku</a></h2>
+<p class="body">
+Building Bam works the same way as on Unix-like systems but
+the script is called make_beos.sh instead. You can build Bam
+by running:</p><p><pre>sh make_beos.sh</pre></p><p></p>
+
+<!-- COMMENTS "BeOS and Haiku" -->
+
+<h2><a name="Running the Test Suite"></a><a name="2.4">2.4</a> - <a name="Running the Test Suite">Running the Test Suite</a></h2>
+<p class="body">
+Bam comes with a test suite to verify that Bam is working like
+it should. The suite requires <a href="http://www.python.com">Python</a>
+to be installed. This test suite is used during the development
+of Bam to verify that nothing breaks between releases. You
+can run the test suite by typing this:</p><p><pre>python scripts/test.py</pre></p><p>It will either print out that all tests where successfull or
+what tests it didn't pass.
+</p>
+
+<!-- COMMENTS "Running the Test Suite" -->
+
+<h1><a name="Quick Start"></a><a name="3">3</a> - <a name="Quick Start">Quick Start</a></h1>
+<p class="body">This section is a short introduction to bam and is designed to get
+you started quickly.</p><p></p>
+
+<!-- COMMENTS "Quick Start" -->
+
+<h2><a name="Your first script"></a><a name="3.1">3.1</a> - <a name="Your first script">Your first script</a></h2>
+<p class="body">
+<pre>
+1: settings = NewSettings()
+2: source = Collect("src/*.c")
+3: objects = Compile(settings, source)
+4: exe = Link(settings, "my_app", objects)
+</pre></p><p>Line 1 creates a new settings object. This contains all the settings
+on how to compile, link etc. See <a href="#NewSettings">NewSettings</a>.</p><p>Line 2 gathers all the files under the src/ directory which has .c as
+extention. Collect returns a table of strings which are the files.
+See <a href="#Collect">Collect</a>.</p><p>Line 3 compiles the source using the specified settings and returns a
+table of the object files. See <a href="#Compile">Compile</a>.</p><p>Line 4 links the object files to an executable named "my_app", using
+the specified settings. See <a href="#Link">Link</a>.
+</p>
+
+<!-- COMMENTS "Your first script" -->
+
+<h1><a name="Custom Actions"></a><a name="4">4</a> - <a name="Custom Actions">Custom Actions</a></h1>
+<p class="body">This section describes how you can make your own custom actions needed
+for your perticular project. An action is just a normal Lua function
+that adds a series of jobs and dependencies.</p><p>For the sake of demonstration, we are going to compile an application
+without using the supplied Compile and Link actions. Instead we are
+going to add the jobs and dependencies by hand. We assume that we are
+running under a Unix like operating system with GCC as tool chain for
+sake of simplicity.</p><p></p>
+
+<!-- COMMENTS "Custom Actions" -->
+
+<h2><a name="Dependency Graph"></a><a name="4.1">4.1</a> - <a name="Dependency Graph">Dependency Graph</a></h2>
+<p class="body">
+At the core of Bam there is a dependency graphs that tells one files
+are dependent on other files. This graph is used to figure out what
+order to build the target.</p><p>Here is a simple graph over and application called <span class="identifier">app</span> which has the
+<span class="identifier">src1.c</span>, <span class="identifier">src2.c</span>, <span class="identifier">header1.h</span>, <span class="identifier">header2.h</span> and <span class="identifier">shared.h</span> files.</p><p><img src="depgraph.png"/></p><p>The commands encased in brackets are the commands that is executed in
+order to build that node.</p><p></p>
+
+<!-- COMMENTS "Dependency Graph" -->
+
+<h2><a name="Jobs"></a><a name="4.2">4.2</a> - <a name="Jobs">Jobs</a></h2>
+<p class="body">
+A job is a command line that needs to be executed to generate an output
+file. All actions results in a series of jobs being added to the node
+graph.</p><p>To compile <span class="identifier">src1.c</span> into <span class="identifier">obj1.o</span> we simply add this to our bam file:</p><p><pre>
+AddJob("obj1.o", "compiling src1.c", "gcc -c src1.c -o obj1.o")
+</pre></p><p>Bam now knows that inorder to get <span class="identifier">obj1.o</span>, it must run
+<span class="identifier">"gcc -c src1.c -o obj1.o"</span>. It will print <span class="identifier">"compiling app.c"</span> when
+this is happening as a nice indicator instead of spewing out the whole
+command line that it ran. See <a href="#AddJob">AddJob</a> for a complete reference of the
+function.</p><p>Now that we can compile our object, we need to link it as well. To link
+the application, we add this to our bam file:</p><p><pre>
+AddJob("app", "linking app", "gcc obj1.o obj2.o -o app")
+</pre></p><p>Bam now knows that inorder to get <span class="identifier">app</span>, it must run
+<span class="identifier">"gcc obj1.o obj2.o -o app"</span>.</p><p>We can now build our application by running these commands from a
+shell:</p><p><pre>
+# bam obj1.o
+# bam obj2.o
+# bam app
+</pre></p><p>We must run all three commands because Bam does not yet know that it needs
+to build <span class="identifier">obj1.o</span> and <span class="identifier">obj2.o</span> before it can build <span class="identifier">app</span>. This is where dependencies
+comes in.</p><p></p>
+
+<!-- COMMENTS "Jobs" -->
+
+<h2><a name="Dependencies"></a><a name="4.3">4.3</a> - <a name="Dependencies">Dependencies</a></h2>
+<p class="body">
+To tell Bam that <span class="identifier">app</span> needs <span class="identifier">obj1.o</span> and <span class="identifier">obj2.o</span>, we simply add a dependency. This
+is done with the AddDependency function like this:</p><p><pre>
+AddDependency("app", "obj1.o", "obj2.o")
+AddDependency("obj1.o", "src1.c")
+AddDependency("obj2.o", "src2.c")
+AddDependency("src1.c", "header1.h", "header2.h", "shared.h")
+AddDependency("src2.c", "shared.h")
+AddDependency("shared.h", "header2.h")
+</pre></p><p>This tells Bam that <span class="identifier">app</span> needs <span class="identifier">obj1.o</span> and <span class="identifier">obj2.o</span> inorder to build. We also
+added the source files as dependencies for the object files. This will make sure that
+bam rebuilds <span class="identifier">obj1.o</span> when <span class="identifier">src1.c</span> changes. Also, we added the dependencies for the
+source and header files so Bam can figure out want needs to be built if one of those
+changes. See <a href="#AddDependency">AddDependency</a> for a complete reference of the function.</p><p></p>
+
+<!-- COMMENTS "Dependencies" -->
+
+<h2><a name="All Together"></a><a name="4.4">4.4</a> - <a name="All Together">All Together</a></h2>
+<p class="body">
+Here is an example of it all working together.</p><p><pre>
+AddJob("myapp.o", "compiling myapp.c", "gcc -c myapp.c -o myapp.o")
+AddJob("myapp", "linking myapp", "gcc myapp.o -o myapp")
+AddDependency("myapp", "myapp.o")
+AddDependency("myapp.o", "myapp.c")
+DefaultTarget("myapp")
+</pre></p><p>There is also a shortcut that you can use</p><p></p>
+
+<!-- COMMENTS "All Together" -->
+
+<h2><a name="Examples"></a><a name="4.5">4.5</a> - <a name="Examples">Examples</a></h2>
+<p class="body">
+TODO: Some nice text about this</p><p>Here is a small function that takes one C file as a string and returns
+the object file as one string. This is an over simplification of the
+supplied Compile function and serves just as an example.</p><p><pre>
+function Compile(cfile)
+&nbsp;	output = PathBase(cfile) .. ".o"
+&nbsp;	AddJob(
+&nbsp;		output,
+&nbsp;		"Compiling " .. cfile,
+&nbsp;		"gcc -c " ..  cfile .. " -o " .. output
+&nbsp;	)
+&nbsp;	AddDependency(output, cfile)
+&nbsp;	return output
+end
+</pre></p><p></p>
+
+<!-- COMMENTS "Examples" -->
+
+<h1><a name="Command Line Reference"></a><a name="5">5</a> - <a name="Command Line Reference">Command Line Reference</a></h1>
+<p class="body"></p>
+
+<!-- COMMENTS "Command Line Reference" -->
+
+<h2><a name="Targets ( name )"></a><a name="5.1">5.1</a> - <a name="Targets ( name )">Targets ( name )</a></h2>
+<p class="body">Specify a target to be built. A target can be any output
+specified to the <a href="#AddJob">AddJob</a> function.</p><p>If no targets are specified, the default target will be built
+If there are no default target and there is only one target
+specified with the <a href="#Target">Target</a> function, it will be built.
+Otherwise bam will report an error.</p><p>There is a special pseudo target named <span class="identifier">all</span> that represents
+all targets specified by the <a href="#Target">Target</a> function.
+</p>
+
+<!-- COMMENTS "Targets ( name )" -->
+
+<h2><a name="Script Arguments ( name=value )"></a><a name="5.2">5.2</a> - <a name="Script Arguments ( name=value )">Script Arguments ( name=value )</a></h2>
+<p class="body">Sets a script argument. These arguments can be fetched form the build script
+by accessing the <span class="identifier">ScriptArgs</span> table.
+</p>
+
+<!-- COMMENTS "Script Arguments ( name=value )" -->
+
+<h2><a name="Abort on error ( -a )"></a><a name="5.3">5.3</a> - <a name="Abort on error ( -a )">Abort on error ( -a )</a></h2>
+<p class="body">Setting this will cause bam to abort the build process when an error has occured.
+Normally it would continue as far as it can.
+</p>
+
+<!-- COMMENTS "Abort on error ( -a )" -->
+
+<h2><a name="Clean ( -c )"></a><a name="5.4">5.4</a> - <a name="Clean ( -c )">Clean ( -c )</a></h2>
+<p class="body">Cleans the specified targets or the default target.
+</p>
+
+<!-- COMMENTS "Clean ( -c )" -->
+
+<h2><a name="Dependent build ( -d )"></a><a name="5.5">5.5</a> - <a name="Dependent build ( -d )">Dependent build ( -d )</a></h2>
+<p class="body">Builds all targets that are dependent on the given targets.
+If no targets are given this option doesn't do anything.
+</p>
+
+<!-- COMMENTS "Dependent build ( -d )" -->
+
+<h2><a name="Dry Run ( --dry )"></a><a name="5.6">5.6</a> - <a name="Dry Run ( --dry )">Dry Run ( --dry )</a></h2>
+<p class="body">Does everything that it normally would do but does not execute any
+commands.
+</p>
+
+<!-- COMMENTS "Dry Run ( --dry )" -->
+
+<h2><a name="Threading ( -j N )"></a><a name="5.7">5.7</a> - <a name="Threading ( -j N )">Threading ( -j N )</a></h2>
+<p class="body">Sets the number of threads used when building. A good value for N is
+the same number as logical cores on the machine. Set to 0 to disable.
+</p>
+
+<!-- COMMENTS "Threading ( -j N )" -->
+
+<h2><a name="Script File ( -s FILENAME )"></a><a name="5.8">5.8</a> - <a name="Script File ( -s FILENAME )">Script File ( -s FILENAME )</a></h2>
+<p class="body">Bam file to use. In normal operation, Bam executes
+<span class="identifier">bam.lua</span>. This option allows you to specify another bam
+file.
+</p>
+
+<!-- COMMENTS "Script File ( -s FILENAME )" -->
+
+<h2><a name="Script Locals ( -l )"></a><a name="5.9">5.9</a> - <a name="Script Locals ( -l )">Script Locals ( -l )</a></h2>
+<p class="body">Prints local and up values in the backtrace when there is a script error
+</p>
+
+<!-- COMMENTS "Script Locals ( -l )" -->
+
+<h2><a name="Script Backtrace ( -t )"></a><a name="5.10">5.10</a> - <a name="Script Backtrace ( -t )">Script Backtrace ( -t )</a></h2>
+<p class="body">Prints backtrace when there is a script error
+</p>
+
+<!-- COMMENTS "Script Backtrace ( -t )" -->
+
+<h2><a name="Report Format ( -r [b][s][c] )"></a><a name="5.11">5.11</a> - <a name="Report Format ( -r [b][s][c] )">Report Format ( -r [b][s][c] )</a></h2>
+<p class="body">Sets the format of the progress report when building.
+<ul>
+<li>b</li> - Use a progress bar showing the percentage.
+<li>s</li> - Show each step when building. (default)
+<li>c</li> - Use ANSI colors.
+</ul>
+</p>
+
+<!-- COMMENTS "Report Format ( -r [b][s][c] )" -->
+
+<h2><a name="Verbose ( -v )"></a><a name="5.12">5.12</a> - <a name="Verbose ( -v )">Verbose ( -v )</a></h2>
+<p class="body">Prints all commands that are runned when building.
+</p>
+
+<!-- COMMENTS "Verbose ( -v )" -->
+
+<h2><a name="No cache ( -n )"></a><a name="5.13">5.13</a> - <a name="No cache ( -n )">No cache ( -n )</a></h2>
+<p class="body">Do not use cache when building.
+</p>
+
+<!-- COMMENTS "No cache ( -n )" -->
+
+<h2><a name="Help ( -h, --help )"></a><a name="5.14">5.14</a> - <a name="Help ( -h, --help )">Help ( -h, --help )</a></h2>
+<p class="body">Prints out a short reference of the command line options and quits
+directly after.
+</p>
+
+<!-- COMMENTS "Help ( -h, --help )" -->
+
+<h2><a name="Debug: Dump Nodes ( --debug-nodes )"></a><a name="5.15">5.15</a> - <a name="Debug: Dump Nodes ( --debug-nodes )">Debug: Dump Nodes ( --debug-nodes )</a></h2>
+<p class="body">Dumps all nodes in the dependency graph.
+</p>
+
+<!-- COMMENTS "Debug: Dump Nodes ( --debug-nodes )" -->
+
+<h2><a name="Debug: Dump Nodes Detailed ( --debug-detail )"></a><a name="5.16">5.16</a> - <a name="Debug: Dump Nodes Detailed ( --debug-detail )">Debug: Dump Nodes Detailed ( --debug-detail )</a></h2>
+<p class="body">Dumps all nodes in the dependency graph, their state and their
+dependent nodes. This is useful if you are writing your own
+actions to verify that dependencies are correctly added.
+</p>
+
+<!-- COMMENTS "Debug: Dump Nodes Detailed ( --debug-detail )" -->
+
+<h2><a name="Debug: Dump Jobs ( --debug-jobs )"></a><a name="5.17">5.17</a> - <a name="Debug: Dump Jobs ( --debug-jobs )">Debug: Dump Jobs ( --debug-jobs )</a></h2>
+<p class="body"></p>
+
+<!-- COMMENTS "Debug: Dump Jobs ( --debug-jobs )" -->
+
+<h2><a name="Debug: Dump Dot ( --debug-dot )"></a><a name="5.18">5.18</a> - <a name="Debug: Dump Dot ( --debug-dot )">Debug: Dump Dot ( --debug-dot )</a></h2>
+<p class="body">Dumps all nodes in the dependency graph into a dot file that can
+be rendered with graphviz.
+</p>
+
+<!-- COMMENTS "Debug: Dump Dot ( --debug-dot )" -->
+
+<h2><a name="Debug: Dump Jobs Dot ( --debug-jobs-dot )"></a><a name="5.19">5.19</a> - <a name="Debug: Dump Jobs Dot ( --debug-jobs-dot )">Debug: Dump Jobs Dot ( --debug-jobs-dot )</a></h2>
+<p class="body">Dumps all jobs and their dependent jobs into a dot file that can
+be rendered with graphviz.
+</p>
+
+<!-- COMMENTS "Debug: Dump Jobs Dot ( --debug-jobs-dot )" -->
+
+<h2><a name="Debug: Trace VM ( --debug-trace-vm )"></a><a name="5.20">5.20</a> - <a name="Debug: Trace VM ( --debug-trace-vm )">Debug: Trace VM ( --debug-trace-vm )</a></h2>
+<p class="body">Prints a the function and source line for every instruction that the vm makes.
+</p>
+
+<!-- COMMENTS "Debug: Trace VM ( --debug-trace-vm )" -->
+
+<h2><a name="Debug: Dump Internal Scripts ( --debug-dump-int )"></a><a name="5.21">5.21</a> - <a name="Debug: Dump Internal Scripts ( --debug-dump-int )">Debug: Dump Internal Scripts ( --debug-dump-int )</a></h2>
+<p class="body"></p>
+
+<!-- COMMENTS "Debug: Dump Internal Scripts ( --debug-dump-int )" -->
+
+<h1><a name="Function Reference"></a><a name="6">6</a> - <a name="Function Reference">Function Reference</a></h1>
+<p class="body"></p>
+
+<!-- COMMENTS "Function Reference" -->
+
+<h2><a name="Common"></a><a name="6.1">6.1</a> - <a name="Common">Common</a></h2>
+<p class="body"></p>
+
+<!-- COMMENTS "Common" -->
+
+<hr/><h3><a name="CheckVersion"></a><a name="6.1.1">6.1.1</a> - <a name="CheckVersion">CheckVersion</a></h3>
+<p class="body">Tells bam what version this script is written for. It will either
+make sure that it behaves like that version or print out an error.</p><p><pre>
+CheckVersion("0.1.0")
+</pre>
+</p>
+
+<!-- COMMENTS "CheckVersion" -->
+
+<hr/><h3><a name="Execute"></a><a name="6.1.2">6.1.2</a> - <a name="Execute (command)">Execute (command)</a></h3>
+<p class="body">Executes the <span class="identifier">command</span> in the shell and returns the error code.
+</p>
+
+<!-- COMMENTS "Execute" -->
+
+<hr/><h3><a name="ExecuteSilent"></a><a name="6.1.3">6.1.3</a> - <a name="ExecuteSilent (command)">ExecuteSilent (command)</a></h3>
+<p class="body">Does the same as <span class="identifier">Execute(command)</span> but supresses stdout and stderr of
+that command.
+</p>
+
+<!-- COMMENTS "ExecuteSilent" -->
+
+<h2><a name="Files and Directories"></a><a name="6.2">6.2</a> - <a name="Files and Directories">Files and Directories</a></h2>
+<p class="body"></p>
+
+<!-- COMMENTS "Files and Directories" -->
+
+<hr/><h3><a name="Collect"></a><a name="6.2.1">6.2.1</a> - <a name="Collect (...)">Collect (...)</a></h3>
+<p class="body">Gathers a set of files using wildcard. Accepts strings and tables
+of strings as input and returns a table of all the files that
+matches A single wildcard * may be used in each string to collect
+a set of files.</p><p>Example:
+<pre>
+source_files = Collect("src/*.c", "lib/*.c")
+</pre></p><p>Note. This version collects files, non-recursive.
+</p>
+
+<!-- COMMENTS "Collect" -->
+
+<hr/><h3><a name="CollectRecursive"></a><a name="6.2.2">6.2.2</a> - <a name="CollectRecursive (...)">CollectRecursive (...)</a></h3>
+<p class="body">Collects files as the <a href="#Collect">Collect</a> but does so recursivly.
+</p>
+
+<!-- COMMENTS "CollectRecursive" -->
+
+<hr/><h3><a name="CollectDirs"></a><a name="6.2.3">6.2.3</a> - <a name="CollectDirs (...)">CollectDirs (...)</a></h3>
+<p class="body">Collects directories in the same fashion as <a href="#Collect">Collect</a> but returns
+directories instead.
+</p>
+
+<!-- COMMENTS "CollectDirs" -->
+
+<hr/><h3><a name="CollectDirsRecursive"></a><a name="6.2.4">6.2.4</a> - <a name="CollectDirsRecursive (...)">CollectDirsRecursive (...)</a></h3>
+<p class="body">Collects directories in the same fashion as <a href="#Collect">Collect</a> but does so
+recursivly and returns directories instead.
+</p>
+
+<!-- COMMENTS "CollectDirsRecursive" -->
+
+<h2><a name="Job and Dependencies"></a><a name="6.3">6.3</a> - <a name="Job and Dependencies">Job and Dependencies</a></h2>
+<p class="body"></p>
+
+<!-- COMMENTS "Job and Dependencies" -->
+
+<hr/><h3><a name="AddJob"></a><a name="6.3.1">6.3.1</a> - <a name="AddJob (output, label, command, ...)">AddJob (output, label, command, ...)</a></h3>
+<p class="body">Adds a job to be done. The <span class="identifier">output</span> string specifies the file that
+will be created by the command line specified in <span class="identifier">command</span> string.
+The <span class="identifier">label</span> is printed out before <span class="identifier">command</span> is runned. You can also
+add extra parameters, those will become for dependencies for the job.</p><p><pre>
+AddJob("myapp.o", "compiling myapp.c", "gcc -c myapp.c -o myapp.o")
+AddDependency("myapp.o", "myapp.c")
+</pre>
+This is the same as this:
+<pre>
+AddJob("myapp.o", "compiling myapp.c", "gcc -c myapp.c -o myapp.o", "myapp.c")
+</pre>
+You can also add several dependencies at once like this:
+<pre>
+AddJob("myapp", "linking myapp", "gcc myapp1.o myapp2.o myapp3.o -o myapp.o", {"myapp1.o", "myapp2.o"}, "myapp3.o")
+</pre>
+</p>
+
+<!-- COMMENTS "AddJob" -->
+
+<hr/><h3><a name="AddDependency"></a><a name="6.3.2">6.3.2</a> - <a name="AddDependency (filename, ...)">AddDependency (filename, ...)</a></h3>
+<p class="body">Adds dependencies to a job. The files specified in the argument list gets added.
+Strings and nested tables of strings are accepted.
+</p>
+
+<!-- COMMENTS "AddDependency" -->
+
+<hr/><h3><a name="AddDependencySearch"></a><a name="6.3.3">6.3.3</a> - <a name="AddDependencySearch (filename, paths, ...)">AddDependencySearch (filename, paths, ...)</a></h3>
+<p class="body">Searches for dependencies in the specified <span class="identifier">paths</span> and adds them to
+the <span class="identifier">file</span>.
+</p>
+
+<!-- COMMENTS "AddDependencySearch" -->
+
+<h2><a name="Modules"></a><a name="6.4">6.4</a> - <a name="Modules">Modules</a></h2>
+<p class="body"></p>
+
+<!-- COMMENTS "Modules" -->
+
+<hr/><h3><a name="Import"></a><a name="6.4.1">6.4.1</a> - <a name="Import (filename)">Import (filename)</a></h3>
+<p class="body">Imports a script specified by <span class="identifier">filename</span>. A search for the script will be
+done by first checking the current directory and then the paths specified
+by the BAM_PACKAGES environment variable. Several paths can be specified
+in the variable by separating them by a ':' character.</p><p>The importing script can figure out it's path by calling the
+<a href="#ModuleFilename">ModuleFilename</a> function.
+</p>
+
+<!-- COMMENTS "Import" -->
+
+<hr/><h3><a name="ModuleFilename"></a><a name="6.4.2">6.4.2</a> - <a name="ModuleFilename ()">ModuleFilename ()</a></h3>
+<p class="body">Returns the filename of the current script being imported (by <a href="#Import">Import</a>)
+as relative to the current working directory.
+</p>
+
+<!-- COMMENTS "ModuleFilename" -->
+
+<h2><a name="Path Manipulation"></a><a name="6.5">6.5</a> - <a name="Path Manipulation">Path Manipulation</a></h2>
+<p class="body"></p>
+
+<!-- COMMENTS "Path Manipulation" -->
+
+<hr/><h3><a name="Path"></a><a name="6.5.1">6.5.1</a> - <a name="Path (str)">Path (str)</a></h3>
+<p class="body">Normalizes the path <span class="identifier">str</span> by removing ".." and "." from it.</p><p><pre>
+Path("test/./path/../file.name.ext") -- Returns "test/file.name.ext"
+Path("../test/../path/file.name.ext") -- Returns "../path/file.name.ext"
+</pre>
+</p>
+
+<!-- COMMENTS "Path" -->
+
+<hr/><h3><a name="PathBase"></a><a name="6.5.2">6.5.2</a> - <a name="PathBase (path)">PathBase (path)</a></h3>
+<p class="body">Returns the everthing except the extention in the path.</p><p><pre>
+PathBase("test/path/file.name.ext") -- Returns "test/path/file.name"
+PathBase("test/path/file.name") -- Returns "test/path/file"
+PathBase("test/path/file") -- Returns "test/path/file"
+</pre>
+</p>
+
+<!-- COMMENTS "PathBase" -->
+
+<hr/><h3><a name="PathFileExt"></a><a name="6.5.3">6.5.3</a> - <a name="PathFileExt (str)">PathFileExt (str)</a></h3>
+<p class="body">Returns the extension of the filename in <span class="identifier">str</span>.</p><p><pre>
+PathFileExt("test/path/file.name.ext") -- Returns "ext"
+</pre>
+</p>
+
+<!-- COMMENTS "PathFileExt" -->
+
+<hr/><h3><a name="PathFilename"></a><a name="6.5.4">6.5.4</a> - <a name="PathFilename (str)">PathFilename (str)</a></h3>
+<p class="body">Returns the filename of the path in <span class="identifier">str</span>.</p><p><pre>
+PathFilename("test/path/file.name.ext") -- Returns "file.name.ext"
+</pre>
+</p>
+
+<!-- COMMENTS "PathFilename" -->
+
+<hr/><h3><a name="PathJoin"></a><a name="6.5.5">6.5.5</a> - <a name="PathJoin (base, add)">PathJoin (base, add)</a></h3>
+<p class="body">Joins the two paths <span class="identifier">base</span> and <span class="identifier">add</span> together and returns a
+normalized path. This function haldes trailing path separators in
+the <span class="identifier">base</span> argument.</p><p><pre>
+PathJoin("test/path/", "../filename.ext") -- Returns "test/filename.ext"
+PathJoin("../test", "path/filename.ext") -- Returns "../test/path/filename.ext"
+</pre></p><p></p>
+
+<!-- COMMENTS "PathJoin" -->
+
+<hr/><h3><a name="PathDir"></a><a name="6.5.6">6.5.6</a> - <a name="PathDir (str)">PathDir (str)</a></h3>
+<p class="body">Returns the path of the filename in <span class="identifier">str</span>.</p><p><pre>
+PathDir("test/path/file.name.ext") -- Returns "test/path"
+</pre>
+</p>
+
+<!-- COMMENTS "PathDir" -->
+
+<h2><a name="Settings"></a><a name="6.6">6.6</a> - <a name="Settings">Settings</a></h2>
+<p class="body"></p>
+
+<!-- COMMENTS "Settings" -->
+
+<hr/><h3><a name="AddTool"></a><a name="6.6.1">6.6.1</a> - <a name="AddTool (func)">AddTool (func)</a></h3>
+<p class="body">Adds a new tool called <span class="identifier">name</span> to bam. The <span class="identifier">func</span> will be called
+when <span class="identifier">NewSettings</span> function is invoked with the settings object as
+first parameter.
+</p>
+
+<!-- COMMENTS "AddTool" -->
+
+<hr/><h3><a name="NewSettings"></a><a name="6.6.2">6.6.2</a> - <a name="NewSettings ()">NewSettings ()</a></h3>
+<p class="body">Create a new settings table with the settings for all the registered
+tools. This table is passed to many of the tools and contains how
+they should act.
+</p>
+
+<!-- COMMENTS "NewSettings" -->
+
+<h2><a name="Tables"></a><a name="6.7">6.7</a> - <a name="Tables">Tables</a></h2>
+<p class="body"></p>
+
+<!-- COMMENTS "Tables" -->
+
+<hr/><h3><a name="TableDeepCopy"></a><a name="6.7.1">6.7.1</a> - <a name="TableDeepCopy (tbl)">TableDeepCopy (tbl)</a></h3>
+<p class="body">Makes a deep copy of the table <span class="identifier">tbl</span> resulting in a complete separate
+table.
+</p>
+
+<!-- COMMENTS "TableDeepCopy" -->
+
+<hr/><h3><a name="TableFlatten"></a><a name="6.7.2">6.7.2</a> - <a name="TableFlatten (tbl)">TableFlatten (tbl)</a></h3>
+<p class="body">Does a deep walk of the <span class="identifier">tbl</span> table for strings and generates a new
+flat table with the strings. If it occurs anything else then a table
+or string, it will generate an error.</p><p><pre>
+-- Returns {"a", "b", "c", "d", "e", "f"}
+TableFlatten({"a", {"b", {"c"}, "d"}, "e", {}, {"f"}})
+</pre>
+</p>
+
+<!-- COMMENTS "TableFlatten" -->
+
+<hr/><h3><a name="TableLock"></a><a name="6.7.3">6.7.3</a> - <a name="TableLock (tbl)">TableLock (tbl)</a></h3>
+<p class="body">Locks the table <span class="identifier">tbl</span> so no new keys can be added. Trying to add a new
+key will result in an error.
+</p>
+
+<!-- COMMENTS "TableLock" -->
+
+<hr/><h3><a name="TableToString"></a><a name="6.7.4">6.7.4</a> - <a name="TableToString (tbl, prefix, postfix)">TableToString (tbl, prefix, postfix)</a></h3>
+<p class="body">Takes every string element in the <span class="identifier">tbl</span> table, prepends <span class="identifier">prefix</span> and appends <span class="identifier">postfix</span>
+to each element and returns the result.</p><p><pre>
+TableToString({"a", "b"}, "<a href="#", "">", "</a>") -- Returns "<a href="#a">a</a><a href="#b">b</a>"
+</pre>
+</p>
+
+<!-- COMMENTS "TableToString" -->
+
+<hr/><h3><a name="TableWalk"></a><a name="6.7.5">6.7.5</a> - <a name="TableWalk (tbl)">TableWalk (tbl)</a></h3>
+<p class="body">Returns an iterator that does a deep walk of a table looking for strings.
+Only checks numeric keys and anything else then table and strings will
+cause an error.</p><p><pre>
+for filename in TableWalk({...}) do
+print(filename)
+end
+</pre>
+</p>
+
+<!-- COMMENTS "TableWalk" -->
+
+<h2><a name="Targets"></a><a name="6.8">6.8</a> - <a name="Targets">Targets</a></h2>
+<p class="body"></p>
+
+<!-- COMMENTS "Targets" -->
+
+<hr/><h3><a name="DefaultTarget"></a><a name="6.8.1">6.8.1</a> - <a name="DefaultTarget (filename)">DefaultTarget (filename)</a></h3>
+<p class="body">Specifies the default target use build when no targets are
+specified when bam is invoked.
+</p>
+
+<!-- COMMENTS "DefaultTarget" -->
+
+<hr/><h3><a name="PseudoTarget"></a><a name="6.8.2">6.8.2</a> - <a name="PseudoTarget (name, ...)">PseudoTarget (name, ...)</a></h3>
+<p class="body">Creates a pseudo target named <span class="identifier">name</span> and assigns a set of dependencies
+specified by <span class="identifier">...</span>.
+</p>
+
+<!-- COMMENTS "PseudoTarget" -->
+
+<h1><a name="Tool Reference"></a><a name="7">7</a> - <a name="Tool Reference">Tool Reference</a></h1>
+<p class="body"></p>
+
+<!-- COMMENTS "Tool Reference" -->
+
+<h2><a name="Common Settings (settings)"></a><a name="7.1">7.1</a> - <a name="Common Settings (settings)">Common Settings (settings)</a></h2>
+<p class="body"></p>
+
+<!-- COMMENTS "Common Settings (settings)" -->
+
+<hr/><h3><a name="config_name"></a><a name="7.1.1">7.1.1</a> - <a name="config_name">config_name</a></h3>
+<p class="body">Name of the settings.
+TODO: explain when you could use it
+</p>
+
+<!-- COMMENTS "config_name" -->
+
+<hr/><h3><a name="config_ext"></a><a name="7.1.2">7.1.2</a> - <a name="config_ext">config_ext</a></h3>
+<p class="body">A short postfix that you can append to files that have been built
+by this configuration.
+</p>
+
+<!-- COMMENTS "config_ext" -->
+
+<hr/><h3><a name="labelprefix"></a><a name="7.1.3">7.1.3</a> - <a name="labelprefix">labelprefix</a></h3>
+<p class="body">Prefix to use for all jobs that are added.
+TODO: this option feels a bit strange
+</p>
+
+<!-- COMMENTS "labelprefix" -->
+
+<h2><a name="Compile"></a><a name="7.2">7.2</a> - <a name="Compile">Compile</a></h2>
+<p class="body"></p>
+
+<!-- COMMENTS "Compile" -->
+
+<hr/><h3><a name="Compile"></a><a name="7.2.1">7.2.1</a> - <a name="Compile (settings, ...)">Compile (settings, ...)</a></h3>
+<p class="body">Compiles a set of files using the supplied settings. It uses
+<span class="identifier">settings.compile.mappings</span> to map the input extension to a compiler
+function. A compiler functions should look like <span class="identifier">Compiler(settings, input)</span>
+where <span class="identifier">settings</span> is the settings object and <span class="identifier">input</span> is the filename
+of the file to compile. The function should return a string that
+contains the object file that it will generate.</p><p><pre>
+function MyCompiler(settings, input)
+&nbsp;&nbsp;&nbsp;&nbsp;-- compile stuff
+&nbsp;&nbsp;&nbsp;&nbsp;return output
+end</p><p>settings.compile.mappings<a href="#".my"">".my"</a> = MyCompiler
+objects = Compile(settings, "code.my") -- Invokes the MyCompiler function
+</pre></p><p></p>
+
+<!-- COMMENTS "Compile" -->
+
+<hr/><h3><a name="Compile Settings"></a><a name="7.2.2">7.2.2</a> - <a name="Compile Settings  (settings.compile)">Compile Settings  (settings.compile)</a></h3>
+<p class="body"><table>
+<tr><td><span class="identifier">mappings</span></td><td>
+Table that matches extentions to a compiler function. See the
+Compile function for a reference how this table is used.
+</td></tr>
+</table>
+</p>
+
+<!-- COMMENTS "Compile Settings" -->
+
+<hr/><h3><a name="C/C++ Settings"></a><a name="7.2.3">7.2.3</a> - <a name="C/C++ Settings  (settings.cc)">C/C++ Settings  (settings.cc)</a></h3>
+<p class="body"><table>
+<tr><td><span class="identifier">defines</span></td><td>
+Table of defines that should be set when compiling.</p><p><pre>
+settings.cc.defines:Add("ANSWER=42")
+</pre>
+</td></tr>
+<tr><td><span class="identifier">DriverC</span></td><td>
+Function that drives the C compiler. Function is responsible
+for building the command line and adding the job to compile the
+input file.
+</td></tr>
+<tr><td><span class="identifier">DriverCXX</span></td><td>
+Same as DriverC but for the C++ compiler.
+</td></tr>
+<tr><td><span class="identifier">exe_c</span></td><td>Name (and path) of the executable that is the C compiler</td></tr>
+<tr><td><span class="identifier">exe_cxx</span></td><td>Same as c_exe but for the C++ compiler</td></tr>
+<tr><td><span class="identifier">extension</span></td><td>
+Extention that the object files should have. Usally ".o" or ".obj"
+depending on compiler tool chain.
+</td></tr>
+<tr><td><span class="identifier">flags</span></td><td>
+Table of flags that will be appended to the command line to the
+C/C++ compiler. These flags are used for both the C and C++
+compiler.</p><p><pre>
+settings.cc.flags:Add("-O2", "-g")
+</pre>
+</td></tr>
+<tr><td><span class="identifier">flags_c</span></td><td>
+Same as flags but specific for the C compiler.
+</td></tr>
+<tr><td><span class="identifier">flags_cxx</span></td><td>
+Same as flags but specific for the C++ compiler.
+</td></tr>
+<tr><td><span class="identifier">frameworks</span></td><td>
+Mac OS X specific. What frameworks to use when compiling.
+</td></tr>
+<tr><td><span class="identifier">includes</span></td><td>
+Table of paths where to find headers.</p><p><pre>
+settings.cc.includes:Add("my/include/directory")
+</pre>
+</td></tr>
+<tr><td><span class="identifier">Output(settings, path)</span></td><td>
+Function that should transform the input path
+into the output path. The appending of the extension is done
+automaticly.</p><p><pre>
+settings.cc.Output = function(settings, input)
+&nbsp;&nbsp;&nbsp;&nbsp;return PathBase(input) .. settings.config_ext
+end
+</pre>
+</td></tr>
+<tr><td><span class="identifier">systemincludes</span></td><td>
+Mac OS X specific. Table of paths where to find system headers.
+</td></tr>
+</table>
+</p>
+
+<!-- COMMENTS "C/C++ Settings" -->
+
+<h2><a name="Link"></a><a name="7.3">7.3</a> - <a name="Link">Link</a></h2>
+<p class="body"></p>
+
+<!-- COMMENTS "Link" -->
+
+<hr/><h3><a name="Link"></a><a name="7.3.1">7.3.1</a> - <a name="Link (settings, output, ...)">Link (settings, output, ...)</a></h3>
+<p class="body">TODO
+</p>
+
+<!-- COMMENTS "Link" -->
+
+<hr/><h3><a name="Settings"></a><a name="7.3.2">7.3.2</a> - <a name="Settings  (settings.link)">Settings  (settings.link)</a></h3>
+<p class="body"><table>
+<tr><td><span class="identifier">Driver</span></td><td>
+Function that drives the linker. Function is responsible
+for building the command line and adding the job to link the
+input files into an executable.
+</td></tr>
+<tr><td><span class="identifier">exe</span></td><td>
+Path to the executable to use as linker.
+</td></tr>
+<tr><td><span class="identifier">extension</span></td><td>
+Extention of the executable. Usally "" on most platform but can
+be ".exe" on platforms like Windows.
+</td></tr>
+<tr><td><span class="identifier">extrafiles</span></td><td>
+A table of additional files that should be linked against. These
+files will be treated as normal objects when linking.
+</td></tr>
+<tr><td><span class="identifier">flags</span></td><td>
+Table of raw flags to send to the linker.
+<pre>
+settings.link.flags:Add("-v")
+</pre>
+</td></tr>
+<tr><td><span class="identifier">frameworks</span></td><td>
+Mac OS X specific. A table of frameworks to link against.
+</td></tr>
+<tr><td><span class="identifier">frameworkpath</span></td><td>
+Mac OS X specific. A table of paths were to find frameworks.
+</td></tr>
+<tr><td><span class="identifier">libs</span></td><td>
+Table of library files to link with.
+<pre>
+settings.link.libs:Add("pthread")
+</pre>
+</td></tr>
+<tr><td><span class="identifier">libpath</span></td><td>
+A table of paths of where to find library files that could be
+included in the linking process.
+</td></tr>
+<tr><td><span class="identifier">Output</span></td><td>
+Function that should transform the input path
+into the output path. The appending of the extension is done
+automaticly.</p><p><pre>
+settings.link.Output = function(settings, input)
+&nbsp;&nbsp;&nbsp;&nbsp;return PathBase(input) .. settings.config_ext
+end
+</pre>
+</td></tr>
+<tr><td>inputflags (REMOVE?)</td><td>
+</td></tr>
+</table>
+</p>
+
+<!-- COMMENTS "Settings" -->
+
+<h2><a name="Other"></a><a name="7.4">7.4</a> - <a name="Other">Other</a></h2>
+<p class="body"></p>
+
+<!-- COMMENTS "Other" -->
+
+<hr/><h3><a name="CopyFile"></a><a name="7.4.1">7.4.1</a> - <a name="CopyFile (dst, src)">CopyFile (dst, src)</a></h3>
+<p class="body"></p>
+
+<!-- COMMENTS "CopyFile" -->
+
+<hr/><h3><a name="CopyToDirectory"></a><a name="7.4.2">7.4.2</a> - <a name="CopyToDirectory (dst, ...)">CopyToDirectory (dst, ...)</a></h3>
+<p class="body"></p>
+
+<!-- COMMENTS "CopyToDirectory" -->
+
+<h2><a name="SharedLibrary"></a><a name="7.5">7.5</a> - <a name="SharedLibrary">SharedLibrary</a></h2>
+<p class="body"></p>
+
+<!-- COMMENTS "SharedLibrary" -->
+
+<h2><a name="StaticLibrary"></a><a name="7.6">7.6</a> - <a name="StaticLibrary">StaticLibrary</a></h2>
+<p class="body"></p>
+
+<!-- COMMENTS "StaticLibrary" -->
+
+<hr/><h3><a name="StaticLibrary"></a><a name="7.6.1">7.6.1</a> - <a name="StaticLibrary (settings, output, ...)">StaticLibrary (settings, output, ...)</a></h3>
+<p class="body">TODO
+</p>
+
+<!-- COMMENTS "StaticLibrary" -->
+
+<h1><a name="License"></a><a name="8">8</a> - <a name="License">License</a></h1>
+<p class="body">Copyright (c) 2009 Magnus Auvinen<br/>
+<br/>
+This software is provided 'as-is', without any express or implied<br/>
+warranty. In no event will the authors be held liable for any damages<br/>
+arising from the use of this software.<br/>
+<br/>
+Permission is granted to anyone to use this software for any purpose,<br/>
+including commercial applications, and to alter it and redistribute it<br/>
+freely, subject to the following restrictions:<br/>
+<br/>
+1. The origin of this software must not be misrepresented; you must not<br/>
+claim that you wrote the original software. If you use this software<br/>
+in a product, an acknowledgment in the product documentation would be<br/>
+appreciated but is not required.<br/>
+<br/>
+2. Altered source versions must be plainly marked as such, and must not be<br/>
+misrepresented as being the original software.<br/>
+<br/>
+3. This notice may not be removed or altered from any source<br/>
+distribution.<br/>
+<br/>
+</p>
+
+<!-- COMMENTS "License" -->
+
+
+			<hr/>
+			<small>Generated at Sat Dec 25 10:40:23 2010.</small>
+			</body>
+		
