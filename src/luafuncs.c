@@ -428,7 +428,7 @@ int lf_errorfunc(lua_State *L)
 int lf_panicfunc(lua_State *L)
 {
 	printf("%s: PANIC! I'm gonna segfault now\n", session.name);
-	*(int*)0 = 0;
+	*(volatile int*)0 = 0;
 	return 0;
 }
 
