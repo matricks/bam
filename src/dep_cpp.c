@@ -178,7 +178,7 @@ static int dependency_cpp_run(struct CONTEXT *context, struct NODE *node,
 	
 	if(!filebuf)
 	{
-		printf("cpp-dep: error allocating %ld bytes\n", filesize);
+		printf("cpp-dep: %s: error allocating %ld bytes\n", node->filename, filesize);
 		fclose(file);
 		return 1;
 	}
@@ -189,7 +189,7 @@ static int dependency_cpp_run(struct CONTEXT *context, struct NODE *node,
 
 	if(readitems != filesize)
 	{
-		printf("cpp-dep: error reading the complete file. %ld of %ld bytes read\n", readitems, filesize);
+		printf("cpp-dep: %s: error reading. %ld of %ld bytes read\n", node->filename, readitems, filesize);
 		free(filebuf);
 		return 1;
 	}

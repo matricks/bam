@@ -19,7 +19,7 @@ function DriverCL_Common(cpp, settings)
 	end
 	
 	if settings.debug > 0 then flags = flags .. "/Od /MTd /Z7 /D \"_DEBUG\" " end
-	if settings.optimize > 0 then flags = flags .. "/Ox /Ot /MT /D \"NDEBUG\" " end
+	if settings.optimize > 0 then flags = flags .. "/O2 /MT /D \"NDEBUG\" " end
 	local exec = exe .. " /nologo /D_CRT_SECURE_NO_DEPRECATE /c " .. flags .. " " .. incs .. defs .. " /Fo"
 	return exec
 end
