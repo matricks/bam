@@ -2,3 +2,4 @@ bam
 src/internal_base.h
 src/tools/txt2c
 test_output
+*.pyc
