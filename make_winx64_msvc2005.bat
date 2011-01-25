@@ -30,3 +30,4 @@ call %VSPATH%vsvars32.bat
 :compile
 @cl /D_CRT_SECURE_NO_DEPRECATE /W3 /O2 /nologo src/*.c src/lua/*.c /I src/lua /Febam.exe
 @del *.obj
+pause

@@ -51,3 +51,4 @@ call %VSPATH%vsvars32.bat
 @del hello.lib hello.exp bam.exp hello.exp
 @del *.obj
 
+pause
