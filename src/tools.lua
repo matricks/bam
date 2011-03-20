@@ -308,9 +308,12 @@ end
 --[[@FUNCTION CopyToDirectory(dst, ...)
 @END]]--
 function CopyToDirectory(dst, ...)
+	local insert = table.insert
+	local outputs = {}
 	for src in TableWalk({...}) do
-		return CopyFile(PathJoin(dst, PathFilename(src)), src)
+		insert(outputs, CopyFile(PathJoin(dst, PathFilename(src)), src))
 	end
+	return outputs
 end
 
 ------------------------ LINK ------------------------
