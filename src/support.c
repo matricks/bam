@@ -345,8 +345,32 @@ static void passthru(FILE *fp)
 int run_command(const char *cmd, const char *filter)
 {
 	int ret;
+	
 #ifdef BAM_FAMILY_WINDOWS
-	FILE *fp = _popen(cmd, "r");
+	/* windows has a buggy command line parser. I takes the first and
+	last '"' and removes them which causes problems in cases like this:
+	
+		"C:\t t\test.bat" 1 2 "3" 4 5
+		
+	Which will yeild:
+
+		C:\t t\test.bat" 1 2 "3 4 5
+		
+	The work around is to encase the command line with '"' that it can remove.
+	
+	*/
+	char buf[32*1024];
+	FILE *fp;
+	size_t len = strlen(cmd);
+	if(len > sizeof(buf)-3) /* 2 for '"' and 1 for '\0' */
+		return -1;
+	buf[0] = '"';
+	memcpy(buf+1, cmd, len);
+	buf[len+1] = '"';
+	buf[len+2] = 0;
+	
+	/* open the command line */
+	fp = _popen(buf, "r");
 
 	if(!fp)
 		return -1;
