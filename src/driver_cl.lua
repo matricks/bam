@@ -5,13 +5,16 @@ function DriverCL_Common(cpp, settings)
 	local incs = TableToString(settings.cc.includes, '-I"', '" ')
 	local incs = incs .. TableToString(settings.cc.systemincludes, '-I"', '" ')
 	local flags = settings.cc.flags:ToString()
+	local exe
 	if cpp then
+		exe = settings.cc.exe_cxx
 		flags = flags .. settings.cc.flags_cxx:ToString()
 	else
+		exe = settings.cc.exe_c
 		flags = flags .. settings.cc.flags_c:ToString()
 	end
 	
-	local exe = str_replace(settings.cc.exe_c, "/", "\\")
+	exe = str_replace(exe, "/", "\\")
 	if platform =="win32" then
 		flags = flags .. " /D \"WIN32\" "
 	else
