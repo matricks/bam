@@ -2,7 +2,7 @@
 from tinydoc import *
 import os
 
-#os.system("dot -Tpng docs/depgraph.dot > docs/depgraph.png")
+os.system("dot -Tpng docs/depgraph.dot > docs/depgraph.png")
 
 
 info = DocInfo()

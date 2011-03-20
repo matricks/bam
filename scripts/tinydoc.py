@@ -109,6 +109,25 @@ class HTMLOutput(Output):
 					font-style: italic ;
 				}
 
+				h1, h2 {
+					padding-top: 0.4em ;
+					padding-bottom: 0.4em ;
+					padding-left: 20px ;
+					margin-left: -20px ;
+					background-color: #E0E0FF ;
+				}
+				
+				h1 {
+					border-top: 1px;
+					border-bottom: 1px;
+					border-color: black;
+				}
+
+				h3 {
+					padding-left: 8px ;
+					border-left: solid #E0E0FF 1em ;
+				}
+				
 				a:link {
 					color: #000080 ;
 					background-color: inherit ;
@@ -160,7 +179,7 @@ class HTMLOutput(Output):
 			<body>
 			<!-- COMMENTS "BASE" -->
 			<hr/>
-			%s<h1>%s</h1>
+			%s<h1 style="background: none">%s</h1>
 			<small>%s</small>
 			
 			<hr/>
