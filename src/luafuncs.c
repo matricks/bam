@@ -75,9 +75,12 @@ static void deep_walk_r(lua_State *L, int table_index)
 			luaL_error(L, "encountered something besides a string or a table");
 		}
 
-		/* pop +1 */
+		/* pop -1 */
 		lua_pop(L, 1);
 	}
+
+	/* pop -1 */
+	lua_pop(L, 1);
 }
 
 static void deep_walk(lua_State *L, int start, int stop, void (*callback)(lua_State*, void*), void *user)
@@ -119,7 +122,7 @@ int lf_add_pseudo(lua_State *L)
 	context = context_get_pointer(L);
 
 	/* create the node */
-	i = node_create(&node, context->graph, lua_tostring(L,1), NULL, NULL);
+	i = node_create(&node, context->graph, lua_tostring(L,1), NULL);
 	if(i == NODECREATE_NOTNICE)
 		luaL_error(L, "add_pseudo: node '%s' is not nice", lua_tostring(L,1));
 	else if(i == NODECREATE_EXISTS)
@@ -202,38 +205,73 @@ int lf_add_dependency(lua_State *L) { return add_node_attribute(L, "add_dependen
 int lf_add_constraint_shared(lua_State *L) { return add_node_attribute(L, "add_constraint_shared", node_add_constraint_shared); }
 int lf_add_constraint_exclusive(lua_State *L) { return add_node_attribute(L, "add_constraint_exclusive", node_add_constraint_exclusive); }
 
-/* add_job(string output, string label, string command, ...) */
+static void callback_addjob_node(lua_State *L, void *user)
+{
+	struct JOB *job = (struct JOB *)user;
+	struct CONTEXT *context = context_get_pointer(L);
+	struct NODE *node;
+	const char *filename;
+	int i;
+
+	luaL_checktype(L, -1, LUA_TSTRING);
+	filename = lua_tostring(L, -1);
+	printf("node: %s\n", filename);
+
+	i = node_create(&node, context->graph, filename, job);
+	if(i == NODECREATE_NOTNICE)
+		luaL_error(L, "add_job: node '%s' is not nice", filename);
+	else if(i == NODECREATE_EXISTS)
+		luaL_error(L, "add_job: node '%s' already exists", filename);
+	else if(i != NODECREATE_OK)
+		luaL_error(L, "add_job: unknown error creating node '%s'", filename);
+}
+
+
+static void callback_addjob_deps(lua_State *L, void *user)
+{
+	struct JOB *job = (struct JOB *)user;
+	struct NODELINK *link;
+	const char *filename;
+
+	luaL_checktype(L, -1, LUA_TSTRING);
+	filename = lua_tostring(L, -1);
+
+	for(link = job->firstoutput; link; link = link->next)
+	{
+		printf("%s dep %s\n", link->node->filename, filename);
+		node_add_dependency(link->node, filename);
+	}
+}
+
+/* add_job(string/table output, string label, string command, ...) */
 int lf_add_job(lua_State *L)
 {
-	struct NODE *node;
+	struct JOB *job;
 	struct CONTEXT *context;
-	struct NODEATTRIB_CBINFO cbinfo;
-	int i;
 	
 	if(lua_gettop(L) < 3)
 		luaL_error(L, "add_job: too few arguments");
 
-	luaL_checktype(L, 1, LUA_TSTRING);
+	/*luaL_checktype(L, 1, LUA_TSTRING); */
 	luaL_checktype(L, 2, LUA_TSTRING);
 	luaL_checktype(L, 3, LUA_TSTRING);
 	
 	/* fetch contexst from lua */
 	context = context_get_pointer(L);
 
-	/* create the node */
-	i = node_create(&node, context->graph, lua_tostring(L,1), lua_tostring(L,2), lua_tostring(L,3));
-	if(i == NODECREATE_NOTNICE)
-		luaL_error(L, "add_job: node '%s' is not nice", lua_tostring(L,1));
-	else if(i == NODECREATE_EXISTS)
-		luaL_error(L, "add_job: node '%s' already exists", lua_tostring(L,1));
-	else if(i != NODECREATE_OK)
-		luaL_error(L, "add_job: unknown error creating node '%s'", lua_tostring(L,1));
-		
+	/* create the job */
+	job = node_job_create(context->graph, lua_tostring(L,2), lua_tostring(L,3));
+
+	/* create the nodes */
+	printf("%d\n", lua_gettop(L));
+	deep_walk(L, 1, 1, callback_addjob_node, job);
+	printf("%d\n", lua_gettop(L));
+
 	/* seek deps */
-	cbinfo.node = node;
-	cbinfo.callback = node_add_dependency;
-	deep_walk(L, 4, lua_gettop(L), callback_node_attrib, &cbinfo);
-	
+	/*cbinfo.node = job;
+	cbinfo.callback = node_add_dependency;*/
+	deep_walk(L, 4, lua_gettop(L), callback_addjob_deps, job);
+
 	return 0;
 }
 
@@ -275,8 +313,8 @@ int lf_set_filter(struct lua_State *L)
 
 	/* setup the string */	
 	str = lua_tolstring(L, 2, &len);
-	node->filter = (char *)mem_allocate(node->graph->heap, len+1);
-	memcpy(node->filter, str, len+1);
+	node->job->filter = (char *)mem_allocate(node->graph->heap, len+1);
+	memcpy(node->job->filter, str, len+1);
 	return 0;
 }
 

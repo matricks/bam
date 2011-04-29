@@ -134,6 +134,7 @@ struct WRITEINFO
 	/* index into nodes or deps */	
 	unsigned index;
 };
+#if 0
 
 
 static int write_header(struct WRITEINFO *info)
@@ -258,6 +259,13 @@ int cache_save(const char *filename, struct GRAPH *graph)
 
 	/* close up and return */
 	io_close(info.fp);
+	return 0;
+}
+#endif
+
+
+int cache_save(const char *filename, struct GRAPH *graph)
+{
 	return 0;
 }
 

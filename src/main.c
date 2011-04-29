@@ -527,7 +527,7 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 		int all_target = 0;
 		int i;
 
-		if(node_create(&context->target, context->graph, "_bam_buildtarget", 0, 0))
+		if(node_create(&context->target, context->graph, "_bam_buildtarget", NULL))
 			return -1;
 		node_set_pseudo(context->target);
 			
@@ -625,7 +625,7 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	memset(&context, 0, sizeof(struct CONTEXT));
 	context.graphheap = mem_create();
 	context.deferredheap = mem_create();
-	context.graph = node_create_graph(context.graphheap);
+	context.graph = node_graph_create(context.graphheap);
 	context.exit_on_error = option_abort_on_error;
 	context.buildtime = timestamp();
 

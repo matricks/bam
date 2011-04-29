@@ -80,25 +80,25 @@ static void progressbar_draw(struct CONTEXT *context)
 static void constraints_update(struct NODE *node, int direction)
 {
 	struct NODELINK *link;
-	for(link = node->constraint_shared; link; link = link->next)
-		link->node->constraint_shared_count += direction;
-	for(link = node->constraint_exclusive; link; link = link->next)
-		link->node->constraint_exclusive_count += direction;
+	for(link = node->job->constraint_shared; link; link = link->next)
+		link->node->job->constraint_shared_count += direction;
+	for(link = node->job->constraint_exclusive; link; link = link->next)
+		link->node->job->constraint_exclusive_count += direction;
 }
 
 /* returns 0 if there are no constraints that are conflicting */
 static int constraints_check(struct NODE *node)
 {
 	struct NODELINK *link;
-	for(link = node->constraint_shared; link; link = link->next)
+	for(link = node->job->constraint_shared; link; link = link->next)
 	{
-		if(link->node->constraint_exclusive_count)
+		if(link->node->job->constraint_exclusive_count)
 			return 1;
 	}
 	
-	for(link = node->constraint_exclusive; link; link = link->next)
+	for(link = node->job->constraint_exclusive; link; link = link->next)
 	{
-		if(link->node->constraint_exclusive_count || link->node->constraint_shared_count)
+		if(link->node->job->constraint_exclusive_count || link->node->job->constraint_shared_count)
 			return 1;
 	}
 	
@@ -155,7 +155,114 @@ static int create_path(const char *output_name)
 	/* return success */
 	return 0;
 }
+#if 1
+static int run_job(struct CONTEXT *context, struct JOB *job, int thread_id)
+{
+	static const char *format = 0;
+	struct NODELINK *link;
+	int ret;
+
+	context->current_cmd_num++;
+
+	if(!format)
+	{
+		static char buf[64];
+		int num = 0;
+		int c = context->num_commands;
+		for(; c; c /= 10)
+			num++;
+		
+		if(session.report_color)
+			sprintf(buf, "\033[01;32m[%%%dd/%%%dd] \033[01;36m#%%d\033[00m %%s\n", num, num);
+		else
+			sprintf(buf, "[%%%dd/%%%dd] #%%d %%s\n", num, num);
+		format = buf;
+	}
 	
+	if(session.report_bar)
+		progressbar_clear();
+	if(session.report_steps)
+	{
+		if(session.simpleoutput)
+			printf("%s", job->label);
+		else
+			printf(format, context->current_cmd_num, context->num_commands, thread_id, job->label);
+	}
+	
+	if(session.report_bar)
+		progressbar_draw(context);
+	
+	if(session.verbose)
+	{
+		if(session.report_color)
+			printf("\033[01;33m%s\033[00m\n", job->cmdline);
+		else
+			printf("%s\n", job->cmdline);
+	}
+		
+	fflush(stdout);
+
+	/* create output path */
+	for(link = job->firstoutput; link; link = link->next)
+	{
+		/* TODO: perhaps we can skip running this if we know that the file exists on disk already */
+		if(create_path(link->node->filename) != 0)
+		{
+			if(session.report_color)
+				printf("\033[01;31m");
+			
+			printf("%s: could not create output directory for '%s'\n", session.name, link->node->filename);
+
+			if(session.report_color)
+				printf("\033[00m");
+				
+			fflush(stdout);
+			return 1;
+		}
+	}
+
+	/* add constraints count */
+	/* constraints_update(node, 1); TODO: constraints */
+	
+	/* execute the command */
+	criticalsection_leave();
+	ret = run_command(job->cmdline, job->filter);
+	if(ret == 0)
+	{
+		/* make sure that the tool updated the timestamp */
+		for(link = job->firstoutput; link; link = link->next)
+			file_touch(link->node->filename);
+	}
+	criticalsection_enter();
+	
+	
+	/* sub constraints count */
+	/* constraints_update(node, -1); TODO: constraints */
+	
+	if(ret)
+	{
+		if(session.report_color)
+			printf("\033[01;31m");
+		
+		printf("%s: '%s' error %d\n", session.name, job->label, ret);
+		
+		for(link = job->firstoutput; link; link = link->next)
+		{
+			if(file_timestamp(link->node->filename) != link->node->timestamp_raw)
+			{
+				remove(link->node->filename);
+				printf("%s: '%s' removed because job updated it even it failed.\n", session.name, link->node->filename);
+			}
+		}
+
+		if(session.report_color)
+			printf("\033[00m");
+			
+		fflush(stdout);
+	}
+	return ret;
+}
+#else	
 static int run_node(struct CONTEXT *context, struct NODE *node, int thread_id)
 {
 	static const char *format = 0;
@@ -254,6 +361,7 @@ static int run_node(struct CONTEXT *context, struct NODE *node, int thread_id)
 	}
 	return ret;
 }
+#endif
 
 struct THREADINFO
 {
@@ -266,8 +374,9 @@ struct THREADINFO
 static int threads_run_callback(struct NODEWALK *walkinfo)
 {
 	struct NODE *node = walkinfo->node;
+	struct JOB *job = node->job;
 	struct THREADINFO *info = (struct THREADINFO *)walkinfo->user;
-	struct NODELINK *dep;
+	struct NODELINK *link;
 	int errorcode = 0;
 	
 	/* check for aborts */
@@ -279,22 +388,22 @@ static int threads_run_callback(struct NODEWALK *walkinfo)
 		return info->context->errorcode;
 
 	/* make sure that all deps are done and propagate broken status */
-	for(dep = node->firstjobdep; dep; dep = dep->next)
+	for(link = job->firstjobdep; link; link = link->next)
 	{
-		if(dep->node->workstatus == NODESTATUS_BROKEN)
+		if(link->node->job->status == JOBSTATUS_BROKEN)
 		{
-			node->workstatus = NODESTATUS_BROKEN;
+			job->status = JOBSTATUS_BROKEN;
 			return info->context->errorcode;
 		}
 		
-		if(dep->node->dirty && dep->node->workstatus != NODESTATUS_DONE)
+		if(link->node->dirty && link->node->job->status != JOBSTATUS_DONE)
 			return 0;
 	}
 
 	/* if it doesn't have a tool, just mark it as done and continue the search */
-	if(!node->cmdline)
+	if(!job->real)
 	{
-		node->workstatus = NODESTATUS_DONE;
+		job->status = JOBSTATUS_DONE;
 		return 0;
 	}
 	
@@ -303,16 +412,21 @@ static int threads_run_callback(struct NODEWALK *walkinfo)
 		return 0;
 	
 	/* mark the node as its in the working */
-	node->workstatus = NODESTATUS_WORKING;
+	job->status = JOBSTATUS_WORKING;
 	
 	/* run the node */
+#if 1
+	if(node->job)
+		errorcode = run_job(info->context, node->job, info->id+1);
+#else
 	if(node->cmdline)
 		errorcode = run_node(info->context, node, info->id+1);
+#endif
 	
 	/* this node is done, mark it so and return the error code */
 	if(errorcode)
 	{
-		node->workstatus = NODESTATUS_BROKEN;
+		node->job->status = JOBSTATUS_BROKEN;
 		
 		/* set global error code */
 		info->context->errorcode = errorcode;
@@ -320,8 +434,8 @@ static int threads_run_callback(struct NODEWALK *walkinfo)
 	else
 	{
 		/* node is done, update the cache hash we we don't have to rebuild this one */
-		node->workstatus = NODESTATUS_DONE;
-		node->cachehash = node->cmdhash;
+		node->job->status = JOBSTATUS_DONE;
+		node->job->cachehash = node->job->cmdhash;
 	}
 	return errorcode;
 }
@@ -349,7 +463,7 @@ static void threads_run(void *u)
 				break;
 
 			/* check if we are done */
-			if(target->workstatus != NODESTATUS_UNDONE)
+			if(target->job->status != JOBSTATUS_UNDONE)
 				break;
 
 			if(info->context->exit_on_error && info->context->errorcode)
@@ -419,7 +533,7 @@ static int build_clean_callback(struct NODEWALK *walkinfo)
 	struct NODE *node = walkinfo->node;
 	
 	/* no tool, no processing */
-	if(!node->cmdline)
+	if(!node->job->real)
 		return 0;
 
 	if(node->timestamp)
@@ -447,7 +561,7 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 
 	time_t oldtimestamp = node->timestamp; /* to keep track of if this node changes */
 	int olddirty = node->dirty;
-	struct NODELINK *oldjobdep = node->firstjobdep;
+	struct NODELINK *oldjobdep = node->job->firstjobdep;
 	
 	if(node->depth < walkinfo->depth)
 		node->depth = walkinfo->depth;
@@ -456,14 +570,14 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 	if(node->timestamp > context->buildtime)
 		printf("%s: WARNING:'%s' comes from the future\n", session.name, node->filename);
 	
-	if(node->cmdline)
+	if(node->job->real)
 	{
 		/* dirty checking, check against cmdhash and global timestamp first */
 		cachenode = cache_find_byhash(context->cache, node->hashid);
 		if(cachenode)
 		{
-			node->cachehash = cachenode->cmdhash;
-			if(node->cachehash != node->cmdhash)
+			node->job->cachehash = cachenode->cmdhash;
+			if(node->job->cachehash != node->job->cmdhash)
 				node->dirty = NODEDIRTY_CMDHASH;
 		}
 		else if(node->timestamp < context->globaltimestamp)
@@ -478,7 +592,7 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 	/* check against all the dependencies */
 	for(dep = node->firstdep; dep; dep = dep->next)
 	{
-		if(dep->node->cmdline)
+		if(dep->node->job->real)
 		{
 			/* do circular action dependency checking */
 			for(path = walkinfo->parent; path; path = path->parent)
@@ -494,13 +608,13 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 			}
 		
 			/* propagate job dependencies */
-			node_add_job_dependency_withnode(node, dep->node);
+			node_job_add_dependency_withnode(node, dep->node);
 		}
 		else
 		{
 			/* propagate job dependencies */
-			for(jobdep = dep->node->firstjobdep; jobdep; jobdep = jobdep->next)
-				node_add_job_dependency_withnode(node, jobdep->node);
+			for(jobdep = dep->node->job->firstjobdep; jobdep; jobdep = jobdep->next)
+				node_job_add_dependency_withnode(node, jobdep->node);
 		}
 
 		/* update dirty */		
@@ -510,7 +624,7 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 				node->dirty = NODEDIRTY_DEPDIRTY;
 			else if(node->timestamp < dep->node->timestamp)
 			{
-				if(node->cmdline)
+				if(node->job->real)
 					node->dirty = NODEDIRTY_DEPNEWER;
 				else /* no cmdline, just propagate the timestamp */
 					node->timestamp = dep->node->timestamp;
@@ -524,13 +638,13 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 		
 	/* invalidate the cache cmd hash if we are dirty because
 		we could be dirty because if a dependency is missing */
-	if(node->dirty)
-		node->cachehash = 0;
+	if(node->dirty && node->job->real)
+		node->job->cachehash = 0;
 	
 	/* count commands */
-	if(node->cmdline && node->dirty && !node->counted && node->targeted)
+	if(node->job->real && node->dirty && !node->job->counted && node->targeted)
 	{
-		node->counted = 1;
+		node->job->counted = 1;
 		context->num_commands++;
 	}
 	
@@ -538,7 +652,7 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 		propagate the dirty state and timestamp.
 		this can cause us to go outside the targeted
 		nodes and into nodes that are not targeted. be aware */
-	if(olddirty != node->dirty || oldtimestamp != node->timestamp || oldjobdep != node->firstjobdep)
+	if(olddirty != node->dirty || oldtimestamp != node->timestamp || oldjobdep != node->job->firstjobdep)
 	{
 		for(parent = node->firstparent; parent; parent = parent->next)
 			node_walk_revisit(walkinfo, parent->node);
