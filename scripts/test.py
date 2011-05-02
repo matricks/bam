@@ -246,6 +246,8 @@ if len(failed_tests):
 	print "FAILED TESTS:"
 	for t in failed_tests:
 		print "\t"+t
+	sys.exit(1)
 else:
 	print "ALL TESTS PASSED!"
+	sys.exit(0)
 
