@@ -737,8 +737,11 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 /* signal handler */
 static void abortsignal(int i)
 {
+	static unsigned print = 1;
 	(void)i;
-	printf("%s: signal cought, waiting for jobs to finish\n", session.name);
+	if(print)
+		printf("%s: signal cought, waiting for jobs to finish\n", session.name);
+	print = 0;
 	session.abort = 1;
 }
 

@@ -142,6 +142,7 @@
 	#include <sys/types.h>
 	#include <sys/signal.h>
 	#include <sys/stat.h>
+	#include <sys/wait.h> 
 	#include <utime.h>
 	#include <pthread.h>
 
@@ -448,6 +449,8 @@ int run_command(const char *cmd, const char *filter)
 	ret = _pclose(fp);
 #else
 	ret = system(cmd);
+	if(WIFSIGNALED(ret))
+		raise(SIGINT);
 #endif
 	if(session.verbose)
 		printf("%s: ret=%d %s\n", session.name, ret, cmd);
