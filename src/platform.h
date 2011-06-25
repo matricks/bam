@@ -20,7 +20,7 @@
 #endif
 
 /* unix family */
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
 	#define BAM_FAMILY_UNIX
 	#define BAM_FAMILY_STRING "unix"
 	#define BAM_PLATFORM_FREEBSD
