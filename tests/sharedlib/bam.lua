@@ -1,8 +1,6 @@
 settings = NewSettings() 
 
-if arch == "amd64" then
-	settings.cc.flags:Add("-fPIC")
-end
+settings.cc.flags:Add("-fPIC")
  
 src = Collect("*.cpp") 
 objs = Compile(settings, src) 
