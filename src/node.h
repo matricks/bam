@@ -28,7 +28,6 @@ struct SCANNER
 	int (*scannerfunc)(struct NODE *, struct SCANNER *info);
 };
 
-#if 1
 struct JOB
 {
 	struct GRAPH *graph; /* graph that the job belongs to */
@@ -51,13 +50,11 @@ struct JOB
 	unsigned cmdhash; /* hash of the command line for detecting changes */
 	unsigned cachehash; /* hash that should be written to the cache */
 
-
 	unsigned real:1; /* set if this isn't a nulljob */
 	unsigned counted:1; /* set if we have counted this job towards the number of targets to build */
 
 	volatile unsigned status; /* build status of the job, JOBSTATUS_* flags */
 };
-#endif
 
 /*
 	a node in the dependency graph
@@ -80,17 +77,6 @@ struct NODE
 	
 	struct JOB *job; /* job that produces this node */
 	char *filename; /* this contains the filename with the FULLPATH */
-#if 0
-	/* either none of these are set or both of em are */
-	char *cmdline; /* command line that should be executed to build this node */
-	char *label; /* what to print when we build this node */
-	
-	char *filter; /* filter string, first character sets the type of filter */
-	
-	/* filename and the tool to build the resource */
-	unsigned cmdhash; /* hash of the command line for detecting changes */
-	unsigned cachehash; /* hash that should be written to the cache */
-#endif
 
 	unsigned hashid; /* hash of the filename/nodename */
 	

@@ -134,8 +134,6 @@ struct WRITEINFO
 	/* index into nodes or deps */	
 	unsigned index;
 };
-#if 0
-
 
 static int write_header(struct WRITEINFO *info)
 {
@@ -185,7 +183,8 @@ static int write_nodes(struct WRITEINFO *info)
 			cachenode->deps_num++;
 		
 		cachenode->hashid = node->hashid;
-		cachenode->cmdhash = node->cachehash;
+		if(node->job)
+			cachenode->cmdhash = node->job->cachehash;
 		cachenode->cached = node->cached;
 		cachenode->timestamp_raw = node->timestamp_raw;
 		cachenode->deps = (unsigned*)((long)dep_index);
@@ -259,13 +258,6 @@ int cache_save(const char *filename, struct GRAPH *graph)
 
 	/* close up and return */
 	io_close(info.fp);
-	return 0;
-}
-#endif
-
-
-int cache_save(const char *filename, struct GRAPH *graph)
-{
 	return 0;
 }
 

@@ -215,7 +215,6 @@ static void callback_addjob_node(lua_State *L, void *user)
 
 	luaL_checktype(L, -1, LUA_TSTRING);
 	filename = lua_tostring(L, -1);
-	printf("node: %s\n", filename);
 
 	i = node_create(&node, context->graph, filename, job);
 	if(i == NODECREATE_NOTNICE)
@@ -237,10 +236,7 @@ static void callback_addjob_deps(lua_State *L, void *user)
 	filename = lua_tostring(L, -1);
 
 	for(link = job->firstoutput; link; link = link->next)
-	{
-		printf("%s dep %s\n", link->node->filename, filename);
 		node_add_dependency(link->node, filename);
-	}
 }
 
 /* add_job(string/table output, string label, string command, ...) */
@@ -263,13 +259,9 @@ int lf_add_job(lua_State *L)
 	job = node_job_create(context->graph, lua_tostring(L,2), lua_tostring(L,3));
 
 	/* create the nodes */
-	printf("%d\n", lua_gettop(L));
 	deep_walk(L, 1, 1, callback_addjob_node, job);
-	printf("%d\n", lua_gettop(L));
 
 	/* seek deps */
-	/*cbinfo.node = job;
-	cbinfo.callback = node_add_dependency;*/
 	deep_walk(L, 4, lua_gettop(L), callback_addjob_deps, job);
 
 	return 0;
