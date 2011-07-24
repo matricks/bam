@@ -34,7 +34,7 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 	struct NODE *node;
 	struct NODETREELINK *link;
 	int sn;
-	unsigned hashid = string_hash(filename);
+	hash_t hashid = string_hash(filename);
 
 	/* check arguments */
 	if(!path_isnice(filename))
@@ -84,7 +84,7 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 		node->filename_len = strlen(filename)+1;
 		node->filename = (char *)mem_allocate(graph->heap, node->filename_len);
 		memcpy(node->filename, filename, node->filename_len);
-		node->hashid = string_hash(filename);
+		node->hashid = hashid;
 		
 		/* add to hashed tree */
 		nodelinktree_insert(&graph->nodehash[node->hashid&0xffff], link, node);
@@ -116,7 +116,7 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 }
 
 /* finds a node based apun the filename */
-struct NODE *node_find_byhash(struct GRAPH *graph, unsigned int hashid)
+struct NODE *node_find_byhash(struct GRAPH *graph, hash_t hashid)
 {
 	struct NODETREELINK *link;
 	link = nodelinktree_find_closest(graph->nodehash[hashid&0xffff], hashid);

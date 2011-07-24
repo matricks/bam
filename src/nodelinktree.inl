@@ -1,12 +1,12 @@
 
-static struct NODETREELINK *nodelinktree_find_closest(struct NODETREELINK *link, unsigned hashid)
+static struct NODETREELINK *nodelinktree_find_closest(struct NODETREELINK *link, hash_t hashid)
 {
 	if(!link)
 		return NULL;
 	
 	while(1)
 	{
-		unsigned linkhash = link->node->hashid;
+		hash_t linkhash = link->node->hashid;
 		struct NODETREELINK *leaf = NULL;
 		if(linkhash == hashid)
 			return link;

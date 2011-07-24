@@ -6,6 +6,7 @@
 
 #include <time.h>
 #include "tree.h"
+#include "support.h"
 
 /* */
 struct NODELINK
@@ -37,8 +38,8 @@ struct JOB
 	char *label;
 	char *filter;
 
-	unsigned cmdhash; /* hash of the command line for detecting changes */
-	unsigned cachehash; /* hash that should be written to the cache */
+	hash_t cmdhash; /* hash of the command line for detecting changes */
+	hash_t cachehash; /* hash that should be written to the cache */
 
 	struct NODELINK *firstoutput;
 	
@@ -84,8 +85,8 @@ struct NODE
 	 
 	unsigned constraint_exclusive_count; /* */
 	unsigned constraint_shared_count; /* */
-	 
-	unsigned hashid; /* hash of the filename/nodename */
+
+	hash_t hashid; /* hash of the filename/nodename */
 	
 	/* time stamps, 0 == does not exist. */
 	time_t timestamp; /* timestamp. this will be updated from the deps of the node */
@@ -112,10 +113,10 @@ struct CACHENODE
 {
 	RB_ENTRY(CACHENODE) rbentry;
 
-	unsigned hashid;
+	hash_t hashid;
 	time_t timestamp_raw;
 	char *filename;
-	unsigned cmdhash;
+	hash_t cmdhash;
 
 	unsigned cached:1;
 	
@@ -126,9 +127,12 @@ struct CACHENODE
 /* */
 struct GRAPH
 {
+	/* nodes */
 	struct NODETREELINK *nodehash[0x10000];
 	struct NODE *first;
 	struct NODE *last;
+
+	/* memory */
 	struct HEAP *heap;
 
 	/* needed when saving the cache */
@@ -176,7 +180,7 @@ struct GRAPH *node_create_graph(struct HEAP *heap);
 /* */
 int node_create(struct NODE **node, struct GRAPH *graph, const char *filename, const char *label, const char *cmdline);
 struct NODE *node_find(struct GRAPH *graph, const char *filename);
-struct NODE *node_find_byhash(struct GRAPH *graph, unsigned int hashid);
+struct NODE *node_find_byhash(struct GRAPH *graph, hash_t hashid);
 struct NODE *node_get(struct GRAPH *graph, const char *filename);
 struct NODE *node_add_dependency(struct NODE *node, const char *filename);
 struct NODE *node_add_dependency_withnode(struct NODE *node, struct NODE *depnode);
