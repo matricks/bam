@@ -77,8 +77,8 @@ static int option_num_targets = 0;
 static const char *option_scriptargs[128] = {0};
 static int option_num_scriptargs = 0;
 
-/* filename of the cache, will be filled in at start up, ".bam/xxxxxxxx" = 14 top */
-static char cache_filename[16] = {0};
+/* filename of the cache, will be filled in at start up, ".bam/xxxxxxxxyyyyyyyyy" = 22 top */
+static char cache_filename[32] = {0};
 
 /* session object */
 struct SESSION session = {
@@ -642,11 +642,14 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	{
 		/* create a hash of all the external variables that can cause the
 			script to generate different results */
-		unsigned int cache_hash = 0;
+		hash_t cache_hash = 0;
+		char hashstr[64];
 		int i;
 		for(i = 0; i < option_num_scriptargs; i++)
 			cache_hash = string_hash_add(cache_hash, option_scriptargs[i]);
-		sprintf(cache_filename, ".bam/%08x", cache_hash);
+
+		string_hash_tostr(cache_hash, hashstr);
+		sprintf(cache_filename, ".bam/%s", hashstr);
 		context.cache = cache_load(cache_filename);
 	}
 

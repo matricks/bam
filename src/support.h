@@ -1,3 +1,17 @@
+#ifndef FILE_SUPPORT_H
+#define FILE_SUPPORT_H
+
+#include <time.h> /* time_t */
+
+/* types */ 
+#ifdef __GNUC__
+	/* if compiled with -pedantic-errors it will complain about long long not being a C90 thing. */
+	__extension__ typedef unsigned long long hash_t;
+#else
+	typedef unsigned long long hash_t;
+#endif
+
+struct lua_State;
 
 void install_signals(void (*abortsignal)(int));
 int run_command(const char *cmd, const char *filter);
@@ -25,5 +39,8 @@ typedef int (*PLUGINFUNC)(struct lua_State *);
 PLUGINFUNC plugin_load(const char *filename);
 
 /* string hashing function */
-unsigned int string_hash(const char *str_in);
-unsigned int string_hash_add(unsigned int base, const char *str_in);
+hash_t string_hash(const char *str_in);
+hash_t string_hash_add(hash_t base, const char *str_in);
+void string_hash_tostr(hash_t value, char *output);
+
+#endif

@@ -1,3 +1,5 @@
+#include "support.h"
+
 /* session - holds all the settings for this bam session */
 struct SESSION
 {
@@ -7,7 +9,7 @@ struct SESSION
 	int verbose;
 	int simpleoutput;
 	
-	unsigned int cache_hash;
+	hash_t cache_hash;
 
 	int lua_backtrace;
 	int lua_locals;

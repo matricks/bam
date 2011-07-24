@@ -6,6 +6,7 @@
 
 #include <time.h>
 #include "tree.h"
+#include "support.h"
 
 /* */
 struct NODELINK
@@ -47,8 +48,8 @@ struct JOB
 	char *label;
 	char *filter;
 
-	unsigned cmdhash; /* hash of the command line for detecting changes */
-	unsigned cachehash; /* hash that should be written to the cache */
+	hash_t cmdhash; /* hash of the command line for detecting changes */
+	hash_t cachehash; /* hash that should be written to the cache */
 
 	unsigned real:1; /* set if this isn't a nulljob */
 	unsigned counted:1; /* set if we have counted this job towards the number of targets to build */
@@ -78,7 +79,7 @@ struct NODE
 	struct JOB *job; /* job that produces this node */
 	char *filename; /* this contains the filename with the FULLPATH */
 
-	unsigned hashid; /* hash of the filename/nodename */
+	hash_t hashid; /* hash of the filename/nodename */
 	
 	/* time stamps, 0 == does not exist. */
 	time_t timestamp; /* timestamp. this will be updated from the deps of the node */
@@ -102,10 +103,10 @@ struct CACHENODE
 {
 	RB_ENTRY(CACHENODE) rbentry;
 
-	unsigned hashid;
+	hash_t hashid;
 	time_t timestamp_raw;
 	char *filename;
-	unsigned cmdhash;
+	hash_t cmdhash;
 
 	unsigned cached:1;
 	
@@ -116,9 +117,12 @@ struct CACHENODE
 /* */
 struct GRAPH
 {
+	/* nodes */
 	struct NODETREELINK *nodehash[0x10000];
 	struct NODE *first;
 	struct NODE *last;
+
+	/* memory */
 	struct HEAP *heap;
 
 	/* needed when saving the cache */
@@ -171,7 +175,7 @@ struct NODE *node_job_add_dependency_withnode(struct NODE *node, struct NODE *de
 /* */
 int node_create(struct NODE **node, struct GRAPH *graph, const char *filename, struct JOB *job);
 struct NODE *node_find(struct GRAPH *graph, const char *filename);
-struct NODE *node_find_byhash(struct GRAPH *graph, unsigned int hashid);
+struct NODE *node_find_byhash(struct GRAPH *graph, hash_t hashid);
 struct NODE *node_get(struct GRAPH *graph, const char *filename);
 struct NODE *node_add_dependency(struct NODE *node, const char *filename);
 struct NODE *node_add_dependency_withnode(struct NODE *node, struct NODE *depnode);

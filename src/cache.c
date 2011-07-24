@@ -25,10 +25,10 @@ static char bamheader[8] = {
 static void cache_setup_header()
 {
 	/* save a hashed version of the date and time in the header */
-	unsigned hash = string_hash(__DATE__ __TIME__);
-	bamheader[5] = hash&0xff;
-	bamheader[6] = (hash>>8)&0xff;
-	bamheader[7] = (hash>>16)&0xff;
+	hash_t hash = string_hash(__DATE__ __TIME__);
+	bamheader[5] = (char)(hash&0xff);
+	bamheader[6] = (char)((hash>>8)&0xff);
+	bamheader[7] = (char)((hash>>16)&0xff);
 }
 
 /* 	detect if we can use unix styled io. we do this because fwrite
@@ -321,7 +321,7 @@ struct CACHENODE *cache_find_byindex(struct CACHE *cache, unsigned index)
 	return &cache->nodes[index];
 }
 
-struct CACHENODE *cache_find_byhash(struct CACHE *cache, unsigned hashid)
+struct CACHENODE *cache_find_byhash(struct CACHE *cache, hash_t hashid)
 {
 	struct CACHENODE tempnode;
 	if(!cache)

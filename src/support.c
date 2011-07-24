@@ -675,24 +675,30 @@ static const unsigned char tolower_table[256] = {
 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239,
 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255};
 
-unsigned int string_hash_add(unsigned int h, const char *str_in)
+hash_t string_hash_add(hash_t h, const char *str_in)
 {
 	const unsigned char *str = (const unsigned char *)str_in;
 	for (; *str; str++)
-		h = 31*h + tolower_table[*str];
+		h = 33*h + tolower_table[*str];
 	return h;
 }
 #else
 /* normal unix version */
-unsigned int string_hash_add(unsigned int h, const char *str)
+hash_t string_hash_add(hash_t h, const char *str)
 {
 	for (; *str; str++)
-		h = 31*h + *str;
+		h = 33*h + *str;
 	return h;
 }
 #endif
 
-unsigned int string_hash(const char *str_in)
+hash_t string_hash(const char *str_in)
 {
-	return string_hash_add(0, str_in);
+	return string_hash_add(5381, str_in);
 }
+
+void string_hash_tostr(hash_t value, char *output)
+{
+	sprintf(output, "%08x%08x", (unsigned)(value>>32), (unsigned)(value&0xffffffff));
+}
+
