@@ -414,10 +414,11 @@ int node_walk(
 	/* do the walk */
 	result = node_walk_r(&walk, node);
 	
-	/* do the walk of all active elements, if we don't have an error */
-	if(flags&NODEWALK_REVISIT && !result)
+	/* do the walk of all active elements, if we don't have an error and free the memory */
+	if(flags&NODEWALK_REVISIT)
 	{
-		node_walk_do_revisits(&walk);
+		if(!result)
+			node_walk_do_revisits(&walk);
 		free(walk.revisits);
 	}
 
