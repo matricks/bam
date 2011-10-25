@@ -70,7 +70,7 @@ static int option_debug_trace_vm = 0;
 static int option_print_help = 0;
 
 static const char *option_script = "bam.lua"; /* -f filename */
-static const char *option_threads_str = "0";
+static const char *option_threads_str = NULL;
 static const char *option_report_str = DEFAULT_REPORT_STYLE;
 static const char *option_targets[128] = {0};
 static int option_num_targets = 0;
@@ -136,7 +136,7 @@ static struct OPTION options[] = {
 		Sets the number of threads used when building. A good value for N is
 		the same number as logical cores on the machine. Set to 0 to disable.
 	@END*/
-	{1, &option_threads_str,0		, "-j", "sets the number of threads to use (default: 0, disabled)"},
+	{1, &option_threads_str,0		, "-j", "sets the number of threads to use (default: auto, -v will show it)"},
 
 	/*@OPTION Script File ( -s FILENAME )
 		Bam file to use. In normal operation, Bam executes
@@ -921,11 +921,20 @@ int main(int argc, char **argv)
 	}
 	
 	/* convert the threads string */
-	session.threads = atoi(option_threads_str);
-	if(session.threads < 0)
+	if(option_threads_str)
 	{
-		printf("%s: invalid number of threads supplied\n", session.name);
-		return 1;
+		session.threads = atoi(option_threads_str);
+		if(session.threads < 0)
+		{
+			printf("%s: invalid number of threads supplied\n", session.name);
+			return 1;
+		}
+	}
+	else
+	{
+		session.threads = threads_corecount();
+		if(session.verbose)
+			printf("%s: detected %d cores\n", session.name, session.threads);
 	}
 	
 	/* check for help argument */

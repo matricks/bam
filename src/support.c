@@ -129,6 +129,15 @@
 		return (PLUGINFUNC)func;
 	}
 
+	int threads_corecount()
+	{
+		SYSTEM_INFO sysinfo;
+		GetSystemInfo(&sysinfo);
+		if(sysinfo.dwNumberOfProcessors >= 1)
+			return sysinfo.dwNumberOfProcessors;
+		return 1;
+	}
+
 #else
 	#define D_TYPE_HACK
 
@@ -240,6 +249,32 @@
 	void threads_yield()
 	{
 		sched_yield();
+	}
+
+	int threads_corecount()
+	{
+#ifdef BAM_PLATFORM_MACOSX
+		int nm[2] = {CTL_HW, HW_AVAILCPU};
+		size_t len = 4;
+		uint32_t count;
+
+		sysctl(nm, 2, &count, &len, NULL, 0);
+
+		if(count < 1)
+		{
+			nm[1] = HW_NCPU;
+			sysctl(nm, 2, &count, &len, NULL, 0);
+			if(count < 1) { count = 1; }
+		}
+		if(count >= 1)
+			return count;
+		return 1;
+#else
+	    int count = sysconf(_SC_NPROCESSORS_ONLN);
+	    if(count >= 1)
+	    	return count;
+	    return 1;
+#endif
 	}
 	
 	PLUGINFUNC plugin_load(const char *filename)

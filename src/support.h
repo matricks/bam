@@ -23,6 +23,7 @@ void platform_shutdown();
 void *threads_create(void (*threadfunc)(void *), void *u);
 void threads_join(void *thread);
 void threads_yield();
+int threads_corecount();
 
 void criticalsection_enter();
 void criticalsection_leave();
