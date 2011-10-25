@@ -155,6 +155,11 @@
 	#include <utime.h>
 	#include <pthread.h>
 
+#ifdef BAM_PLATFORM_MACOSX
+	#include <sys/param.h>
+	#include <sys/sysctl.h>
+#endif
+
 /* disable D_TYPE_HACK if we don't have support for it */
 #if !defined(DT_DIR) || !defined(DT_UNKNOWN)
 	#undef D_TYPE_HACK
