@@ -620,6 +620,9 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 
 	/* build time */
 	time_t starttime  = time(0x0);
+
+	/* create the cache and tmp directory */
+	file_createdir(".bam");
 	
 	/* zero out and create memory heap, graph */
 	memset(&context, 0, sizeof(struct CONTEXT));
@@ -701,11 +704,7 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 
 	/* save cache (thread?) */
 	if(option_no_cache == 0 && setup_error == 0)
-	{
-		/* create the cache directory */
-		file_createdir(".bam");
 		cache_save(cache_filename, context.graph);
-	}
 	
 	/* clean up */
 	mem_destroy(context.graphheap);
