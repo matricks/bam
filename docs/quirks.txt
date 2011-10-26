@@ -1,0 +1,34 @@
+This section is a collection of quirks and ...
+
+@GROUP C++ dependency checker is greedy @END
+
+The C++ dependency checker in bam is very simple and can in exotic cases
+cause problems. The parser only checks for include lines and ignores all
+ifdefs. This will cause that more files then nessesary will be compiled
+when a header changes but is seldom a problem.
+
+@GROUP Bad job command: Not returning error correctly @END
+
+If a job command doesn't return an error code when it failed, bam will consider
+it a success and move on as usual. This can become even worse if the command touches
+the output file and fails without returning a proper error code. In this case,
+bam will never know that it has to rebuild that target again.
+
+This problem can be solved by wrapping the bad commandline in some script
+that parses the output of it, detects errors and returns a correct error code.
+
+@GROUP Bad job command: Not updating output timestamp @END
+
+If a job command is successful but doesn't touch and update the time stamp
+on the output file, bam will try to build that again every time you run it.
+
+This problem can be solved by telling bam that it needs to touch the output
+file after a successful to update the timestamp.
+
+{{{{
+function MyTool(input, output)
+&nbsp;	AddJob(output, "running mytool", "mytool " .. input .. " " .. output)
+&nbsp;	SetTouch(output)
+end
+}}}}
+
