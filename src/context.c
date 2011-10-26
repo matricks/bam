@@ -11,6 +11,10 @@
 #include "support.h"
 #include "session.h"
 
+#ifndef BAM_MAX_THREADS
+        #define BAM_MAX_THREADS 1024
+#endif
+
 const char *CONTEXT_LUA_SCRIPTARGS_TABLE = "_bam_scriptargs";
 const char *CONTEXT_LUA_TARGETS_TABLE = "_bam_targets";
 const char *CONTEXT_LUA_PATH = "_bam_path";
@@ -368,13 +372,19 @@ static void threads_run(void *u)
 int context_build_make(struct CONTEXT *context)
 {
 	/* multithreaded */
-	struct THREADINFO info[64];
-	void *threads[64];
+	struct THREADINFO info[BAM_MAX_THREADS];
+	void *threads[BAM_MAX_THREADS];
 	int i;
 	
 	/* clamp number of threads */
-	if(session.threads > 64) session.threads = 64;
-	else if(session.threads < 1) session.threads = 1;
+	if(session.threads > BAM_MAX_THREADS)
+	{
+		printf("%s: reduced %d threads down to %d due to hard limit\n", session.name, session.threads, BAM_MAX_THREADS);
+		printf("%s: change BAM_MAX_THREADS during compile to increase\n", session.name);
+		session.threads = BAM_MAX_THREADS;
+	}
+	else if(session.threads < 1)
+		session.threads = 1;
 	
 	for(i = 0; i < session.threads; i++)
 	{
