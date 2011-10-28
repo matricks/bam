@@ -954,6 +954,7 @@ int main(int argc, char **argv)
 	if(option_print_debughelp)
 	{
 		print_help(OF_PRINT|OF_DEBUG);
+		return 0;
 	}
 	else if(option_print_help)
 	{
