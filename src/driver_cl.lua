@@ -66,7 +66,7 @@ function DriverCL_BuildResponse(exec, output, input)
 	if string.len(exec) + string.len(input) < 8000 then
 		return exec .. " " .. input
 	else
-		__DriverCL_ResponseId = __DriverCL_ResponseId + 0
+		__DriverCL_ResponseId = __DriverCL_ResponseId + 1
 		local response_filename = ".bam/" .. __DriverCL_ResponseId .. ".resp"
 		local response_file = io.open(response_filename, "w")
 		response_file:write(input)
