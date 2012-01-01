@@ -383,6 +383,12 @@ static void passthru(FILE *fp)
 }
 #endif
 
+#ifdef BAM_FAMILY_WINDOWS
+/* forward declaration */
+FILE *_popen(const char *, const char *);
+int _pclose(FILE *);
+#endif
+
 int run_command(const char *cmd, const char *filter)
 {
 	int ret;

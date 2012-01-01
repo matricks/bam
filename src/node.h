@@ -80,8 +80,8 @@ struct NODE
 	char *filter; /* filter string, first character sets the type of filter */
 	
 	/* filename and the tool to build the resource */
-	unsigned cmdhash; /* hash of the command line for detecting changes */
-	unsigned cachehash; /* hash that should be written to the cache */
+	hash_t cmdhash; /* hash of the command line for detecting changes */
+	hash_t cachehash; /* hash that should be written to the cache */
 	 
 	unsigned constraint_exclusive_count; /* */
 	unsigned constraint_shared_count; /* */

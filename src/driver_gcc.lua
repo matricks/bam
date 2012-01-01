@@ -88,7 +88,11 @@ function SetDriversGCC(settings)
 	end
 	
 	if settings.link then
-		settings.link.extension = ""
+		if family == "windows" then
+			settings.link.extension = ".exe"
+		else
+			settings.link.extension = ""
+		end
 		settings.link.exe = "g++"
 		settings.link.Driver = DriverGCC_Link
 	end
