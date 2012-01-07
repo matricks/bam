@@ -154,6 +154,7 @@
 	#include <sys/wait.h> 
 	#include <utime.h>
 	#include <pthread.h>
+	#include <signal.h>
 
 #ifdef BAM_PLATFORM_MACOSX
 	#include <sys/param.h>
