@@ -467,6 +467,16 @@ function NewTable()
 		end
 		self.version = self.version + 1
 	end
+	
+	t.Remove = function(self, val)
+		local tmp = {}
+		for k,v in ipairs(self) do
+			if v == val then
+				table.remove(self, k)
+			end
+		end
+		self.version = self.version + 1
+	end
 
 	t.version = 0
 
