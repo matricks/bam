@@ -271,6 +271,7 @@ AddTool(function (settings)
 	InitCommonCCompiler(settings)
 	settings.compile.mappings["c"] = CompileC
 	settings.compile.mappings["m"] = CompileC
+	settings.compile.mappings["S"] = CompileC
 end)
 
 AddTool(function (settings)
