@@ -284,7 +284,6 @@ int lf_set_touch(struct lua_State *L)
 	return 0;
 }
 
-
 int lf_set_filter(struct lua_State *L)
 {
 	struct NODE *node;
@@ -309,6 +308,25 @@ int lf_set_filter(struct lua_State *L)
 	memcpy(node->job->filter, str, len+1);
 	return 0;
 }
+
+/* nodeexist(string nodename) */
+int lf_nodeexist(struct lua_State *L)
+{
+	struct NODE *node;
+	
+	if(lua_gettop(L) != 1)
+		luaL_error(L, "nodeexists: takes exactly one argument");
+
+	luaL_checktype(L, 1, LUA_TSTRING);
+	
+	node = node_find(context_get_pointer(L)->graph, lua_tostring(L,1));
+	if(!node)
+		lua_pushboolean(L, 1);
+	else
+		lua_pushboolean(L, 0);
+	return 0;
+}
+
 
 /* default_target(string filename) */
 int lf_default_target(lua_State *L)

@@ -20,6 +20,7 @@ int lf_set_touch(struct lua_State *L);
 int lf_set_filter(struct lua_State *L);
 int lf_default_target(struct lua_State *L);
 int lf_update_globalstamp(struct lua_State *L);
+int lf_nodeexist(struct lua_State *L);
 
 /* dependency */
 int lf_add_dependency_cpp_set_paths(lua_State *L); /* dep_cpp.c */

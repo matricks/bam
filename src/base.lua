@@ -4,6 +4,7 @@ IsString = bam_isstring
 IsTable = bam_istable
 MakeDirectory = bam_mkdir
 Exist = bam_fileexist
+NodeExist = bam_nodeexist
 SetFilter = bam_set_filter
 SetTouch = bam_set_touch
 AddOutput = bam_add_output
