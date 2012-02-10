@@ -289,7 +289,7 @@ if family == "windows" then
 	function CopyFile(dst, src)
 		AddJob(dst,
 			"copy " .. src .. " -> " .. dst,
-			"copy /b " .. str_replace(src, "/", "\\") .. " " .. str_replace(dst, "/", "\\") .. " >nul 2>&1",
+			"copy /b \"" .. str_replace(src, "/", "\\") .. "\" \"" .. str_replace(dst, "/", "\\") .. "\" >nul 2>&1",
 			src)
 		SetTouch(dst) -- make sure to update timestamp
 		return dst
