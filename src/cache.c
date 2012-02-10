@@ -135,7 +135,6 @@ struct WRITEINFO
 	unsigned index;
 };
 
-
 static int write_header(struct WRITEINFO *info)
 {
 	/* setup the cache */
@@ -184,7 +183,8 @@ static int write_nodes(struct WRITEINFO *info)
 			cachenode->deps_num++;
 		
 		cachenode->hashid = node->hashid;
-		cachenode->cmdhash = node->cachehash;
+		if(node->job)
+			cachenode->cmdhash = node->job->cachehash;
 		cachenode->cached = node->cached;
 		cachenode->timestamp_raw = node->timestamp_raw;
 		cachenode->deps = (unsigned*)((long)dep_index);

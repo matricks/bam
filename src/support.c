@@ -747,4 +747,3 @@ void string_hash_tostr(hash_t value, char *output)
 {
 	sprintf(output, "%08x%08x", (unsigned)(value>>32), (unsigned)(value&0xffffffff));
 }
-
