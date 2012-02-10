@@ -81,26 +81,26 @@ static void progressbar_draw(struct CONTEXT *context)
 	}
 }
 
-static void constraints_update(struct NODE *node, int direction)
+static void constraints_update(struct JOB *job, int direction)
 {
 	struct NODELINK *link;
-	for(link = node->job->constraint_shared; link; link = link->next)
+	for(link = job->constraint_shared; link; link = link->next)
 		link->node->job->constraint_shared_count += direction;
-	for(link = node->job->constraint_exclusive; link; link = link->next)
+	for(link = job->constraint_exclusive; link; link = link->next)
 		link->node->job->constraint_exclusive_count += direction;
 }
 
 /* returns 0 if there are no constraints that are conflicting */
-static int constraints_check(struct NODE *node)
+static int constraints_check(struct JOB *job)
 {
 	struct NODELINK *link;
-	for(link = node->job->constraint_shared; link; link = link->next)
+	for(link = job->constraint_shared; link; link = link->next)
 	{
 		if(link->node->job->constraint_exclusive_count)
 			return 1;
 	}
 	
-	for(link = node->job->constraint_exclusive; link; link = link->next)
+	for(link = job->constraint_exclusive; link; link = link->next)
 	{
 		if(link->node->job->constraint_exclusive_count || link->node->job->constraint_shared_count)
 			return 1;
@@ -159,7 +159,7 @@ static int create_path(const char *output_name)
 	/* return success */
 	return 0;
 }
-#if 1
+
 static int run_job(struct CONTEXT *context, struct JOB *job, int thread_id)
 {
 	static const char *format = 0;
@@ -226,7 +226,7 @@ static int run_job(struct CONTEXT *context, struct JOB *job, int thread_id)
 	}
 
 	/* add constraints count */
-	/* constraints_update(node, 1); TODO: constraints */
+	constraints_update(job, 1);
 	
 	/* execute the command */
 	criticalsection_leave();
@@ -239,9 +239,8 @@ static int run_job(struct CONTEXT *context, struct JOB *job, int thread_id)
 	}
 	criticalsection_enter();
 	
-	
 	/* sub constraints count */
-	/* constraints_update(node, -1); TODO: constraints */
+	constraints_update(job, -1);
 	
 	if(ret)
 	{
@@ -266,106 +265,6 @@ static int run_job(struct CONTEXT *context, struct JOB *job, int thread_id)
 	}
 	return ret;
 }
-#else	
-static int run_node(struct CONTEXT *context, struct NODE *node, int thread_id)
-{
-	static const char *format = 0;
-	int ret;
-	
-	if(node->cmdline)
-	{
-		context->current_cmd_num++;
-	
-		if(!format)
-		{
-			static char buf[64];
-			int num = 0;
-			int c = context->num_commands;
-			for(; c; c /= 10)
-				num++;
-			
-			if(session.report_color)
-				sprintf(buf, "\033[01;32m[%%%dd/%%%dd] \033[01;36m#%%d\033[00m %%s\n", num, num);
-			else
-				sprintf(buf, "[%%%dd/%%%dd] #%%d %%s\n", num, num);
-			format = buf;
-		}
-		
-		if(session.report_bar)
-			progressbar_clear();
-		if(session.report_steps)
-		{
-			if(session.simpleoutput)
-				printf("%s", node->label);
-			else
-				printf(format, context->current_cmd_num, context->num_commands, thread_id, node->label);
-		}
-		
-		if(session.report_bar)
-			progressbar_draw(context);
-	}
-	
-	if(session.verbose)
-	{
-		if(session.report_color)
-			printf("\033[01;33m%s\033[00m\n", node->cmdline);
-		else
-			printf("%s\n", node->cmdline);
-	}
-		
-	fflush(stdout);
-
-	/* create output path */
-	/* TODO: perhaps we can skip running this if we know that the file exists on disk already */
-	if(create_path(node->filename) != 0)
-	{
-		if(session.report_color)
-			printf("\033[01;31m");
-		
-		printf("%s: could not create output directory for '%s'\n", session.name, node->filename);
-
-		if(session.report_color)
-			printf("\033[00m");
-			
-		fflush(stdout);
-		return 1;
-	}
-	
-	/* add constraints count */
-	constraints_update(node, 1);
-	
-	/* execute the command */
-	criticalsection_leave();
-	ret = run_command(node->cmdline, node->filter);
-	if(node->touch && ret == 0)
-		file_touch(node->filename);
-	criticalsection_enter();
-	
-	
-	/* sub constraints count */
-	constraints_update(node, -1);
-	
-	if(ret)
-	{
-		if(session.report_color)
-			printf("\033[01;31m");
-		
-		printf("%s: '%s' error %d\n", session.name, node->filename, ret);
-		
-		if(file_timestamp(node->filename) != node->timestamp_raw)
-		{
-			remove(node->filename);
-			printf("%s: '%s' removed because job updated it even it failed.\n", session.name, node->filename);
-		}
-
-		if(session.report_color)
-			printf("\033[00m");
-			
-		fflush(stdout);
-	}
-	return ret;
-}
-#endif
 
 struct THREADINFO
 {
@@ -412,7 +311,7 @@ static int threads_run_callback(struct NODEWALK *walkinfo)
 	}
 	
 	/* check if constraints allows it */
-	if(constraints_check(node))
+	if(constraints_check(node->job))
 		return 0;
 	
 	/* mark the node as its in the working */
