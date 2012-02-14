@@ -76,6 +76,9 @@ static int option_debug_trace_vm = 0;
 static int option_print_help = 0;
 static int option_print_debughelp = 0;
 
+static const char *option_debug_eventlog = NULL;
+static int option_debug_eventlogflush = 0;
+
 static const char *option_script = "bam.lua"; /* -f filename */
 static const char *option_threads_str = NULL;
 static const char *option_report_str = DEFAULT_REPORT_STYLE;
@@ -175,9 +178,9 @@ static struct OPTION options[] = {
 		</ul>
 	@END*/
 	{OF_PRINT, &option_report_str,0		, "-r", "build progress report format (default: " DEFAULT_REPORT_STYLE ")\n"
-		"                       " "    b = progress bar\n"
-		"                       " "    c = use ansi colors\n"
-		"                       " "    s = build steps"},
+		"                            " "    b = progress bar\n"
+		"                            " "    c = use ansi colors\n"
+		"                            " "    s = build steps"},
 	
 	/*@OPTION Verbose ( -v )
 		Prints all commands that are runned when building.
@@ -240,6 +243,16 @@ static struct OPTION options[] = {
 		Prints a the function and source line for every instruction that the vm makes.
 	@END*/
 	{OF_DEBUG, 0, &option_debug_trace_vm	, "--debug-trace-vm", "prints a line for every instruction the vm makes"},
+
+	/*@OPTION Debug: Event Log ( --debug-eventlog FILENAME )
+		Outputs an build event log that contains all the events with timing information.
+	@END*/
+	{OF_DEBUG, &option_debug_eventlog, 0 		, "--debug-eventlog", "dumps all build events into a file"},
+
+	/*@OPTION Debug: Event Log Flush ( --debug-eventlog-flush )
+		Flushes the event log after each write.
+	@END*/
+	{OF_DEBUG, 0, &option_debug_eventlogflush	, "--debug-eventlog-flush", "flushes the eventlog after each write"},
 
 	/*@OPTION Debug: Dump Internal Scripts ( --debug-dump-int )
 	@END*/
@@ -501,6 +514,8 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 	/* load script */	
 	if(session.verbose)
 		printf("%s: reading script from '%s'\n", session.name, scriptfile);
+
+	event_begin(0, "script parse", NULL);
 		
 	/* push error function to stack and load the script */
 	lua_getglobal(context->lua, "errorfunc");
@@ -531,7 +546,9 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 	/* run deferred functions */
 	if(run_deferred_functions(context) != 0)
 		return -1;
-		
+	
+	event_end(0, "script parse", NULL);
+			
 	/* */	
 	if(session.verbose)
 		printf("%s: making build target\n", session.name);
@@ -668,7 +685,10 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 
 		string_hash_tostr(cache_hash, hashstr);
 		sprintf(cache_filename, ".bam/%s", hashstr);
+
+		event_begin(0, "cache load", cache_filename);
 		context.cache = cache_load(cache_filename);
+		event_end(0, "cache load", NULL);
 	}
 
 	/* do the setup */
@@ -686,7 +706,9 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	/* do actions if we don't have any errors */
 	if(!setup_error)
 	{
+		event_begin(0, "prepare", NULL);
 		build_error = context_build_prepare(&context);
+		event_end(0, "prepare", NULL);
 		
 		if(!build_error)
 		{
@@ -707,10 +729,16 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 			{
 				/* run build or clean */
 				if(option_clean)
+				{
+					event_begin(0, "clean", NULL);
 					build_error = context_build_clean(&context);
+					event_end(0, "end", NULL);
+				}
 				else
 				{
+					event_begin(0, "build", NULL);
 					build_error = context_build_make(&context);
+					event_end(0, "build", NULL);
 					report_done = 1;
 				}
 			}
@@ -719,7 +747,11 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 
 	/* save cache (thread?) */
 	if(option_no_cache == 0 && setup_error == 0)
+	{
+		event_begin(0, "cache save", cache_filename);
 		cache_save(cache_filename, context.graph);
+		event_end(0, "cache save", NULL);
+	}
 	
 	/* clean up */
 	mem_destroy(context.graphheap);
@@ -775,7 +807,7 @@ static void print_help(int mask)
 	for(j = 0; options[j].sw; j++)
 	{
 		if(options[j].flags&mask)
-			printf("  %-20s %s\n", options[j].sw, options[j].desc);
+			printf("  %-25s %s\n", options[j].sw, options[j].desc);
 	}
 	printf("\n");
 	printf("bam version " BAM_VERSION_STRING_COMPLETE ". built "__DATE__" "__TIME__" using " LUA_VERSION "\n");
@@ -922,7 +954,19 @@ int main(int argc, char **argv)
 	/* parse commandline parameters */
 	if(parse_parameters(argc-1, argv+1))
 		return -1;
-		
+
+	/* set eventlog */
+	if(option_debug_eventlog)
+	{
+		session.eventlog = fopen(option_debug_eventlog, "w");
+		session.eventlogflush = option_debug_eventlogflush;
+		if(!session.eventlog)
+		{
+			printf("%s: error opening '%s' for output\n", session.name, option_debug_eventlog);
+			return 1;
+		}
+	}
+
 	/* parse the report str */
 	for(i = 0; option_report_str[i]; i++)
 	{
@@ -981,9 +1025,11 @@ int main(int argc, char **argv)
 	
 	platform_shutdown();
 
+
 	/* error could be some high value like 256 seams like this could */
 	/* be clamped down to a unsigned char and not be an error anymore */
 	if(error)
 		return 1;
+
 	return 0;
 }

@@ -228,6 +228,8 @@ static int run_job(struct CONTEXT *context, struct JOB *job, int thread_id)
 	/* add constraints count */
 	constraints_update(job, 1);
 	
+	event_begin(thread_id, "job", job->label);
+
 	/* execute the command */
 	criticalsection_leave();
 	ret = run_command(job->cmdline, job->filter);
@@ -238,6 +240,8 @@ static int run_job(struct CONTEXT *context, struct JOB *job, int thread_id)
 			file_touch(link->node->filename);
 	}
 	criticalsection_enter();
+
+	event_end(thread_id, "job", NULL);
 	
 	/* sub constraints count */
 	constraints_update(job, -1);

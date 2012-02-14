@@ -7,8 +7,10 @@
 #ifdef __GNUC__
 	/* if compiled with -pedantic-errors it will complain about long long not being a C90 thing. */
 	__extension__ typedef unsigned long long hash_t;
+	__extension__ typedef long long int64;
 #else
 	typedef unsigned long long hash_t;
+	typedef long long int64;
 #endif
 
 struct lua_State;
@@ -28,6 +30,10 @@ int threads_corecount();
 void criticalsection_enter();
 void criticalsection_leave();
 
+/* time */
+int64 time_get();
+int64 time_freq();
+
 /* filesystem and timestamps */
 time_t timestamp();
 time_t file_timestamp(const char *filename);
@@ -43,5 +49,9 @@ PLUGINFUNC plugin_load(const char *filename);
 hash_t string_hash(const char *str_in);
 hash_t string_hash_add(hash_t base, const char *str_in);
 void string_hash_tostr(hash_t value, char *output);
+
+/* logging */
+void event_begin(int thread, const char *name, const char *data);
+void event_end(int thread, const char *name, const char *data);
 
 #endif

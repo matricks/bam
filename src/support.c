@@ -138,6 +138,25 @@
 		return 1;
 	}
 
+
+	int64 time_get()
+	{
+		static int64 last = 0;
+		int64 t;
+		QueryPerformanceCounter((PLARGE_INTEGER)&t);
+		if(t<last) /* for some reason, QPC can return values in the past */
+			return last;
+		last = t;
+		return t;
+	}
+
+	int64 time_freq()
+	{
+		int64 t;
+		QueryPerformanceFrequency((PLARGE_INTEGER)&t);
+		return t;
+	}
+
 #else
 	#define D_TYPE_HACK
 
@@ -155,6 +174,8 @@
 	#include <utime.h>
 	#include <pthread.h>
 	#include <signal.h>
+
+	#include <sys/time.h>
 
 #ifdef BAM_PLATFORM_MACOSX
 	#include <sys/param.h>
@@ -322,6 +343,19 @@
 		}
 		
 		return func.func;
+	}
+
+
+	int64 time_get()
+	{
+		struct timeval val;
+		gettimeofday(&val, NULL);
+		return (int64)val.tv_sec*(int64)1000000+(int64)val.tv_usec;
+	}
+
+	int64 time_freq()
+	{
+		return 1000000;
 	}
 		
 #endif
@@ -748,3 +782,39 @@ void string_hash_tostr(hash_t value, char *output)
 {
 	sprintf(output, "%08x%08x", (unsigned)(value>>32), (unsigned)(value&0xffffffff));
 }
+
+
+static int64 starttime = 0;
+
+static void event_log(int thread, const char *type, const char *name, const char *data)
+{
+	double t;
+	if(session.eventlog == NULL)
+		return;
+
+	if(starttime == 0)
+		starttime = time_get();
+
+	if(data == NULL)
+		data = "";
+
+	t = (time_get() - starttime) / (double)time_freq();
+	fprintf(session.eventlog, "%d %f %s %s: %s\n", thread, t, type, name, data);
+
+	if(session.eventlogflush)
+		fflush(session.eventlog);
+}
+
+void event_begin(int thread, const char *name, const char *data)
+{
+	event_log(thread, "begin", name, data);
+}
+
+void event_end(int thread, const char *name, const char *data)
+{
+	event_log(thread, "end", name, data);
+}
+
+
+
+

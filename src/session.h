@@ -17,7 +17,10 @@ struct SESSION
 	int report_color;
 	int report_bar;
 	int report_steps;
-	
+
+	FILE *eventlog;
+	int eventlogflush;
+
 	volatile int abort; /* raised to 1 when it's time to give up */
 };
 
