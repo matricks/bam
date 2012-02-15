@@ -372,8 +372,7 @@ end
 	[ModuleFilename] function.
 @END]]--
 function Import(filename)
-	local paths = {""}
-	local chunk = nil
+	local paths = {"", PathDir(ModuleFilename())}
 
 	s = os.getenv("BAM_PACKAGES")
 	if s then
@@ -384,15 +383,19 @@ function Import(filename)
 		end
 	end
 	
-	for k,v in pairs(paths) do
-		chunk = bam_loadfile(filename)
-		if chunk then
-			local current = _bam_modulefilename
-			_bam_modulefilename = filename
-			bam_update_globalstamp(_bam_modulefilename)
-			chunk()
-			_bam_modulefilename = current
-			return
+	for _,path in pairs(paths) do
+		local filepath = PathJoin(path, filename)
+		print("testing:", filepath)
+		if Exist(filepath) then
+			local chunk = bam_loadfile(filepath)
+			if chunk then
+				local current = _bam_modulefilename
+				_bam_modulefilename = filepath
+				bam_update_globalstamp(_bam_modulefilename)
+				chunk()
+				_bam_modulefilename = current
+				return
+			end
 		end
 	end
 

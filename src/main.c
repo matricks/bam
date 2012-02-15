@@ -409,6 +409,7 @@ int register_lua_globals(struct CONTEXT *context)
 	lua_setglobalstring(context->lua, "platform", BAM_PLATFORM_STRING);
 	lua_setglobalstring(context->lua, "arch", BAM_ARCH_STRING);
 	lua_setglobalstring(context->lua, "_bam_exe", session.exe);
+	lua_setglobalstring(context->lua, "_bam_modulefilename", context->filename);
 	lua_pushnumber(context->lua, session.verbose);
 	lua_setglobal(context->lua, "verbose");
 
