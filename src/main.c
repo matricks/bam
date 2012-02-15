@@ -351,6 +351,7 @@ int register_lua_globals(struct CONTEXT *context)
 	lua_register(context->lua, L_FUNCTION_PREFIX"load_plugin", lf_loadplugin);
 	
 	lua_register(context->lua, L_FUNCTION_PREFIX"mkdir", lf_mkdir);
+	lua_register(context->lua, L_FUNCTION_PREFIX"mkdirs", lf_mkdirs);
 	lua_register(context->lua, L_FUNCTION_PREFIX"fileexist", lf_fileexist);
 	lua_register(context->lua, L_FUNCTION_PREFIX"nodeexist", lf_nodeexist);
 

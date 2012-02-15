@@ -538,6 +538,61 @@ int run_command(const char *cmd, const char *filter)
 	return ret;
 }
 
+/* like file_createdir, but automatically creates all top-level directories needed
+	If you feed it "output/somefiles/output.o" it will create "output/somefiles"
+*/	
+int file_createpath(const char *output_name)
+{
+	char buffer[MAX_PATH_LENGTH];
+	int i;
+	char t;
+	
+	/* fish out the directory */
+	if(path_directory(output_name, buffer, sizeof(buffer)) != 0)
+	{
+		fprintf(stderr, "path error: %s\n", buffer);
+		return -1;
+	}
+	
+	/* no directory in path */
+	if(buffer[0] == 0)
+		return 0;
+	
+	/* check if we need to do a deep walk */
+	if(file_createdir(buffer) == 0)
+		return 0;
+	
+	/* create dir by doing a deep walk */
+	i = 0;
+	while(1)
+	{
+		if((buffer[i] == '/') || (buffer[i] == 0))
+		{
+			/* insert null terminator */
+			t = buffer[i];
+			buffer[i] = 0;
+			
+			if(file_createdir(buffer) != 0)
+			{
+				fprintf(stderr, "path error2: %s\n", buffer);
+				return -1;
+			}
+			
+			/* restore the path */
+			buffer[i] = t;
+		}
+		
+		if(buffer[i] == 0)
+			break;
+		
+		i++;
+	}
+	
+	/* return success */
+	return 0;
+}
+
+
 /* general */
 int file_exist(const char *filename)
 {

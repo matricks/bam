@@ -36,6 +36,7 @@ int lf_listdir(struct lua_State *L);
 
 /* support, files and dirs */
 int lf_mkdir(struct lua_State *L);
+int lf_mkdirs(struct lua_State *L);
 int lf_fileexist(struct lua_State *L);
 
 /* table functions*/

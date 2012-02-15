@@ -108,57 +108,6 @@ static int constraints_check(struct JOB *job)
 	
 	return 0;
 }
-	
-static int create_path(const char *output_name)
-{
-	char buffer[MAX_PATH_LENGTH];
-	int i;
-	char t;
-	
-	/* fish out the directory */
-	if(path_directory(output_name, buffer, sizeof(buffer)) != 0)
-	{
-		fprintf(stderr, "path error: %s\n", buffer);
-		return -1;
-	}
-	
-	/* no directory in path */
-	if(buffer[0] == 0)
-		return 0;
-	
-	/* check if we need to do a deep walk */
-	if(file_createdir(buffer) == 0)
-		return 0;
-	
-	/* create dir by doing a deep walk */
-	i = 0;
-	while(1)
-	{
-		if((buffer[i] == '/') || (buffer[i] == 0))
-		{
-			/* insert null terminator */
-			t = buffer[i];
-			buffer[i] = 0;
-			
-			if(file_createdir(buffer) != 0)
-			{
-				fprintf(stderr, "path error2: %s\n", buffer);
-				return -1;
-			}
-			
-			/* restore the path */
-			buffer[i] = t;
-		}
-		
-		if(buffer[i] == 0)
-			break;
-		
-		i++;
-	}
-	
-	/* return success */
-	return 0;
-}
 
 static int run_job(struct CONTEXT *context, struct JOB *job, int thread_id)
 {
@@ -210,7 +159,7 @@ static int run_job(struct CONTEXT *context, struct JOB *job, int thread_id)
 	for(link = job->firstoutput; link; link = link->next)
 	{
 		/* TODO: perhaps we can skip running this if we know that the file exists on disk already */
-		if(create_path(link->node->filename) != 0)
+		if(file_createpath(link->node->filename) != 0)
 		{
 			if(session.report_color)
 				printf("\033[01;31m");

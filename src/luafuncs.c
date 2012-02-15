@@ -495,6 +495,20 @@ int lf_mkdir(struct lua_State *L)
 	return 1;
 }
 
+int lf_mkdirs(struct lua_State *L)
+{
+	if(lua_gettop(L) < 1)
+		luaL_error(L, "mkdirs: too few arguments");	
+
+	if(!lua_isstring(L,1))
+		luaL_error(L, "mkdirs: expected string");
+		
+	if(file_createpath(lua_tostring(L,1)) == 0)
+		lua_pushnumber(L, 1);	
+	else
+		lua_pushnil(L);
+	return 1;
+}
 
 int lf_fileexist(struct lua_State *L)
 {

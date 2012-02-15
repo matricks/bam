@@ -39,6 +39,7 @@ time_t timestamp();
 time_t file_timestamp(const char *filename);
 int file_exist(const char *filename);
 int file_createdir(const char *path);
+int file_createpath(const char *output_name);
 void file_touch(const char *filename);
 
 /* plugin related */

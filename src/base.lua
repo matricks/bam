@@ -2,7 +2,6 @@
 ScriptArgs = _bam_scriptargs
 IsString = bam_isstring
 IsTable = bam_istable
-MakeDirectory = bam_mkdir
 Exist = bam_fileexist
 NodeExist = bam_nodeexist
 SetFilter = bam_set_filter
@@ -335,6 +334,23 @@ CollectDirs = bam_collectdirs
 	recursivly and returns directories instead.
 @END]]--
 CollectDirsRecursive = bam_collectdirsrecursive
+
+--[[@FUNCTION MakeDirectory(path)
+	Creates the requested directory.
+@END]]--
+MakeDirectory = bam_mkdir
+
+--[[@FUNCTION MakeDirectories(filename)
+	Creates the path upto the filename.
+
+	Example:
+	{{{{
+		MakeDirectories("output/directory/object.o")
+	}}}}
+
+	This will create the complete "output/directory" path.
+@END]]--
+MakeDirectories = bam_mkdirs
 
 --[[@GROUP Targets@END]]--
 
