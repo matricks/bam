@@ -401,7 +401,6 @@ function Import(filename)
 	
 	for _,path in pairs(paths) do
 		local filepath = PathJoin(path, filename)
-		print("testing:", filepath)
 		if Exist(filepath) then
 			local chunk = bam_loadfile(filepath)
 			if chunk then
