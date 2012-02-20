@@ -324,7 +324,7 @@ int lf_nodeexist(struct lua_State *L)
 		lua_pushboolean(L, 1);
 	else
 		lua_pushboolean(L, 0);
-	return 0;
+	return 1;
 }
 
 
