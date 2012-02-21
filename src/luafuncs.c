@@ -276,23 +276,6 @@ int lf_add_job(lua_State *L)
 	return 0;
 }
 
-int lf_set_touch(struct lua_State *L)
-{
-	struct NODE *node;
-	
-	if(lua_gettop(L) < 1)
-		luaL_error(L, "set_touch: too few arguments");
-
-	luaL_checktype(L, 1, LUA_TSTRING);
-	
-	node = node_find(context_get_pointer(L)->graph, lua_tostring(L,1));
-	if(!node)
-		luaL_error(L, "set_touch: couldn't find node with name '%s'", lua_tostring(L,1));
-		
-	node->touch = 1;
-	return 0;
-}
-
 int lf_set_filter(struct lua_State *L)
 {
 	struct NODE *node;

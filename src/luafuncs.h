@@ -16,7 +16,6 @@ int lf_add_pseudo(struct lua_State *L);
 int lf_add_dependency(struct lua_State *L);
 int lf_add_constraint_shared(struct lua_State *L);
 int lf_add_constraint_exclusive(struct lua_State *L);
-int lf_set_touch(struct lua_State *L);
 int lf_set_filter(struct lua_State *L);
 int lf_default_target(struct lua_State *L);
 int lf_update_globalstamp(struct lua_State *L);

@@ -96,7 +96,6 @@ struct NODE
 	unsigned dirty:8; /* non-zero if the node has to be rebuilt */
 	unsigned depchecked:1; /* set if a dependency checker have processed the file */
 	unsigned targeted:1; /* set if this node is targeted for a build */
-	unsigned touch:1; /* when built, touch the output file as well */
 	unsigned cached:1; /* set if the node should be considered as cached */
 };
 

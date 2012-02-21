@@ -5,7 +5,6 @@ IsTable = bam_istable
 Exist = bam_fileexist
 NodeExist = bam_nodeexist
 SetFilter = bam_set_filter
-SetTouch = bam_set_touch
 AddOutput = bam_add_output
 LoadPlugin = bam_load_plugin
 

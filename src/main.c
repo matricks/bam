@@ -321,7 +321,6 @@ int register_lua_globals(struct CONTEXT *context)
 	lua_register(context->lua, L_FUNCTION_PREFIX"add_constraint_shared", lf_add_constraint_shared);
 	lua_register(context->lua, L_FUNCTION_PREFIX"add_constraint_exclusive", lf_add_constraint_exclusive);
 	lua_register(context->lua, L_FUNCTION_PREFIX"default_target", lf_default_target);
-	lua_register(context->lua, L_FUNCTION_PREFIX"set_touch", lf_set_touch);
 	lua_register(context->lua, L_FUNCTION_PREFIX"set_filter", lf_set_filter);
 
 	/* advanced dependency checkers */
