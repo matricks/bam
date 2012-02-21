@@ -6,7 +6,6 @@ Exist = bam_fileexist
 NodeExist = bam_nodeexist
 SetFilter = bam_set_filter
 AddOutput = bam_add_output
-LoadPlugin = bam_load_plugin
 
 --[[@GROUP Common @END]]--
 

@@ -42,12 +42,7 @@ call %VSPATH%vsvars32.bat
 @REM /LTCG = link time code generation
 @cl /D_CRT_SECURE_NO_DEPRECATE /DLUA_BUILD_AS_DLL /W3 /O2 /TC /Zi /GS- /GL /nologo /I src/lua src/*.c src/lua/*.c /Febam.exe /link /LTCG
 
-@echo === building example plugin ===
-
-@cl /nologo /c examples/plugin/hello.c /Isrc
-@link /nologo /dll hello.obj bam.lib /def:windows_plugin.def
-
 @REM clean up
-@del hello.lib hello.exp bam.exp hello.exp
+@del bam.exp
 @del *.obj
 

@@ -103,32 +103,6 @@
 		Sleep(1);
 	}
 	
-	PLUGINFUNC plugin_load(const char *filename)
-	{
-		char buffer[MAX_PATH_LENGTH];
-		HMODULE handle;
-		FARPROC func;
-		
-		_snprintf(buffer, sizeof(buffer), "%s.dll", filename);
-
-		handle = LoadLibrary(buffer);
-		if(handle == NULL)
-		{
-			fprintf(stderr, "error loading plugin '%s'\n", buffer);
-			return NULL;
-		}
-		
-		func = GetProcAddress(handle, "plugin_main");
-		if(func == NULL)
-		{
-			CloseHandle(handle);
-			fprintf(stderr, "error fetching plugin main from '%s'\n", buffer);
-			return NULL;
-		}
-		
-		return (PLUGINFUNC)func;
-	}
-
 	int threads_corecount()
 	{
 		SYSTEM_INFO sysinfo;
@@ -303,48 +277,6 @@
 	    return 1;
 #endif
 	}
-	
-	PLUGINFUNC plugin_load(const char *filename)
-	{
-		char buffer[MAX_PATH_LENGTH];
-		const char *error;
-		void *handle;
-		union
-		{
-			PLUGINFUNC func;
-			void *ptr;
-		} func;
-		
-		if(strlen(filename) > sizeof(buffer) - 10)
-			return (PLUGINFUNC)0;
-		
-		strcpy(buffer, "./");
-		strcat(buffer, filename);
-		strcpy(buffer, ".so");
-
-		handle = dlopen(buffer, RTLD_LAZY);
-		if(!handle)
-		{
-			fputs(dlerror(), stderr);
-			fputs("\n", stderr);
-			
-			return NULL;
-		}
-		
-		func.ptr = dlsym(handle, "plugin_main");
-		error = dlerror();
-
-		if(error)
-		{
-			fputs(error, stderr);
-			fputs("\n", stderr);
-			dlclose(handle);
-			return NULL;
-		}
-		
-		return func.func;
-	}
-
 
 	int64 time_get()
 	{

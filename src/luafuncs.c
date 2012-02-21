@@ -797,21 +797,3 @@ int lf_table_tostring(struct lua_State *L)
 	
 	return 1;
 }
-
-int lf_loadplugin(struct lua_State *L)
-{
-	PLUGINFUNC func;
-	if(lua_gettop(L) != 1)
-		luaL_error(L, "loadplugin: incorrect number of arguments");
-	luaL_checktype(L, 1, LUA_TSTRING);
-
-	func = plugin_load(lua_tostring(L, 1));
-	if(!func)
-		luaL_error(L, "loadplugin: error loading plugin");
-		
-	lua_settop(L, 0);
-	if((*func)(L) != 0)
-		luaL_error(L, "loadplugin: error initing plugin");
-	
-	return 0;
-}

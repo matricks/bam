@@ -50,5 +50,4 @@ int lf_isstring(struct lua_State *L);
 int lf_loadfile(struct lua_State *L);
 int lf_errorfunc(struct lua_State *L);
 int lf_panicfunc(struct lua_State *L);
-int lf_loadplugin(struct lua_State *L);
 

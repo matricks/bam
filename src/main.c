@@ -347,7 +347,6 @@ int register_lua_globals(struct CONTEXT *context)
 	lua_register(context->lua, L_FUNCTION_PREFIX"listdir", lf_listdir);
 	lua_register(context->lua, L_FUNCTION_PREFIX"update_globalstamp", lf_update_globalstamp);
 	lua_register(context->lua, L_FUNCTION_PREFIX"loadfile", lf_loadfile);
-	lua_register(context->lua, L_FUNCTION_PREFIX"load_plugin", lf_loadplugin);
 	
 	lua_register(context->lua, L_FUNCTION_PREFIX"mkdir", lf_mkdir);
 	lua_register(context->lua, L_FUNCTION_PREFIX"mkdirs", lf_mkdirs);
