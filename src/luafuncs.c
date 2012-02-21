@@ -140,6 +140,8 @@ int lf_add_output(lua_State *L)
 	struct NODE *output;
 	struct NODE *other_output;
 	struct CONTEXT *context;
+	int i;
+	const char *filename;
 	
 	if(lua_gettop(L) != 2)
 		luaL_error(L, "add_output: incorrect number of arguments");
@@ -153,12 +155,19 @@ int lf_add_output(lua_State *L)
 	if(!output)
 		luaL_error(L, "add_output: couldn't find node with name '%s'", lua_tostring(L,1));
 
-	other_output = node_get(context->graph, lua_tostring(L,2));
-	if(!other_output)
-		luaL_error(L, "add_output: couldn't find node with name '%s'", lua_tostring(L,2));
-	
-	node_add_dependency_withnode(other_output, output);
-	node_set_pseudo(other_output);
+	if(!output->job->real)
+		luaL_error(L, "add_output: '%s' does not have a job", lua_tostring(L,1));
+
+
+	filename = lua_tostring(L, -1);
+	i = node_create(&other_output, context->graph, filename, output->job);
+	if(i == NODECREATE_NOTNICE)
+		luaL_error(L, "add_output: node '%s' is not nice", filename);
+	else if(i == NODECREATE_EXISTS)
+		luaL_error(L, "add_output: node '%s' already exists", filename);
+	else if(i != NODECREATE_OK)
+		luaL_error(L, "add_output: unknown error creating node '%s'", filename);
+
 	return 0;
 }
 

@@ -49,23 +49,15 @@ struct JOB *node_job_create(struct GRAPH *graph, const char *label, const char *
 	struct JOB *job = node_job_create_null(graph);
 	job->real = 1;
 
-	/*
-	if(cmdline && !label)
-	{
-		printf("%s: error: adding job '%s' with command but no label\n", session.name, filename);
-		return NODECREATE_INVALID_ARG;
-	}
-	else if(!cmdline && label)
-	{
-		printf("%s: error: adding job '%s' with label but no command\n", session.name, filename);
-		return NODECREATE_INVALID_ARG;
-	}*/
-
 	/* set label and command */
 	job->label = duplicate_string(graph, label, strlen(label));
 	job->cmdline = duplicate_string(graph, cmdline, strlen(cmdline));
 	job->cmdhash = string_hash(cmdline);
 	job->cachehash = job->cmdhash;
+
+	/* add it to the list */
+	job->next = graph->firstjob;
+	graph->firstjob = job;
 	
 	return job;
 }
@@ -573,19 +565,21 @@ void node_debug_dump_jobs_dot(struct GRAPH *graph, struct NODE *top)
 void node_debug_dump_jobs(struct GRAPH *graph)
 {
 	struct NODELINK *link;
-	struct NODE *node = graph->first;
+	struct JOB *job = graph->firstjob;
+
 	static const char *dirtyflag[] = {"--", "MI", "CH", "DD", "DN", "GS"};
 	printf("MI = Missing CH = Command hash dirty, DD = Dependency dirty\n");
 	printf("DN = Dependency is newer, GS = Global stamp is newer\n");
-	printf("Dirty Depth %-30s   Command\n", "Filename");
-	for(;node;node = node->next)
+	printf("Dirty %-30s Command\n", "Label");
+	for(;job;job = job->next)
 	{
-		if(node->job)
-		{
-			printf(" %s    %3d  %-30s   %s\n", dirtyflag[node->dirty], node->depth, node->filename, node->job->cmdline);
-			
-			for(link = node->job->firstjobdep; link; link = link->next)
-				printf(" %s         + %-30s\n", dirtyflag[link->node->dirty], link->node->filename);
-		}
+
+		printf(" %s   %-30s %s\n", "  ", job->label, job->cmdline);
+		
+		for(link = job->firstoutput; link; link = link->next)
+			printf(" %s     OUTPUT %-30s\n", dirtyflag[link->node->dirty], link->node->filename);
+
+		for(link = job->firstjobdep; link; link = link->next)
+			printf(" %s     DEPEND %-30s\n", dirtyflag[link->node->dirty], link->node->filename);
 	}
 }

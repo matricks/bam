@@ -33,6 +33,8 @@ struct JOB
 {
 	struct GRAPH *graph; /* graph that the job belongs to */
 
+	struct JOB *next; /* next job in the global joblist. head is stored in the graph */
+
 	struct NODELINK *firstoutput;
 
 	struct NODELINK *firstjobdep; /* list of job dependencies */
@@ -121,6 +123,9 @@ struct GRAPH
 	struct NODETREELINK *nodehash[0x10000];
 	struct NODE *first;
 	struct NODE *last;
+
+	/* jobs */
+	struct JOB *firstjob;
 
 	/* memory */
 	struct HEAP *heap;
