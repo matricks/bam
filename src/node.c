@@ -177,7 +177,7 @@ struct NODE *node_add_dependency_withnode(struct NODE *node, struct NODE *depnod
 	/* make sure that the node doesn't try to depend on it self */
 	if(depnode == node)
 	{
-		if(node->job)
+		if(node->job->real)
 		{
 			printf("error: node '%s' is depended on itself and is produced by a job\n", node->filename);
 			return (struct NODE*)0x0;
