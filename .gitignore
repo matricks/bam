@@ -1,5 +1,7 @@
-bam
+bam*
 src/internal_base.h
 src/tools/txt2c
+src/tools/txt2c.exe
 test_output
 *.pyc
+*.pdb
