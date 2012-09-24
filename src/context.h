@@ -31,6 +31,8 @@ struct CONTEXT
 	struct HEAP *deferredheap;
 	struct DEFERRED *firstdeferred;
 	
+	int forced;
+
 	time_t globaltimestamp;
 	time_t buildtime;
 

@@ -482,7 +482,9 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 		/* update dirty */		
 		if(!node->dirty)
 		{
-			if(dep->node->dirty)
+			if(context->forced != 0)
+				node->dirty = NODEDIRTY_FORCED;
+			else if(dep->node->dirty)
 				node->dirty = NODEDIRTY_DEPDIRTY;
 			else if(node->timestamp < dep->node->timestamp)
 			{

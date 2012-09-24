@@ -167,6 +167,7 @@ struct CONTEXT;
 #define NODEDIRTY_DEPDIRTY 3    /* one of the dependencies is dirty */
 #define NODEDIRTY_DEPNEWER 4    /* one of the dependencies is newer */
 #define NODEDIRTY_GLOBALSTAMP 5 /* the globaltimestamp is newer */
+#define NODEDIRTY_FORCED 6 		/* forced dirty */
 
 /* you destroy graphs by destroying the heap */
 struct GRAPH *node_graph_create(struct HEAP *heap);

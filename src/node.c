@@ -494,7 +494,7 @@ void node_debug_dump_detailed(struct GRAPH *graph)
 	
 	for(;node;node = node->next)
 	{
-		static const char *dirtyflag[] = {"--", "MI", "CH", "DD", "DN", "GS"};
+		static const char *dirtyflag[] = {"--", "MI", "CH", "DD", "DN", "GS", "FO"};
 		tool = "***";
 		if(node->job)
 			tool = node->job->cmdline;
@@ -567,9 +567,9 @@ void node_debug_dump_jobs(struct GRAPH *graph)
 	struct NODELINK *link;
 	struct JOB *job = graph->firstjob;
 
-	static const char *dirtyflag[] = {"--", "MI", "CH", "DD", "DN", "GS"};
+	static const char *dirtyflag[] = {"--", "MI", "CH", "DD", "DN", "GS", "FO"};
 	printf("MI = Missing CH = Command hash dirty, DD = Dependency dirty\n");
-	printf("DN = Dependency is newer, GS = Global stamp is newer\n");
+	printf("DN = Dependency is newer, GS = Global stamp is newer, FO = Forced dirty\n");
 	printf("Dirty %-30s Command\n", "Label");
 	for(;job;job = job->next)
 	{

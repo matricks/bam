@@ -59,8 +59,10 @@ struct OPTION
 };
 
 /* options passed via the command line */
+static int option_force = 0;
 static int option_clean = 0;
 static int option_no_cache = 0;
+static int option_no_scripttimestamp = 0;
 static int option_dry = 0;
 static int option_dependent = 0;
 static int option_abort_on_error = 0;
@@ -130,6 +132,11 @@ static struct OPTION options[] = {
 	@END*/
 	{OF_PRINT, 0, &option_clean			, "-c", "clean targets"},
 
+	/*@OPTION Force ( -f )
+		Forces all the jobs to be dirty
+	@END*/
+	{OF_PRINT, 0, &option_force			, "-f", "force build"},
+
 	/*@OPTION Dependent build ( -d )
 		Builds all targets that are dependent on the given targets.
 		If no targets are given this option doesn't do anything.
@@ -193,6 +200,12 @@ static struct OPTION options[] = {
 		Do not use cache when building.
 	@END*/
 	{OF_PRINT, 0, &option_no_cache			, "-n", "don't use cache"},
+
+	/*@OPTION Ignore script timestamp ( -g )
+		Ignores the timestamp on the script when doing dirty checking.
+		Enabling this causes the output not to be rebuilt when the build script changes.
+	@END*/
+	{OF_PRINT, 0, &option_no_scripttimestamp, "-g", "ignore script timestamp"},
 
 	/*@OPTION Help ( -h, --help )
 		Prints out a short reference of the command line options and quits
@@ -479,6 +492,9 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 	
 	/* set global timestamp to the script file */
 	context->globaltimestamp = file_timestamp(scriptfile);
+
+	/* */
+	context->forced = option_force;
 	
 	/* fetch script directory */
 	{
@@ -632,11 +648,14 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 
 		}
 	}
-	
+
+	/* zero out the global timestamp if we don't want to use it */
+	if(option_no_scripttimestamp)
+		context->globaltimestamp = 0;
+
 	/* */	
 	if(session.verbose)
 		printf("%s: setup done\n", session.name);
-	
 	
 	/* return success */
 	return 0;
