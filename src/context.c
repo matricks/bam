@@ -234,6 +234,7 @@ static int threads_run_callback(struct NODEWALK *walkinfo)
 	struct THREADINFO *info = (struct THREADINFO *)walkinfo->user;
 	struct NODELINK *link;
 	int errorcode = 0;
+	int broken = 0;
 	
 	/* check for aborts */
 	if(session.abort)
@@ -247,13 +248,16 @@ static int threads_run_callback(struct NODEWALK *walkinfo)
 	for(link = job->firstjobdep; link; link = link->next)
 	{
 		if(link->node->job->status == JOBSTATUS_BROKEN)
-		{
-			job->status = JOBSTATUS_BROKEN;
-			return info->context->errorcode;
-		}
-		
-		if(link->node->dirty && link->node->job->status != JOBSTATUS_DONE)
+			broken = 1;
+		else if(link->node->dirty && link->node->job->status != JOBSTATUS_DONE)
 			return 0;
+	}
+
+	/* check if we are broken and propagate the result */
+	if(broken)
+	{
+		job->status = JOBSTATUS_BROKEN;
+		return info->context->errorcode;
 	}
 
 	/* if it doesn't have a tool, just mark it as done and continue the search */
@@ -271,13 +275,8 @@ static int threads_run_callback(struct NODEWALK *walkinfo)
 	job->status = JOBSTATUS_WORKING;
 	
 	/* run the node */
-#if 1
 	if(node->job)
 		errorcode = run_job(info->context, node->job, info->id+1);
-#else
-	if(node->cmdline)
-		errorcode = run_node(info->context, node, info->id+1);
-#endif
 	
 	/* this node is done, mark it so and return the error code */
 	if(errorcode)
