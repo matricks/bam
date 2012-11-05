@@ -328,7 +328,30 @@ int file_createdir(const char *path)
 void file_touch(const char *filename)
 {
 #ifdef BAM_FAMILY_WINDOWS
-	_utime(filename, NULL);
+	/*
+		_utime under windows seem to contain a bug that doesn't release the file handle in a timly fashion.
+		This implementation is basiclly the same but smaller and less cruft.
+	*/
+	HANDLE handle;
+	FILETIME ft;
+	SYSTEMTIME st;
+
+	handle = CreateFile(
+		filename,
+		GENERIC_READ | GENERIC_WRITE,
+		FILE_SHARE_WRITE | FILE_SHARE_READ | FILE_SHARE_DELETE,
+		NULL,
+		OPEN_EXISTING,
+		FILE_ATTRIBUTE_NORMAL,
+		NULL);
+
+	if(handle != INVALID_HANDLE_VALUE)
+	{
+		GetSystemTime(&st);
+		SystemTimeToFileTime(&st, &ft);
+		SetFileTime(handle, (LPFILETIME)NULL, (LPFILETIME)NULL, &ft);
+		CloseHandle(handle);
+	}
 #else
 	utime(filename, NULL);
 #endif
