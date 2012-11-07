@@ -85,6 +85,7 @@ static const char *option_script = "bam.lua"; /* -f filename */
 static const char *option_threads_str = NULL;
 static const char *option_report_str = DEFAULT_REPORT_STYLE;
 static const char *option_targets[128] = {0};
+static const char* option_lua_execute = NULL;
 static int option_num_targets = 0;
 static const char *option_scriptargs[128] = {0};
 static int option_num_scriptargs = 0;
@@ -126,6 +127,11 @@ static struct OPTION options[] = {
 		Normally it would continue as far as it can.
 	@END*/
 	{OF_PRINT, 0,&option_abort_on_error	, "-a", "abort build on first error"},
+
+	/*@OPTION Lua execute ( -e )
+		Executes a lua file without running the build system.
+	@END*/
+	{OF_PRINT, &option_lua_execute, 0	, "-e", "executes specified lua file and exits"},
 
 	/*@OPTION Clean ( -c )
 		Cleans the specified targets or the default target.
@@ -319,87 +325,95 @@ static void *lua_alloctor_malloc(void *ud, void *ptr, size_t osize, size_t nsize
 
 
 /* *** */
-int register_lua_globals(struct CONTEXT *context)
+int register_lua_globals(struct lua_State *lua, const char* script_directory, const char* filename)
 {
-	int i, error = 0;
+	int i, error = 0, idx = 1;
 		
 	/* add standard libs */
-	luaL_openlibs(context->lua);
+	luaL_openlibs(lua);
 	
 	/* add specific functions */
-	lua_register(context->lua, L_FUNCTION_PREFIX"add_job", lf_add_job);
-	lua_register(context->lua, L_FUNCTION_PREFIX"add_output", lf_add_output);
-	lua_register(context->lua, L_FUNCTION_PREFIX"add_pseudo", lf_add_pseudo);
-	lua_register(context->lua, L_FUNCTION_PREFIX"add_dependency", lf_add_dependency);
-	lua_register(context->lua, L_FUNCTION_PREFIX"add_constraint_shared", lf_add_constraint_shared);
-	lua_register(context->lua, L_FUNCTION_PREFIX"add_constraint_exclusive", lf_add_constraint_exclusive);
-	lua_register(context->lua, L_FUNCTION_PREFIX"default_target", lf_default_target);
-	lua_register(context->lua, L_FUNCTION_PREFIX"set_filter", lf_set_filter);
+	lua_register(lua, L_FUNCTION_PREFIX"add_job", lf_add_job);
+	lua_register(lua, L_FUNCTION_PREFIX"add_output", lf_add_output);
+	lua_register(lua, L_FUNCTION_PREFIX"add_pseudo", lf_add_pseudo);
+	lua_register(lua, L_FUNCTION_PREFIX"add_dependency", lf_add_dependency);
+	lua_register(lua, L_FUNCTION_PREFIX"add_constraint_shared", lf_add_constraint_shared);
+	lua_register(lua, L_FUNCTION_PREFIX"add_constraint_exclusive", lf_add_constraint_exclusive);
+	lua_register(lua, L_FUNCTION_PREFIX"default_target", lf_default_target);
+	lua_register(lua, L_FUNCTION_PREFIX"set_filter", lf_set_filter);
 
 	/* advanced dependency checkers */
-	lua_register(context->lua, L_FUNCTION_PREFIX"add_dependency_cpp_set_paths", lf_add_dependency_cpp_set_paths);
-	lua_register(context->lua, L_FUNCTION_PREFIX"add_dependency_cpp", lf_add_dependency_cpp);
-	lua_register(context->lua, L_FUNCTION_PREFIX"add_dependency_search", lf_add_dependency_search);
+	lua_register(lua, L_FUNCTION_PREFIX"add_dependency_cpp_set_paths", lf_add_dependency_cpp_set_paths);
+	lua_register(lua, L_FUNCTION_PREFIX"add_dependency_cpp", lf_add_dependency_cpp);
+	lua_register(lua, L_FUNCTION_PREFIX"add_dependency_search", lf_add_dependency_search);
 
 	/* path manipulation */
-	lua_register(context->lua, L_FUNCTION_PREFIX"path_join", lf_path_join);
-	lua_register(context->lua, L_FUNCTION_PREFIX"path_normalize", lf_path_normalize);
-	lua_register(context->lua, L_FUNCTION_PREFIX"path_isnice", lf_path_isnice);
+	lua_register(lua, L_FUNCTION_PREFIX"path_join", lf_path_join);
+	lua_register(lua, L_FUNCTION_PREFIX"path_normalize", lf_path_normalize);
+	lua_register(lua, L_FUNCTION_PREFIX"path_isnice", lf_path_isnice);
 	
-	lua_register(context->lua, L_FUNCTION_PREFIX"path_ext", lf_path_ext);
-	lua_register(context->lua, L_FUNCTION_PREFIX"path_dir", lf_path_dir);
-	lua_register(context->lua, L_FUNCTION_PREFIX"path_base", lf_path_base);
-	lua_register(context->lua, L_FUNCTION_PREFIX"path_filename", lf_path_filename);
+	lua_register(lua, L_FUNCTION_PREFIX"path_ext", lf_path_ext);
+	lua_register(lua, L_FUNCTION_PREFIX"path_dir", lf_path_dir);
+	lua_register(lua, L_FUNCTION_PREFIX"path_base", lf_path_base);
+	lua_register(lua, L_FUNCTION_PREFIX"path_filename", lf_path_filename);
 
 	/* various support functions */
-	lua_register(context->lua, L_FUNCTION_PREFIX"collect", lf_collect);
-	lua_register(context->lua, L_FUNCTION_PREFIX"collectrecursive", lf_collectrecursive);
-	lua_register(context->lua, L_FUNCTION_PREFIX"collectdirs", lf_collectdirs);
-	lua_register(context->lua, L_FUNCTION_PREFIX"collectdirsrecursive", lf_collectdirsrecursive);
+	lua_register(lua, L_FUNCTION_PREFIX"collect", lf_collect);
+	lua_register(lua, L_FUNCTION_PREFIX"collectrecursive", lf_collectrecursive);
+	lua_register(lua, L_FUNCTION_PREFIX"collectdirs", lf_collectdirs);
+	lua_register(lua, L_FUNCTION_PREFIX"collectdirsrecursive", lf_collectdirsrecursive);
 	
-	lua_register(context->lua, L_FUNCTION_PREFIX"listdir", lf_listdir);
-	lua_register(context->lua, L_FUNCTION_PREFIX"update_globalstamp", lf_update_globalstamp);
-	lua_register(context->lua, L_FUNCTION_PREFIX"loadfile", lf_loadfile);
+	lua_register(lua, L_FUNCTION_PREFIX"listdir", lf_listdir);
+	lua_register(lua, L_FUNCTION_PREFIX"update_globalstamp", lf_update_globalstamp);
+	lua_register(lua, L_FUNCTION_PREFIX"loadfile", lf_loadfile);
 	
-	lua_register(context->lua, L_FUNCTION_PREFIX"mkdir", lf_mkdir);
-	lua_register(context->lua, L_FUNCTION_PREFIX"mkdirs", lf_mkdirs);
-	lua_register(context->lua, L_FUNCTION_PREFIX"fileexist", lf_fileexist);
-	lua_register(context->lua, L_FUNCTION_PREFIX"nodeexist", lf_nodeexist);
+	lua_register(lua, L_FUNCTION_PREFIX"mkdir", lf_mkdir);
+	lua_register(lua, L_FUNCTION_PREFIX"mkdirs", lf_mkdirs);
+	lua_register(lua, L_FUNCTION_PREFIX"fileexist", lf_fileexist);
+	lua_register(lua, L_FUNCTION_PREFIX"nodeexist", lf_nodeexist);
 
-	lua_register(context->lua, L_FUNCTION_PREFIX"isstring", lf_isstring);
-	lua_register(context->lua, L_FUNCTION_PREFIX"istable", lf_istable);
+	lua_register(lua, L_FUNCTION_PREFIX"isstring", lf_isstring);
+	lua_register(lua, L_FUNCTION_PREFIX"istable", lf_istable);
 
-	lua_register(context->lua, L_FUNCTION_PREFIX"table_walk", lf_table_walk);
-	lua_register(context->lua, L_FUNCTION_PREFIX"table_deepcopy", lf_table_deepcopy);
-	lua_register(context->lua, L_FUNCTION_PREFIX"table_tostring", lf_table_tostring);
-	lua_register(context->lua, L_FUNCTION_PREFIX"table_flatten", lf_table_flatten);
+	lua_register(lua, L_FUNCTION_PREFIX"table_walk", lf_table_walk);
+	lua_register(lua, L_FUNCTION_PREFIX"table_deepcopy", lf_table_deepcopy);
+	lua_register(lua, L_FUNCTION_PREFIX"table_tostring", lf_table_tostring);
+	lua_register(lua, L_FUNCTION_PREFIX"table_flatten", lf_table_flatten);
 
 	/* error handling */
-	lua_register(context->lua, "errorfunc", lf_errorfunc);
+	lua_register(lua, "errorfunc", lf_errorfunc);
 
 	/* create arguments table */
-	lua_pushstring(context->lua, CONTEXT_LUA_SCRIPTARGS_TABLE);
-	lua_newtable(context->lua);
+	lua_pushstring(lua, CONTEXT_LUA_SCRIPTARGS_TABLE);
+	lua_newtable(lua);
 	for(i = 0; i < option_num_scriptargs; i++)
 	{
 		const char *separator = option_scriptargs[i];
-		while(*separator != '=')
+		while(*separator != '=' && *separator != '\0')
 			separator++;
-		lua_pushlstring(context->lua, option_scriptargs[i], separator-option_scriptargs[i]);
-		lua_pushstring(context->lua, separator+1);
-		lua_settable(context->lua, -3);
+		if(*separator == '\0')
+		{
+			lua_pushnumber(lua, idx++);
+			lua_pushstring(lua, option_scriptargs[i]);
+		}
+		else
+		{
+			lua_pushlstring(lua, option_scriptargs[i], separator-option_scriptargs[i]);
+			lua_pushstring(lua, separator+1);
+		}
+		lua_settable(lua, -3);
 	}
-	lua_settable(context->lua, LUA_GLOBALSINDEX);
+	lua_settable(lua, LUA_GLOBALSINDEX);
 
 	/* create targets table */
-	lua_pushstring(context->lua, CONTEXT_LUA_TARGETS_TABLE);
-	lua_newtable(context->lua);
+	lua_pushstring(lua, CONTEXT_LUA_TARGETS_TABLE);
+	lua_newtable(lua);
 	for(i = 0; i < option_num_targets; i++)
 	{
-		lua_pushstring(context->lua, option_targets[i]);
-		lua_rawseti(context->lua, -2, i);
+		lua_pushstring(lua, option_targets[i]);
+		lua_rawseti(lua, -2, i);
 	}
-	lua_settable(context->lua, LUA_GLOBALSINDEX);
+	lua_settable(lua, LUA_GLOBALSINDEX);
 	
 	/* set paths */
 	{
@@ -410,23 +424,23 @@ int register_lua_globals(struct CONTEXT *context)
 			return -1;
 		}
 		
-		lua_setglobalstring(context->lua, CONTEXT_LUA_PATH, context->script_directory);
-		lua_setglobalstring(context->lua, CONTEXT_LUA_WORKPATH, cwd);
+		lua_setglobalstring(lua, CONTEXT_LUA_PATH, script_directory);
+		lua_setglobalstring(lua, CONTEXT_LUA_WORKPATH, cwd);
 	}
 
 	/* set version, family, platform, arch, verbocity */
-	lua_setglobalstring(context->lua, "_bam_version", BAM_VERSION_STRING);
-	lua_setglobalstring(context->lua, "_bam_version_complete", BAM_VERSION_STRING_COMPLETE);
-	lua_setglobalstring(context->lua, "family", BAM_FAMILY_STRING);
-	lua_setglobalstring(context->lua, "platform", BAM_PLATFORM_STRING);
-	lua_setglobalstring(context->lua, "arch", BAM_ARCH_STRING);
-	lua_setglobalstring(context->lua, "_bam_exe", session.exe);
-	lua_setglobalstring(context->lua, "_bam_modulefilename", context->filename);
-	lua_pushnumber(context->lua, session.verbose);
-	lua_setglobal(context->lua, "verbose");
+	lua_setglobalstring(lua, "_bam_version", BAM_VERSION_STRING);
+	lua_setglobalstring(lua, "_bam_version_complete", BAM_VERSION_STRING_COMPLETE);
+	lua_setglobalstring(lua, "family", BAM_FAMILY_STRING);
+	lua_setglobalstring(lua, "platform", BAM_PLATFORM_STRING);
+	lua_setglobalstring(lua, "arch", BAM_ARCH_STRING);
+	lua_setglobalstring(lua, "_bam_exe", session.exe);
+	lua_setglobalstring(lua, "_bam_modulefilename", filename);
+	lua_pushnumber(lua, session.verbose);
+	lua_setglobal(lua, "verbose");
 
 	if(option_debug_trace_vm)
-		lua_sethook(context->lua, lua_vm_trace_hook, LUA_MASKCOUNT, 1);
+		lua_sethook(lua, lua_vm_trace_hook, LUA_MASKCOUNT, 1);
 
 	/* load base script */
 	if(!option_debug_nointernal)
@@ -442,13 +456,13 @@ int register_lua_globals(struct CONTEXT *context)
 			if(session.verbose)
 				printf("%s: reading internal file '%s'\n", session.name, internal_files[f].filename);
 		
-			lua_getglobal(context->lua, "errorfunc");
+			lua_getglobal(lua, "errorfunc");
 			
 			/* push error function to stack */
-			ret = lua_load(context->lua, internal_base_reader, (void *)&p, internal_files[f].filename);
+			ret = lua_load(lua, internal_base_reader, (void *)&p, internal_files[f].filename);
 			if(ret != 0)
 			{
-				lf_errorfunc(context->lua);
+				lf_errorfunc(lua);
 				
 				if(ret == LUA_ERRSYNTAX)
 				{
@@ -460,7 +474,7 @@ int register_lua_globals(struct CONTEXT *context)
 					
 				error = 1;
 			}
-			else if(lua_pcall(context->lua, 0, LUA_MULTRET, -2) != 0)
+			else if(lua_pcall(lua, 0, LUA_MULTRET, -2) != 0)
 				error = 1;
 		}
 	}
@@ -520,7 +534,7 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 	
 	/* register all functions */
 	event_begin(0, "lua setup", NULL);
-	if(register_lua_globals(context) != 0)
+	if(register_lua_globals(context->lua, context->script_directory, context->filename) != 0)
 	{
 		printf("%s: error: registering of lua functions failed\n", session.name);
 		return -1;
@@ -540,7 +554,7 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 		case LUA_ERRSYNTAX:
 			lf_errorfunc(context->lua);
 			return -1;
-		case LUA_ERRMEM: 
+		case LUA_ERRMEM:
 			printf("%s: memory allocation error\n", session.name);
 			return -1;
 		case LUA_ERRFILE:
@@ -555,7 +569,7 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 	/* start the background stat thread */
 	node_graph_start_statthread(context->graph);
 
-	/* call the code chunk */	
+	/* call the code chunk */
 	event_begin(0, "script run", NULL);
 	if(lua_pcall(context->lua, 0, LUA_MULTRET, -2) != 0)
 	{
@@ -858,7 +872,7 @@ static void print_help(int mask)
 
 static int parse_parameters(int num, char **params)
 {
-	int i, j;
+	int i, j, restargs = 0;
 	
 	/* parse parameters */
 	for(i = 0; i < num; ++i)
@@ -889,15 +903,26 @@ static int parse_parameters(int num, char **params)
 		if(j != -1)
 		{
 			/* check if it's an option, and warn if it could not be found */
+			int skip = 0;
 			if(params[i][0] == '-')
 			{
-				printf("%s: unknown switch '%s'\n", session.name, params[i]);
-				return -1;
+				int len = strlen(params[i]);
+				if(params[i][1] == '-' && len == 2)
+				{
+					restargs = 1;
+					skip = 1;
+				}
+				else if(restargs == 0)
+				{
+					printf("%s: unknown switch '%s'\n", session.name, params[i]);
+					return -1;
+				}
 			}
-			else
+
+			/* check for = because it indicates if it's a target or script argument */
+			if(!skip)
 			{
-				/* check for = because it indicates if it's a target or script argument */
-				if(strchr(params[i], '='))
+				if(restargs || strchr(params[i], '='))
 					option_scriptargs[option_num_scriptargs++] = params[i];
 				else
 					option_targets[option_num_targets++] = params[i];
@@ -1060,8 +1085,51 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	
-	/* init the context */
-	error = bam(option_script, option_targets, option_num_targets);
+	if(option_lua_execute)
+	{
+		struct lua_State* lua = lua_newstate(lua_alloctor_malloc, 0x0);
+		lua_atpanic(lua, lf_panicfunc);
+
+		/* register all functions */
+		if(register_lua_globals(lua, "script_dir", option_lua_execute) != 0)
+		{
+			printf("%s: error: registering of lua functions failed\n", session.name);
+			return -1;
+		}
+
+		lua_getglobal(lua, "errorfunc");
+		switch(luaL_loadfile(lua, option_lua_execute))
+		{
+			case 0: break;
+			case LUA_ERRSYNTAX:
+					lf_errorfunc(lua);
+					return -1;
+			case LUA_ERRMEM: 
+					printf("%s: memory allocation error\n", session.name);
+					return -1;
+			case LUA_ERRFILE:
+					printf("%s: error opening '%s'\n", session.name, option_lua_execute);
+					return -1;
+			default:
+					printf("%s: unknown error\n", session.name);
+					return -1;
+		}
+
+		/* call the code chunk */	
+		if(lua_pcall(lua, 0, LUA_MULTRET, -2) != 0)
+		{
+			printf("%s: script error (-t for more detail)\n", session.name);
+			return -1;
+		}
+
+		lua_close(lua);
+		error = 0;
+	}
+	else
+	{
+		/* init the context */
+		error = bam(option_script, option_targets, option_num_targets);
+	}
 	
 	platform_shutdown();
 
