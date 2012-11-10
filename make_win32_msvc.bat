@@ -6,6 +6,10 @@ if exist "%VCINSTALLDIR%" (
 )
 
 @REM Check for Visual Studio
+if exist "%VS110COMNTOOLS%" (
+	set VSPATH="%VS110COMNTOOLS%"
+	goto set_env
+)
 if exist "%VS100COMNTOOLS%" (
 	set VSPATH="%VS100COMNTOOLS%"
 	goto set_env
@@ -19,7 +23,7 @@ if exist "%VS80COMNTOOLS%" (
 	goto set_env
 )
 
-echo You need Microsoft Visual Studio 8, 9 or 10 installed
+echo You need Microsoft Visual Studio 8, 9, 10 or 11 installed
 pause
 exit
 
