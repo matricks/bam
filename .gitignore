@@ -5,3 +5,6 @@ src/tools/txt2c.exe
 test_output
 *.pyc
 *.pdb
+*.o
+*.swp
+.bam/*
