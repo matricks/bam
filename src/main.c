@@ -531,7 +531,7 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 	if(session.verbose)
 		printf("%s: reading script from '%s'\n", session.name, scriptfile);
 
-	event_begin(0, "script parse", NULL);
+	event_begin(0, "script load", NULL);
 		
 	/* push error function to stack and load the script */
 	lua_getglobal(context->lua, "errorfunc");
@@ -551,20 +551,23 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 			printf("%s: unknown error\n", session.name);
 			return -1;
 	}
+	event_end(0, "script load", NULL);
 
 	/* call the code chunk */	
+	event_begin(0, "script run", NULL);
 	if(lua_pcall(context->lua, 0, LUA_MULTRET, -2) != 0)
 	{
 		printf("%s: script error (-t for more detail)\n", session.name);
 		return -1;
 	}
+	event_end(0, "script run", NULL);
 	
 	/* run deferred functions */
+	event_begin(0, "deferred", NULL);
 	if(run_deferred_functions(context) != 0)
 		return -1;
-	
-	event_end(0, "script parse", NULL);
-			
+	event_end(0, "deferred", NULL);
+		
 	/* */	
 	if(session.verbose)
 		printf("%s: making build target\n", session.name);
