@@ -75,6 +75,8 @@ static int option_debug_dumpinternal = 0;
 static int option_debug_nointernal = 0;
 static int option_debug_trace_vm = 0;
 
+static int option_testing_threaded_stat = 0;
+
 static int option_print_help = 0;
 static int option_print_debughelp = 0;
 
@@ -275,6 +277,9 @@ static struct OPTION options[] = {
 		Disables all the internal scripts that bam loads on startup.
 	@1, END*/
 	{OF_DEBUG, 0, &option_debug_nointernal		, "--debug-no-int", "don't load internal scripts"},
+
+	{OF_DEBUG, 0, &option_testing_threaded_stat	, "--testing-threaded-stat", "use separate thread for file stat during script run"},
+
 		
 	/* terminate list */
 	{0, 0, 0, (const char*)0, (const char*)0}
@@ -531,8 +536,11 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 	if(session.verbose)
 		printf("%s: reading script from '%s'\n", session.name, scriptfile);
 
+	/* start the background stat thread */
+	if(option_testing_threaded_stat)
+		node_graph_start_statthread(context->graph);
+
 	event_begin(0, "script load", NULL);
-		
 	/* push error function to stack and load the script */
 	lua_getglobal(context->lua, "errorfunc");
 	switch(luaL_loadfile(context->lua, scriptfile))
@@ -561,6 +569,14 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 		return -1;
 	}
 	event_end(0, "script run", NULL);
+
+	/* stop the background stat thread */
+	if(option_testing_threaded_stat)
+	{
+		event_begin(0, "stat", NULL);
+		node_graph_end_statthread(context->graph);
+		event_end(0, "stat", NULL);
+	}
 	
 	/* run deferred functions */
 	event_begin(0, "deferred", NULL);
@@ -578,10 +594,9 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 		int all_target = 0;
 		int i;
 
-		if(node_create(&context->target, context->graph, "_bam_buildtarget", NULL))
+		if(node_create(&context->target, context->graph, "_bam_buildtarget", NULL, NODEFLAG_PSEUDO))
 			return -1;
-		node_set_pseudo(context->target);
-			
+
 		if(num_targets)
 		{
 			/* search for all target */

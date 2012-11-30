@@ -122,15 +122,13 @@ int lf_add_pseudo(lua_State *L)
 	context = context_get_pointer(L);
 
 	/* create the node */
-	i = node_create(&node, context->graph, lua_tostring(L,1), NULL);
+	i = node_create(&node, context->graph, lua_tostring(L,1), NULL, NODEFLAG_PSEUDO);
 	if(i == NODECREATE_NOTNICE)
 		luaL_error(L, "add_pseudo: node '%s' is not nice", lua_tostring(L,1));
 	else if(i == NODECREATE_EXISTS)
 		luaL_error(L, "add_pseudo: node '%s' already exists", lua_tostring(L,1));
 	else if(i != NODECREATE_OK)
 		luaL_error(L, "add_pseudo: unknown error creating node '%s'", lua_tostring(L,1));
-		
-	node_set_pseudo(node);
 	return 0;
 }
 
@@ -160,7 +158,7 @@ int lf_add_output(lua_State *L)
 
 
 	filename = lua_tostring(L, -1);
-	i = node_create(&other_output, context->graph, filename, output->job);
+	i = node_create(&other_output, context->graph, filename, output->job, 0);
 	if(i == NODECREATE_NOTNICE)
 		luaL_error(L, "add_output: node '%s' is not nice", filename);
 	else if(i == NODECREATE_EXISTS)
@@ -225,7 +223,7 @@ static void callback_addjob_node(lua_State *L, void *user)
 	luaL_checktype(L, -1, LUA_TSTRING);
 	filename = lua_tostring(L, -1);
 
-	i = node_create(&node, context->graph, filename, job);
+	i = node_create(&node, context->graph, filename, job, 0);
 	if(i == NODECREATE_NOTNICE)
 		luaL_error(L, "add_job: node '%s' is not nice", filename);
 	else if(i == NODECREATE_EXISTS)

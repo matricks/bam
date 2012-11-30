@@ -75,6 +75,8 @@ struct NODE
 	struct NODELINK *firstdep; /* list of dependencies */
 	struct NODETREELINK *deproot; /* tree of dependencies */
 
+	struct NODE * volatile nextstat; /* next node to stat, written by main-thread, read by stat-thread*/
+
 	struct NODELINK *constraint_exclusive; /* list of exclusive constraints */
 	struct NODELINK *constraint_shared; /* list of shared constraints */
 	
@@ -126,6 +128,12 @@ struct GRAPH
 	/* jobs */
 	struct JOB *firstjob;
 
+	/* file stating */
+	void *statthread;
+	struct NODE * volatile firststatnode; /* first node that we should stat, written by main-thread, read by stat-thread */
+	struct NODE * volatile finalstatnode; /* the very last node that we should stat, written by main-thread, read by stat-thread */
+	struct NODE *laststatnode; /* last node stats to, only read and written by the main-thread */
+
 	/* memory */
 	struct HEAP *heap;
 
@@ -142,6 +150,9 @@ struct CONTEXT;
 #define JOBSTATUS_WORKING 1  /* a thread is working on this node */
 #define JOBSTATUS_DONE 2     /* node built successfully */
 #define JOBSTATUS_BROKEN 3   /* node tool reported an error or a dependency is broken */
+
+/* node creation flags */
+#define NODEFLAG_PSEUDO 1
 
 /* node creation error codes */
 #define NODECREATE_OK 0
@@ -171,6 +182,8 @@ struct CONTEXT;
 
 /* you destroy graphs by destroying the heap */
 struct GRAPH *node_graph_create(struct HEAP *heap);
+void node_graph_start_statthread(struct GRAPH *graph);
+void node_graph_end_statthread(struct GRAPH *graph);
 
 /* node jobs */
 struct JOB *node_job_create_null(struct GRAPH *graph);
@@ -178,13 +191,12 @@ struct JOB *node_job_create(struct GRAPH *graph, const char *label, const char *
 struct NODE *node_job_add_dependency_withnode(struct NODE *node, struct NODE *depnode);
 
 /* */
-int node_create(struct NODE **node, struct GRAPH *graph, const char *filename, struct JOB *job);
+int node_create(struct NODE **node, struct GRAPH *graph, const char *filename, struct JOB *job, int flags);
 struct NODE *node_find(struct GRAPH *graph, const char *filename);
 struct NODE *node_find_byhash(struct GRAPH *graph, hash_t hashid);
 struct NODE *node_get(struct GRAPH *graph, const char *filename);
 struct NODE *node_add_dependency(struct NODE *node, const char *filename);
 struct NODE *node_add_dependency_withnode(struct NODE *node, struct NODE *depnode);
-void node_set_pseudo(struct NODE *node);
 void node_cached(struct NODE *node);
 
 /* */

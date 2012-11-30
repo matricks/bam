@@ -13,6 +13,14 @@
 	typedef long long int64;
 #endif
 
+#if defined(__GNUC__)
+	#define sync_barrier() __sync_synchronize()
+#elif defined(_MSC_VER)
+	#include <intrin.h>
+	#define sync_barrier() _ReadWriteBarrier()
+#else
+	#error missing atomic implementation for this compiler
+#endif
 struct lua_State;
 
 void install_signals(void (*abortsignal)(int));

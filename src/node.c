@@ -36,6 +36,64 @@ struct GRAPH *node_graph_create(struct HEAP *heap)
 	return graph; 
 }
 
+static void stat_thread(void *user)
+{
+	struct GRAPH *graph = (struct GRAPH *)user;
+	struct NODE *node = NULL;
+	unsigned count = 0;
+	unsigned loops = 0;
+
+	while(1)
+	{
+		/* find the next stat node */
+		struct NODE *next = NULL;
+		if(node)
+			next = node->nextstat;
+		else
+			next = graph->firststatnode;
+
+		loops++;
+
+		if(next)
+		{
+			count++;
+			node = next;
+
+			/* stat the node */
+			node->timestamp_raw = file_timestamp(node->filename);
+			node->timestamp = node->timestamp_raw;
+			if(node->timestamp_raw == 0)
+				node->dirty = NODEDIRTY_MISSING;
+			sync_barrier();
+		}
+		else
+		{
+			/* check if we should finish */
+			if(node == graph->finalstatnode)
+				break;
+
+			/* be a little nice for now */
+			threads_yield();
+		}
+	}
+}
+
+void node_graph_start_statthread(struct GRAPH *graph)
+{
+	graph->finalstatnode = (struct NODE *)0x1;
+	sync_barrier();
+	graph->statthread = threads_create(stat_thread, graph);
+}
+
+void node_graph_end_statthread(struct GRAPH *graph)
+{
+	graph->finalstatnode = graph->laststatnode;
+	sync_barrier();
+	threads_join(graph->statthread);
+	graph->statthread = NULL;
+}
+
+
 struct JOB *node_job_create_null(struct GRAPH *graph)
 {
 	struct JOB *job = (struct JOB *)mem_allocate(graph->heap, sizeof(struct JOB));
@@ -63,7 +121,7 @@ struct JOB *node_job_create(struct GRAPH *graph, const char *label, const char *
 }
 
 /* creates a node */
-int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename, struct JOB *job)
+int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename, struct JOB *job, int flags)
 {
 	struct NODE *node;
 	struct NODELINK *link;
@@ -97,11 +155,6 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 		
 		node->graph = graph;
 		node->id = graph->num_nodes++;
-		node->timestamp_raw = file_timestamp(filename);
-		node->timestamp = node->timestamp_raw;
-		
-		if(node->timestamp_raw == 0)
-			node->dirty = NODEDIRTY_MISSING;
 		
 		/* set filename */
 		node->filename_len = strlen(filename)+1;
@@ -115,6 +168,34 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 		if(graph->last) graph->last->next = node;
 		else graph->first = node;
 		graph->last = node;		
+	}
+
+	/* fix timestamp */
+	if(flags&NODEFLAG_PSEUDO)
+	{
+		node->timestamp = 1;
+		node->timestamp_raw = 1;
+	}
+	else
+	{
+		if(graph->statthread)
+		{
+			/* make sure that the node is written down before we queue it for a stat */
+			sync_barrier();
+			if(graph->laststatnode)
+				graph->laststatnode->nextstat = node;
+			else
+				graph->firststatnode = node;
+			graph->laststatnode = node;	
+		}
+		else
+		{
+			/* no stat-thread running, do it here and now */
+			node->timestamp_raw = file_timestamp(filename);
+			node->timestamp = node->timestamp_raw;
+			if(node->timestamp_raw == 0)
+				node->dirty = NODEDIRTY_MISSING;
+		}
 	}
 
 	/* set job */
@@ -162,7 +243,7 @@ struct NODE *node_get(struct GRAPH *graph, const char *filename)
 	
 	if(!node)
 	{
-		if(node_create(&node, graph, filename, NULL) == NODECREATE_OK)
+		if(node_create(&node, graph, filename, NULL, 0) == NODECREATE_OK)
 			return node;
 	}
 	return node;
@@ -279,12 +360,6 @@ struct NODE *node_add_constraint_exclusive(struct NODE *node, const char *filena
 void node_cached(struct NODE *node)
 {
 	node->cached = 1;
-}
-
-void node_set_pseudo(struct NODE *node)
-{
-	node->timestamp = 1;
-	node->timestamp_raw = 1;
 }
 
 /* functions to handle with bit array access */
