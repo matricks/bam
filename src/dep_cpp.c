@@ -250,7 +250,7 @@ static int dependency_cpp_callback(struct NODE *node, void *user, const char *fi
 		}
 		path_join(node->filename, flen, filename, -1, buf, sizeof(buf));
 		
-		if(file_exist(buf) || node_find(node->graph, buf))
+		if(node_find(node->graph, buf) || file_exist(buf))
 			found = 1;
 		else
 		{
@@ -264,7 +264,7 @@ static int dependency_cpp_callback(struct NODE *node, void *user, const char *fi
 		/* <system.header> */
 		if(path_isabs(filename))
 		{
-			if(file_exist(filename) || node_find(node->graph, filename))
+			if(node_find(node->graph, filename) || file_exist(filename))
 			{
 				strcpy(buf, filename);
 				found = 1;
@@ -278,7 +278,7 @@ static int dependency_cpp_callback(struct NODE *node, void *user, const char *fi
 			for(cur = depinfo->paths; cur; cur = cur->next)
 			{
 				path_join(cur->str, cur->len, filename, flen, buf, sizeof(buf));
-				if(file_exist(buf) || node_find(node->graph, buf))
+				if(node_find(node->graph, buf) || file_exist(buf))
 				{
 					found = 1;
 					break;
