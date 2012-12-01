@@ -36,6 +36,17 @@ struct GRAPH *node_graph_create(struct HEAP *heap)
 	return graph; 
 }
 
+/*
+	fetches the timestamp for the node and updates the dirty if the file is missing
+*/
+static void node_stat(struct NODE *node)
+{
+	node->timestamp_raw = file_timestamp(node->filename);
+	node->timestamp = node->timestamp_raw;
+	if(node->timestamp_raw == 0)
+		node->dirty = NODEDIRTY_MISSING;
+}
+
 static void stat_thread(void *user)
 {
 	struct GRAPH *graph = (struct GRAPH *)user;
@@ -60,10 +71,7 @@ static void stat_thread(void *user)
 			node = next;
 
 			/* stat the node */
-			node->timestamp_raw = file_timestamp(node->filename);
-			node->timestamp = node->timestamp_raw;
-			if(node->timestamp_raw == 0)
-				node->dirty = NODEDIRTY_MISSING;
+			node_stat(node);
 			sync_barrier();
 		}
 		else
@@ -191,10 +199,7 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 		else
 		{
 			/* no stat-thread running, do it here and now */
-			node->timestamp_raw = file_timestamp(filename);
-			node->timestamp = node->timestamp_raw;
-			if(node->timestamp_raw == 0)
-				node->dirty = NODEDIRTY_MISSING;
+			node_stat(node);
 		}
 	}
 
