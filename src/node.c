@@ -129,7 +129,7 @@ struct JOB *node_job_create(struct GRAPH *graph, const char *label, const char *
 }
 
 /* creates a node */
-int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename, struct JOB *job, int flags)
+int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename, struct JOB *job, time_t timestamp)
 {
 	struct NODE *node;
 	struct NODELINK *link;
@@ -179,10 +179,10 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 	}
 
 	/* fix timestamp */
-	if(flags&NODEFLAG_PSEUDO)
+	if(timestamp >= 0)
 	{
-		node->timestamp = 1;
-		node->timestamp_raw = 1;
+		node->timestamp = timestamp;
+		node->timestamp_raw = timestamp;
 	}
 	else
 	{
@@ -207,8 +207,11 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 	if(job)
 	{
 		if(node->job && node->job->real)
+		{
+			printf("%s: error: job '%s' already exists\n", session.name, filename);
 			return NODECREATE_EXISTS;
-		
+		}
+
 		/* TODO: we might have to transfer properties from the old job to the new? */
 		node->job = job;
 
@@ -248,13 +251,13 @@ struct NODE *node_get(struct GRAPH *graph, const char *filename)
 	
 	if(!node)
 	{
-		if(node_create(&node, graph, filename, NULL, 0) == NODECREATE_OK)
+		if(node_create(&node, graph, filename, NULL, TIMESTAMP_NONE) == NODECREATE_OK)
 			return node;
 	}
 	return node;
 }
 
-struct NODE *node_add_dependency_withnode(struct NODE *node, struct NODE *depnode)
+struct NODE *node_add_dependency (struct NODE *node, struct NODE *depnode)
 {
 	struct NODELINK *dep;
 	struct NODELINK *parent;
@@ -299,7 +302,7 @@ struct NODE *node_add_dependency_withnode(struct NODE *node, struct NODE *depnod
 }
 
 
-struct NODE *node_job_add_dependency_withnode(struct NODE *node, struct NODE *depnode)
+struct NODE *node_job_add_dependency (struct NODE *node, struct NODE *depnode)
 {
 	struct NODELINK *dep;
 	struct NODETREELINK *treelink;
@@ -334,17 +337,17 @@ struct NODE *node_job_add_dependency_withnode(struct NODE *node, struct NODE *de
 
 
 /* adds a dependency to a node */
+/*
 struct NODE *node_add_dependency(struct NODE *node, const char *filename)
 {
 	struct NODE *depnode = node_get(node->graph, filename);
 	if(!depnode)
 		return NULL;
-	return node_add_dependency_withnode(node, depnode);
-}
+	return node_add_dependency (node, depnode);
+}*/
 
-static struct NODE *node_add_constraint(struct NODELINK **first, struct NODE *node, const char *filename)
+static struct NODE *node_add_constraint (struct NODELINK **first, struct NODE *node, struct NODE *contraint)
 {
-	struct NODE *contraint = node_get(node->graph, filename);
 	struct NODELINK *link = (struct NODELINK *)mem_allocate(node->graph->heap, sizeof(struct NODELINK));
 	link->node = contraint;
 	link->next = *first;
@@ -352,14 +355,14 @@ static struct NODE *node_add_constraint(struct NODELINK **first, struct NODE *no
 	return contraint;
 }
 
-struct NODE *node_add_constraint_shared(struct NODE *node, const char *filename)
+struct NODE *node_add_constraint_shared (struct NODE *node, struct NODE *contraint)
 {
-	return node_add_constraint(&node->constraint_shared, node, filename);
+	return node_add_constraint (&node->constraint_shared, node, contraint);
 }
 
-struct NODE *node_add_constraint_exclusive(struct NODE *node, const char *filename)
+struct NODE *node_add_constraint_exclusive (struct NODE *node, struct NODE *contraint)
 {
-	return node_add_constraint(&node->constraint_exclusive, node, filename);
+	return node_add_constraint (&node->constraint_exclusive, node, contraint);
 }
 
 void node_cached(struct NODE *node)

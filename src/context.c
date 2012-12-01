@@ -469,13 +469,13 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 			}
 		
 			/* propagate job dependencies */
-			node_job_add_dependency_withnode(node, dep->node);
+			node_job_add_dependency(node, dep->node);
 		}
 		else
 		{
 			/* propagate job dependencies */
 			for(jobdep = dep->node->job->firstjobdep; jobdep; jobdep = jobdep->next)
-				node_job_add_dependency_withnode(node, jobdep->node);
+				node_job_add_dependency(node, jobdep->node);
 		}
 
 		/* update dirty */		

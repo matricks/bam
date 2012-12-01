@@ -600,7 +600,7 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 		int all_target = 0;
 		int i;
 
-		if(node_create(&context->target, context->graph, "_bam_buildtarget", NULL, NODEFLAG_PSEUDO))
+		if(node_create(&context->target, context->graph, "_bam_buildtarget", NULL, TIMESTAMP_PSEUDO))
 			return -1;
 
 		if(num_targets)
@@ -627,7 +627,7 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 			{
 				if(node->firstparent == NULL && node != context->target)
 				{
-					if(!node_add_dependency_withnode(context->target, node))
+					if(!node_add_dependency (context->target, node))
 						return -1;
 				}
 			}
@@ -652,21 +652,21 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 						struct NODELINK *parent;
 						for(parent = node->firstparent; parent; parent = parent->next)
 						{
-							if(!node_add_dependency_withnode(context->target, parent->node))
+							if(!node_add_dependency (context->target, parent->node))
 								return -1;
 						}
 								
 					}
 					else
 					{
-						if(!node_add_dependency_withnode(context->target, node))
+						if(!node_add_dependency (context->target, node))
 							return -1;
 					}
 				}
 			}
 			else
 			{
-				if(!node_add_dependency_withnode(context->target, context->defaulttarget))
+				if(!node_add_dependency (context->target, context->defaulttarget))
 					return -1;
 			}
 

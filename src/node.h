@@ -151,8 +151,9 @@ struct CONTEXT;
 #define JOBSTATUS_DONE 2     /* node built successfully */
 #define JOBSTATUS_BROKEN 3   /* node tool reported an error or a dependency is broken */
 
-/* node creation flags */
-#define NODEFLAG_PSEUDO 1
+/* special defines */
+#define TIMESTAMP_NONE		-1
+#define TIMESTAMP_PSEUDO	1
 
 /* node creation error codes */
 #define NODECREATE_OK 0
@@ -188,20 +189,20 @@ void node_graph_end_statthread(struct GRAPH *graph);
 /* node jobs */
 struct JOB *node_job_create_null(struct GRAPH *graph);
 struct JOB *node_job_create(struct GRAPH *graph, const char *label, const char *cmdline);
-struct NODE *node_job_add_dependency_withnode(struct NODE *node, struct NODE *depnode);
+struct NODE *node_job_add_dependency(struct NODE *node, struct NODE *depnode);
 
 /* */
-int node_create(struct NODE **node, struct GRAPH *graph, const char *filename, struct JOB *job, int flags);
+int node_create(struct NODE **node, struct GRAPH *graph, const char *filename, struct JOB *job, time_t timestamp);
 struct NODE *node_find(struct GRAPH *graph, const char *filename);
 struct NODE *node_find_byhash(struct GRAPH *graph, hash_t hashid);
 struct NODE *node_get(struct GRAPH *graph, const char *filename);
-struct NODE *node_add_dependency(struct NODE *node, const char *filename);
-struct NODE *node_add_dependency_withnode(struct NODE *node, struct NODE *depnode);
+/*struct NODE *node_add_dependency(struct NODE *node, const char *filename);*/
+struct NODE *node_add_dependency(struct NODE *node, struct NODE *depnode);
 void node_cached(struct NODE *node);
 
 /* */
-struct NODE *node_add_constraint_shared(struct NODE *node, const char *filename);
-struct NODE *node_add_constraint_exclusive(struct NODE *node, const char *filename);
+struct NODE *node_add_constraint_shared(struct NODE *node, struct NODE *contraint);
+struct NODE *node_add_constraint_exclusive(struct NODE *node, struct NODE *contraint);
 
 
 struct NODEWALKPATH

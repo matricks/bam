@@ -122,7 +122,7 @@ int lf_add_pseudo(lua_State *L)
 	context = context_get_pointer(L);
 
 	/* create the node */
-	i = node_create(&node, context->graph, lua_tostring(L,1), NULL, NODEFLAG_PSEUDO);
+	i = node_create(&node, context->graph, lua_tostring(L,1), NULL, TIMESTAMP_PSEUDO);
 	if(i == NODECREATE_NOTNICE)
 		luaL_error(L, "add_pseudo: node '%s' is not nice", lua_tostring(L,1));
 	else if(i == NODECREATE_EXISTS)
@@ -158,7 +158,7 @@ int lf_add_output(lua_State *L)
 
 
 	filename = lua_tostring(L, -1);
-	i = node_create(&other_output, context->graph, filename, output->job, 0);
+	i = node_create(&other_output, context->graph, filename, output->job, TIMESTAMP_NONE);
 	if(i == NODECREATE_NOTNICE)
 		luaL_error(L, "add_output: node '%s' is not nice", filename);
 	else if(i == NODECREATE_EXISTS)
@@ -172,18 +172,20 @@ int lf_add_output(lua_State *L)
 struct NODEATTRIB_CBINFO
 {
 	struct NODE *node;
-	struct NODE *(*callback)(struct NODE*, const char *);
+	struct NODE *(*callback)(struct NODE*, struct NODE*);
 };
 
 static void callback_node_attrib(lua_State *L, void *user)
 {
 	struct NODEATTRIB_CBINFO *info = (struct NODEATTRIB_CBINFO *)user;
-	if(!info->callback(info->node, lua_tostring(L, -1)))
-		luaL_error(L, "could not add '%s' to '%s'", lua_tostring(L, -1), lua_tostring(L, 1));
+	const char *othername = lua_tostring(L, -1);
+	struct NODE *othernode = node_get(info->node->graph, othername);
+	if(!info->callback(info->node, othernode))
+		luaL_error(L, "could not add '%s' to '%s'", othername, lua_tostring(L, 1));
 }
 
 /* add_dependency(string node, string dependency) */
-static int add_node_attribute(lua_State *L, const char *funcname, struct NODE *(*callback)(struct NODE*, const char *))
+static int add_node_attribute(lua_State *L, const char *funcname, struct NODE *(*callback)(struct NODE*, struct NODE*))
 {
 	struct NODE *node;
 	struct CONTEXT *context;
@@ -208,9 +210,9 @@ static int add_node_attribute(lua_State *L, const char *funcname, struct NODE *(
 	return 0;
 }
 
-int lf_add_dependency(lua_State *L) { return add_node_attribute(L, "add_dependency", node_add_dependency); }
-int lf_add_constraint_shared(lua_State *L) { return add_node_attribute(L, "add_constraint_shared", node_add_constraint_shared); }
-int lf_add_constraint_exclusive(lua_State *L) { return add_node_attribute(L, "add_constraint_exclusive", node_add_constraint_exclusive); }
+int lf_add_dependency(lua_State *L) { return add_node_attribute(L, "add_dependency", node_add_dependency ); }
+int lf_add_constraint_shared(lua_State *L) { return add_node_attribute(L, "add_constraint_shared", node_add_constraint_shared ); }
+int lf_add_constraint_exclusive(lua_State *L) { return add_node_attribute(L, "add_constraint_exclusive", node_add_constraint_exclusive ); }
 
 static void callback_addjob_node(lua_State *L, void *user)
 {
@@ -223,7 +225,7 @@ static void callback_addjob_node(lua_State *L, void *user)
 	luaL_checktype(L, -1, LUA_TSTRING);
 	filename = lua_tostring(L, -1);
 
-	i = node_create(&node, context->graph, filename, job, 0);
+	i = node_create(&node, context->graph, filename, job, TIMESTAMP_NONE);
 	if(i == NODECREATE_NOTNICE)
 		luaL_error(L, "add_job: node '%s' is not nice", filename);
 	else if(i == NODECREATE_EXISTS)
@@ -243,7 +245,7 @@ static void callback_addjob_deps(lua_State *L, void *user)
 	filename = lua_tostring(L, -1);
 
 	for(link = job->firstoutput; link; link = link->next)
-		node_add_dependency(link->node, filename);
+		node_add_dependency (link->node, node_get(link->node->graph, filename));
 }
 
 /* add_job(string/table output, string label, string command, ...) */
@@ -508,7 +510,7 @@ int lf_fileexist(struct lua_State *L)
 	if(!lua_isstring(L,1))
 		luaL_error(L, "fileexist: expected string");
 		
-	if(file_exist(lua_tostring(L,1)))
+	if(file_timestamp(lua_tostring(L,1)))
 		lua_pushnumber(L, 1);	
 	else
 		lua_pushnil(L);

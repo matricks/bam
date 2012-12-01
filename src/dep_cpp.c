@@ -113,17 +113,25 @@ static void cachehit_callback(struct NODE *node, struct CACHENODE *cachenode, vo
 	struct NODE *existing_node = node_find_byhash(node->graph, cachenode->hashid);
 	if(existing_node)
 	{
-		struct NODE *newnode = node_add_dependency_withnode(node, existing_node);
+		struct NODE *newnode = node_add_dependency (node, existing_node);
 		dependency_cpp_run(info->context, newnode, info->callback, info->userdata);
 	}
 	else
 	{
-		if(file_timestamp(cachenode->filename) == 0)
-			node->dirty = NODEDIRTY_MISSING;
+		time_t timestamp = file_timestamp(cachenode->filename);
+		if(timestamp)
+		{
+			/* this shouldn't be able to fail */
+			struct NODE *newnode;
+			node_create(&newnode, info->context->graph, cachenode->filename, NULL, timestamp);
+			node_add_dependency (node, newnode);
+
+			/* recurse the dependency checking */
+			dependency_cpp_run(info->context, newnode, info->callback, info->userdata);
+		}
 		else
 		{
-			struct NODE *newnode = node_add_dependency(node, cachenode->filename);
-			dependency_cpp_run(info->context, newnode, info->callback, info->userdata);
+			node->dirty = NODEDIRTY_MISSING;
 		}
 	}
 }
@@ -228,15 +236,33 @@ struct CPPDEPINFO
 	struct STRINGLIST *paths;
 };
 
+static int node_findfile(struct GRAPH *graph, const char *filename, struct NODE **node, time_t *timestamp)
+{
+	/* first check the graph */
+	*node = node_find(graph, filename);
+	if(*node)
+		return 1;
+
+	/* then check the file system */
+	*timestamp = file_timestamp(filename);
+	if(*timestamp)
+		return 1;
+
+	return 0;
+}
+
 /* */
 static int dependency_cpp_callback(struct NODE *node, void *user, const char *filename, int sys)
 {
 	struct CPPDEPINFO *depinfo = (struct CPPDEPINFO *)user;
-	struct NODE *depnode;
 	struct CPPDEPINFO recurseinfo;
 	char buf[MAX_PATH_LENGTH];
 	int check_system = sys;
+
 	int found = 0;
+	struct NODE *depnode = NULL;
+	time_t timestamp = 0;
+	
 	
 	if(!sys)
 	{
@@ -250,7 +276,7 @@ static int dependency_cpp_callback(struct NODE *node, void *user, const char *fi
 		}
 		path_join(node->filename, flen, filename, -1, buf, sizeof(buf));
 		
-		if(node_find(node->graph, buf) || file_exist(buf))
+		if(node_findfile(node->graph, buf, &depnode, &timestamp))
 			found = 1;
 		else
 		{
@@ -264,7 +290,7 @@ static int dependency_cpp_callback(struct NODE *node, void *user, const char *fi
 		/* <system.header> */
 		if(path_isabs(filename))
 		{
-			if(node_find(node->graph, filename) || file_exist(filename))
+			if(node_findfile(node->graph, filename, &depnode, &timestamp))
 			{
 				strcpy(buf, filename);
 				found = 1;
@@ -278,7 +304,7 @@ static int dependency_cpp_callback(struct NODE *node, void *user, const char *fi
 			for(cur = depinfo->paths; cur; cur = cur->next)
 			{
 				path_join(cur->str, cur->len, filename, flen, buf, sizeof(buf));
-				if(node_find(node->graph, buf) || file_exist(buf))
+				if(node_findfile(node->graph, buf, &depnode, &timestamp))
 				{
 					found = 1;
 					break;
@@ -291,9 +317,13 @@ static int dependency_cpp_callback(struct NODE *node, void *user, const char *fi
 	if(found)
 	{
 		path_normalize(buf);
-		depnode = node_add_dependency(node, buf);
 		if(!depnode)
+			node_create(&depnode, node->graph, buf, NULL, timestamp);
+		if(node_add_dependency (node, depnode) == NULL)
 			return 2;
+
+		if(!depnode)
+			return 3;
 	
 		/* do the dependency walk */
 		if(!depnode->depchecked)
@@ -301,7 +331,7 @@ static int dependency_cpp_callback(struct NODE *node, void *user, const char *fi
 			recurseinfo.paths = depinfo->paths;
 			recurseinfo.context = depinfo->context;
 			if(dependency_cpp_run(depinfo->context, depnode, dependency_cpp_callback, &recurseinfo) != 0)
-				return 3;
+				return 4;
 		}
 	}
 		
