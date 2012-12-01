@@ -473,10 +473,9 @@ int register_lua_globals(struct CONTEXT *context)
 	return error;
 }
 
-static int run_deferred_functions(struct CONTEXT *context)
+static int run_deferred_functions(struct CONTEXT *context, struct DEFERRED *cur)
 {
-	struct DEFERRED *cur;
-	for(cur = context->firstdeferred; cur; cur = cur->next)
+	for(; cur; cur = cur->next)
 	{
 		if(cur->run(context, cur))
 			return -1;
@@ -526,11 +525,13 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 	}
 	
 	/* register all functions */
+	event_begin(0, "lua setup", NULL);
 	if(register_lua_globals(context) != 0)
 	{
 		printf("%s: error: registering of lua functions failed\n", session.name);
 		return -1;
 	}
+	event_end(0, "lua setup", NULL);
 
 	/* load script */	
 	if(session.verbose)
@@ -579,11 +580,16 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 	}
 	
 	/* run deferred functions */
-	event_begin(0, "deferred", NULL);
-	if(run_deferred_functions(context) != 0)
+	event_begin(0, "deferred cpp dependencies", NULL);
+	if(run_deferred_functions(context, context->firstdeferred_cpp) != 0)
 		return -1;
-	event_end(0, "deferred", NULL);
+	event_end(0, "deferred cpp dependencies", NULL);
 		
+	event_begin(0, "deferred search dependencies", NULL);
+	if(run_deferred_functions(context, context->firstdeferred_search) != 0)
+		return -1;
+	event_end(0, "deferred search dependencies", NULL);
+
 	/* */	
 	if(session.verbose)
 		printf("%s: making build target\n", session.name);

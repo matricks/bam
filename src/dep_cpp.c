@@ -353,7 +353,7 @@ int lf_add_dependency_cpp(lua_State *L)
 	deferred->node = node_find(context->graph, lua_tostring(L,1));
 	deferred->user = current_includepaths;
 	deferred->run = dependency_cpp_do_run;
-	deferred->next = context->firstdeferred;
-	context->firstdeferred = deferred;
+	deferred->next = context->firstdeferred_cpp;
+	context->firstdeferred_cpp = deferred;
 	return 0;
 }

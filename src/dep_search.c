@@ -109,8 +109,8 @@ int lf_add_dependency_search(lua_State *L)
 	deferred->node = node;
 	deferred->user = plain;
 	deferred->run = do_run;
-	deferred->next = context->firstdeferred;
-	context->firstdeferred = deferred;
+	deferred->next = context->firstdeferred_search;
+	context->firstdeferred_search = deferred;
 		
 	/* allocate the lookup */
 	plain->firstpath = NULL;

@@ -29,7 +29,8 @@ struct CONTEXT
 	/* this heap is used for dependency lookups that has to happen after we 
 		parsed the whole file */
 	struct HEAP *deferredheap;
-	struct DEFERRED *firstdeferred;
+	struct DEFERRED *firstdeferred_cpp;
+	struct DEFERRED *firstdeferred_search;
 	
 	int forced;
 
