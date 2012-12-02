@@ -547,16 +547,6 @@ int file_createpath(const char *output_name)
 	return 0;
 }
 
-
-/* general */
-int file_exist(const char *filename)
-{
-	struct stat s;
-	if(stat(filename, &s) == 0)
-		return 1;
-	return 0;
-}
-
 /* list directory functionallity */
 typedef struct
 {
