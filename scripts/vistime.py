@@ -93,7 +93,7 @@ class TkGui:
 		self.CreateWindow( ( 800, 800 ) )
 		self.canvasSize = ( 800, 800 )
 				
-		self.CalcSizes( 64 )
+		self.CalcSizes( 32 )
 		
 		self.InitCanvas( jobs )		
 	
@@ -103,7 +103,7 @@ class TkGui:
 	def CalcSizes( self, xScale ):
 		#xSize = 2000
 	
-		self.yRectSize = 30
+		self.yRectSize = 20
 		self.ySpacing = self.yRectSize * 1.25		
 		self.xScale = xScale
 		self.xMargin = 30
@@ -161,6 +161,7 @@ class TkGui:
 		self.canvas.bind( '<Button-4>', lambda e: self.Ev_Zoom( e, 1 ) )
 		self.canvas.bind( '<Button-3>', self.Ev_MButtonRightDown )
 		self.canvas.bind( '<B3-Motion>', self.Ev_MButtonRightMove )
+		self.win.bind( '<MouseWheel>', self.Ev_ZoomWheel )
 		
 
 	def UpdateCanvasSize( self, newSize ):
@@ -285,7 +286,11 @@ class TkGui:
 				col = ( "lightgreen", "green" )
 				if not "job:" in j.name and ( "cache load"  in j.name or "script parse" in j.name or "prepare" in j.name ):
 					col = ( "lightcyan", "cyan" )
-				elif not ("c " in j.name or "c++" in j.name ) and "link" in j.name:
+				elif not ("c " in j.name and "c++" in j.name ) and "link" in j.name:
+					col = ( "lightblue", "blue" )
+				elif "job:" in j.name and "precomp" in j.name :
+					col = ( "lightyellow", "yellow" )
+				elif "job:" in j.name and ".dll" in j.name :
 					col = ( "lightblue", "blue" )
 				
 				jr.rect = self.canvas.create_rectangle(  
@@ -359,6 +364,9 @@ class TkGui:
 		#print xCenterPixel
 		#print "res:", xCenterFrac
 		self.canvas.xview_moveto( xCenterFrac )
+		
+	def	Ev_ZoomWheel( self, event ) :
+		self.Ev_Zoom( event, event.delta/120 )
 		
 	def Ev_MButtonRightDown( self, event ):
 		self.canvas.scan_mark( event.x, 0 )
