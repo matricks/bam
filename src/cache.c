@@ -316,6 +316,11 @@ struct CACHE *cache_load(const char *filename)
 	return cache;
 }
 
+void cache_free(struct CACHE *cache)
+{
+	free(cache);
+}
+
 struct CACHENODE *cache_find_byindex(struct CACHE *cache, unsigned index)
 {
 	return &cache->nodes[index];

@@ -75,8 +75,6 @@ static int option_debug_dumpinternal = 0;
 static int option_debug_nointernal = 0;
 static int option_debug_trace_vm = 0;
 
-static int option_testing_threaded_stat = 0;
-
 static int option_print_help = 0;
 static int option_print_debughelp = 0;
 
@@ -278,9 +276,6 @@ static struct OPTION options[] = {
 	@1, END*/
 	{OF_DEBUG, 0, &option_debug_nointernal		, "--debug-no-int", "don't load internal scripts"},
 
-	{OF_DEBUG, 0, &option_testing_threaded_stat	, "--testing-threaded-stat", "use separate thread for file stat during script run"},
-
-		
 	/* terminate list */
 	{0, 0, 0, (const char*)0, (const char*)0}
 };
@@ -492,7 +487,6 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 	
 	/* set filename */
 	context->filename = scriptfile;
-	context->filename_short = path_filename(scriptfile);
 	
 	/* set global timestamp to the script file */
 	context->globaltimestamp = file_timestamp(scriptfile);
@@ -538,8 +532,7 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 		printf("%s: reading script from '%s'\n", session.name, scriptfile);
 
 	/* start the background stat thread */
-	if(option_testing_threaded_stat)
-		node_graph_start_statthread(context->graph);
+	node_graph_start_statthread(context->graph);
 
 	event_begin(0, "script load", NULL);
 	/* push error function to stack and load the script */
@@ -572,12 +565,9 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 	event_end(0, "script run", NULL);
 
 	/* stop the background stat thread */
-	if(option_testing_threaded_stat)
-	{
-		event_begin(0, "stat", NULL);
-		node_graph_end_statthread(context->graph);
-		event_end(0, "stat", NULL);
-	}
+	event_begin(0, "stat", NULL);
+	node_graph_end_statthread(context->graph);
+	event_end(0, "stat", NULL);
 	
 	/* run deferred functions */
 	event_begin(0, "deferred cpp dependencies", NULL);
@@ -740,11 +730,8 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	/* done with the loopup heap */
 	mem_destroy(context.deferredheap);
 
-	/* if we have a separate lua heap, just destroy it */
-	if(context.luaheap)
-		mem_destroy(context.luaheap);
-	else
-		lua_close(context.lua);
+	/* close the lua state */
+	lua_close(context.lua);
 	
 	/* do actions if we don't have any errors */
 	if(!setup_error)
@@ -753,6 +740,13 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 		build_error = context_build_prepare(&context);
 		event_end(0, "prepare", NULL);
 		
+		if(!build_error)
+		{
+			event_begin(0, "prioritize", NULL);
+			build_error = context_build_prioritize(&context);
+			event_end(0, "prioritize", NULL);
+		}
+
 		if(!build_error)
 		{
 			if(option_debug_nodes) /* debug dump all nodes */
@@ -798,6 +792,8 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	
 	/* clean up */
 	mem_destroy(context.graphheap);
+	free(context.joblist);
+	cache_free(context.cache);
 
 	/* print final report and return */
 	if(setup_error)
@@ -809,7 +805,7 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 		printf("%s: error: a build step failed\n", session.name);
 	else if(report_done)
 	{
-		if(context.num_commands == 0)
+		if(context.num_jobs == 0)
 			printf("%s: targets are up to date already\n", session.name);
 		else
 		{

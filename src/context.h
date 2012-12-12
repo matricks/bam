@@ -12,19 +12,26 @@ struct DEFERRED
 
 struct CONTEXT
 {
-	struct HEAP *luaheap;
+	/* lua state */
 	struct lua_State *lua;
 	
+	/* general script information */
 	const char *filename;
-	const char *filename_short;
 	char script_directory[512];
 	
 	struct HEAP *graphheap;
 	struct GRAPH *graph;
 	struct CACHE *cache;
 
-	struct NODE *defaulttarget;
-	struct NODE *target;
+	/* targets */
+	struct NODE *defaulttarget;	/* default target if no targets are specified */
+	struct NODE *target;		/* target to build */
+
+	/* list of jobs that we must build */
+	struct JOB **joblist;
+	unsigned num_jobs;			/* number of jobs in the joblist */
+	unsigned first_undone_job;	/* index to first job in the joblist that is undone */
+	unsigned current_job_num;	/* current job we are building, not an index, just a count */
 
 	/* this heap is used for dependency lookups that has to happen after we 
 		parsed the whole file */
@@ -32,15 +39,12 @@ struct CONTEXT
 	struct DEFERRED *firstdeferred_cpp;
 	struct DEFERRED *firstdeferred_search;
 	
+	time_t globaltimestamp;		/* timestamp of the script files */
+	time_t buildtime;			/* timestamp when the build started */
+
 	int forced;
-
-	time_t globaltimestamp;
-	time_t buildtime;
-
 	int exit_on_error;
-	int num_commands;
-	volatile int errorcode;
-	volatile int current_cmd_num;
+	int errorcode;
 };
 
 const char *context_get_path(struct lua_State *L);
@@ -48,6 +52,7 @@ struct CONTEXT *context_get_pointer(struct lua_State *L);
 int context_default_target(struct CONTEXT *context, struct NODE *node);
 
 int context_build_prepare(struct CONTEXT *context);
+int context_build_prioritize(struct CONTEXT *context);
 int context_build_clean(struct CONTEXT *context);
 int context_build_make(struct CONTEXT *context);
 

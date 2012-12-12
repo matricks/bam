@@ -53,6 +53,8 @@ struct JOB
 	hash_t cmdhash; /* hash of the command line for detecting changes */
 	hash_t cachehash; /* hash that should be written to the cache */
 
+	unsigned priority; /* the priority is the priority of all jobs dependent on this job */
+
 	unsigned real:1; /* set if this isn't a nulljob */
 	unsigned counted:1; /* set if we have counted this job towards the number of targets to build */
 
@@ -81,7 +83,7 @@ struct NODE
 	struct NODELINK *constraint_shared; /* list of shared constraints */
 	
 	struct JOB *job; /* job that produces this node */
-	char *filename; /* this contains the filename with the FULLPATH */
+	const char *filename; /* this contains the filename with the FULLPATH */
 
 	hash_t hashid; /* hash of the filename/nodename */
 	
@@ -92,7 +94,6 @@ struct NODE
 	unsigned id; /* used when doing traversal with marking (bitarray) */
 	
 	unsigned short filename_len; /* length of filename including zero term */
-	unsigned short depth;	/* depth in the graph. used for priority when buliding */
 	
 	/* various flags (4 bytes in the end) */
 	unsigned dirty:8; /* non-zero if the node has to be rebuilt */
@@ -139,6 +140,7 @@ struct GRAPH
 
 	/* needed when saving the cache */
 	int num_nodes;
+	int num_jobs; /* only real jobs */
 	int num_deps;
 };
 

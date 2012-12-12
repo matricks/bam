@@ -17,7 +17,8 @@
 static char *duplicate_string(struct GRAPH *graph, const char *src, size_t len)
 {
 	char *str = (char *)mem_allocate(graph->heap, len+1);
-	memcpy(str, src, len+1);
+	memcpy(str, src, len);
+	str[len] = 0;
 	return str;
 }
 
@@ -28,8 +29,6 @@ struct GRAPH *node_graph_create(struct HEAP *heap)
 	struct GRAPH *graph = (struct GRAPH*)mem_allocate(heap, sizeof(struct GRAPH));
 	if(!graph)
 		return (struct GRAPH *)0x0;
-		
-	memset(graph, 0, sizeof(struct GRAPH));
 
 	/* init */
 	graph->heap = heap;
@@ -114,6 +113,7 @@ struct JOB *node_job_create(struct GRAPH *graph, const char *label, const char *
 {
 	struct JOB *job = node_job_create_null(graph);
 	job->real = 1;
+	graph->num_jobs++;
 
 	/* set label and command */
 	job->label = duplicate_string(graph, label, strlen(label));

@@ -56,8 +56,8 @@ static void progressbar_draw(struct CONTEXT *context)
 {
 	const int max = 40;
 	int i;
-	int count = (context->current_cmd_num*max)/context->num_commands;
-	int precent = (context->current_cmd_num*100)/context->num_commands;
+	int count = (context->current_job_num*max)/context->num_jobs;
+	int precent = (context->current_job_num*100)/context->num_jobs;
 
 	if(session.report_color)
 	{
@@ -109,19 +109,16 @@ static int constraints_check(struct JOB *job)
 	return 0;
 }
 
-static int run_job(struct CONTEXT *context, struct JOB *job, int thread_id)
+/* prints infomation about the job being run */
+static void runjob_print_report(struct CONTEXT *context, struct JOB *job, int thread_id)
 {
 	static const char *format = 0;
-	struct NODELINK *link;
-	int ret;
-
-	context->current_cmd_num++;
 
 	if(!format)
 	{
 		static char buf[64];
 		int num = 0;
-		int c = context->num_commands;
+		int c = context->num_jobs;
 		for(; c; c /= 10)
 			num++;
 		
@@ -139,7 +136,7 @@ static int run_job(struct CONTEXT *context, struct JOB *job, int thread_id)
 		if(session.simpleoutput)
 			printf("%s", job->label);
 		else
-			printf(format, context->current_cmd_num, context->num_commands, thread_id, job->label);
+			printf(format, context->current_job_num, context->num_jobs, thread_id, job->label);
 	}
 	
 	if(session.report_bar)
@@ -154,6 +151,11 @@ static int run_job(struct CONTEXT *context, struct JOB *job, int thread_id)
 	}
 		
 	fflush(stdout);
+}
+
+static int runjob_create_outputpaths(struct JOB *job)
+{
+	struct NODELINK *link;
 
 	/* create output path */
 	for(link = job->firstoutput; link; link = link->next)
@@ -174,6 +176,30 @@ static int run_job(struct CONTEXT *context, struct JOB *job, int thread_id)
 		}
 	}
 
+	return 0;
+}
+
+static int run_job(struct CONTEXT *context, struct JOB *job, int thread_id)
+{
+	struct NODELINK *link;
+	int errorcode;
+
+	context->current_job_num++;
+
+	/* mark the node as its in the working */
+	job->status = JOBSTATUS_WORKING;
+
+	/* print some nice information */
+	runjob_print_report(context, job, thread_id);
+
+	/* create output paths */
+	if(runjob_create_outputpaths(job) != 0)
+	{
+		job->status = JOBSTATUS_BROKEN;
+		context->errorcode = 1;
+		return 1;
+	}
+
 	/* add constraints count */
 	constraints_update(job, 1);
 	
@@ -181,8 +207,8 @@ static int run_job(struct CONTEXT *context, struct JOB *job, int thread_id)
 
 	/* execute the command */
 	criticalsection_leave();
-	ret = run_command(job->cmdline, job->filter);
-	if(ret == 0)
+	errorcode = run_command(job->cmdline, job->filter);
+	if(errorcode == 0)
 	{
 		/* make sure that the tool updated the timestamp */
 		for(link = job->firstoutput; link; link = link->next)
@@ -195,12 +221,23 @@ static int run_job(struct CONTEXT *context, struct JOB *job, int thread_id)
 	/* sub constraints count */
 	constraints_update(job, -1);
 	
-	if(ret)
+	if(errorcode == 0)
 	{
+		/* job done successfully */
+		job->status = JOBSTATUS_DONE;
+		job->cachehash = job->cmdhash;
+	}
+	else
+	{
+		/* set global error code */
+		job->status = JOBSTATUS_BROKEN;
+		context->errorcode = errorcode;
+
+		/* report the error */
 		if(session.report_color)
 			printf("\033[01;31m");
 		
-		printf("%s: '%s' error %d\n", session.name, job->label, ret);
+		printf("%s: '%s' error %d\n", session.name, job->label, errorcode);
 		
 		for(link = job->firstoutput; link; link = link->next)
 		{
@@ -216,33 +253,23 @@ static int run_job(struct CONTEXT *context, struct JOB *job, int thread_id)
 			
 		fflush(stdout);
 	}
-	return ret;
+	return errorcode;
 }
 
 struct THREADINFO
 {
 	int id;
 	struct CONTEXT *context;
-	int errorcode;
 };
 
-
-static int threads_run_callback(struct NODEWALK *walkinfo)
+/* returns 1 if we can run this job */
+static int check_job(struct CONTEXT *context, struct JOB *job)
 {
-	struct NODE *node = walkinfo->node;
-	struct JOB *job = node->job;
-	struct THREADINFO *info = (struct THREADINFO *)walkinfo->user;
 	struct NODELINK *link;
-	int errorcode = 0;
 	int broken = 0;
-	
-	/* check for aborts */
-	if(session.abort)
-		return -1;
-	
-	/* check global error code so we know if we should exit */
-	if(info->context->exit_on_error && info->context->errorcode)
-		return info->context->errorcode;
+
+	if(job->status != JOBSTATUS_UNDONE)
+		return 0;
 
 	/* make sure that all deps are done and propagate broken status */
 	for(link = job->firstjobdep; link; link = link->next)
@@ -257,10 +284,10 @@ static int threads_run_callback(struct NODEWALK *walkinfo)
 	if(broken)
 	{
 		job->status = JOBSTATUS_BROKEN;
-		return info->context->errorcode;
+		return 0;
 	}
 
-	/* if it doesn't have a tool, just mark it as done and continue the search */
+	/* if it doesn't have a tool, just mark it as done */
 	if(!job->real)
 	{
 		job->status = JOBSTATUS_DONE;
@@ -268,63 +295,69 @@ static int threads_run_callback(struct NODEWALK *walkinfo)
 	}
 	
 	/* check if constraints allows it */
-	if(constraints_check(node->job))
+	if(constraints_check(job))
 		return 0;
 	
-	/* mark the node as its in the working */
-	job->status = JOBSTATUS_WORKING;
-	
-	/* run the node */
-	if(node->job)
-		errorcode = run_job(info->context, node->job, info->id+1);
-	
-	/* this node is done, mark it so and return the error code */
-	if(errorcode)
+	return 1;
+}
+
+/*
+	searches the context for a job that we can do
+*/
+static struct JOB *find_job(struct CONTEXT *context)
+{
+	struct JOB *job;
+	unsigned i;
+
+	/* advance first_undone_job */
+	while(context->first_undone_job < context->num_jobs &&
+		context->joblist[context->first_undone_job]->status != JOBSTATUS_UNDONE)
 	{
-		node->job->status = JOBSTATUS_BROKEN;
-		
-		/* set global error code */
-		info->context->errorcode = errorcode;
+		context->first_undone_job++;
 	}
-	else
+
+	for(i = context->first_undone_job; i < context->num_jobs; i++)
 	{
-		/* node is done, update the cache hash we we don't have to rebuild this one */
-		node->job->status = JOBSTATUS_DONE;
-		node->job->cachehash = node->job->cmdhash;
+		job = context->joblist[i];
+		if(check_job(context, job))
+			return job;
 	}
-	return errorcode;
+
+	return 0;
 }
 
 static void threads_run(void *u)
 {
 	struct THREADINFO *info = (struct THREADINFO *)u;
-	struct NODE *target = info->context->target;
-	int flags = NODEWALK_BOTTOMUP|NODEWALK_UNDONE|NODEWALK_QUICK|NODEWALK_JOBS;
-	
-	info->errorcode = 0;
+	struct CONTEXT *context = info->context;
+	struct JOB *job;
 	
 	/* lock the dependency graph */
 	criticalsection_enter();
 	
 	install_abort_signal();
-	
-	if(target->dirty)
+
+	while(1)
 	{
-		while(1)
+		if(session.abort)
+			break;
+
+		/* check if we are done */
+		if(context->first_undone_job >= context->num_jobs)
+			break;
+
+		if(context->exit_on_error && context->errorcode)
+			break;
+
+		job = find_job(context);
+		if(job)
 		{
-			info->errorcode = node_walk(target, flags, threads_run_callback, info);
-			
-			if(session.abort)
-				break;
-
-			/* check if we are done */
-			if(target->job->status != JOBSTATUS_UNDONE)
-				break;
-
-			if(info->context->exit_on_error && info->context->errorcode)
-				break;
-			
-			/* let the others have some time */
+			run_job(context, job, info->id + 1);
+		}
+		else
+		{
+			/* if we didn't find a job todo, be a bit nice to the processor */
+			/* TODO: we should wait for an event here */
 			criticalsection_leave();
 			threads_yield();
 			criticalsection_enter();
@@ -355,7 +388,6 @@ int context_build_make(struct CONTEXT *context)
 	{
 		info[i].context = context;
 		info[i].id = i;
-		info[i].errorcode = 0;
 	}
 
 	if(session.threads <= 1)
@@ -364,7 +396,6 @@ int context_build_make(struct CONTEXT *context)
 		threads_run(&info[0]);
 		if(session.report_bar)
 			progressbar_clear();
-		return info[0].errorcode;
 	}
 	else
 	{
@@ -378,15 +409,8 @@ int context_build_make(struct CONTEXT *context)
 			
 		if(session.report_bar)
 			progressbar_clear();
-
-		/* check for error codes */		
-		for(i = 0; i < session.threads; i++)
-		{
-			if(info[i].errorcode)
-				return info[i].errorcode;
-		}
 	}
-	return 0;
+	return context->errorcode;
 }
 
 static int build_clean_callback(struct NODEWALK *walkinfo)
@@ -394,10 +418,7 @@ static int build_clean_callback(struct NODEWALK *walkinfo)
 	struct NODE *node = walkinfo->node;
 	
 	/* no tool, no processing */
-	if(!node->job->real)
-		return 0;
-
-	if(node->timestamp)
+	if(node->job->real && node->timestamp)
 	{
 		if(remove(node->filename) == 0)
 			printf("%s: removed '%s'\n", session.name, node->filename);
@@ -423,9 +444,6 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 	time_t oldtimestamp = node->timestamp; /* to keep track of if this node changes */
 	int olddirty = node->dirty;
 	struct NODELINK *oldjobdep = node->job->firstjobdep;
-	
-	if(node->depth < walkinfo->depth)
-		node->depth = walkinfo->depth;
 
 	/* time sanity check */
 	if(node->timestamp > context->buildtime)
@@ -508,7 +526,10 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 	if(node->job->real && node->dirty && !node->job->counted && node->targeted)
 	{
 		node->job->counted = 1;
-		context->num_commands++;
+
+		/* add job to the list over jobs todo */
+		context->joblist[context->num_jobs] = node->job;
+		context->num_jobs++;
 	}
 	
 	/* check if we should revisit it's parents to
@@ -528,9 +549,53 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 	graph validation and job counting */
 int context_build_prepare(struct CONTEXT *context)
 {
+	int error_code;
+
+	/* create the job list */
+	context->joblist = (struct JOB **)malloc(context->graph->num_jobs * sizeof(struct JOB *));
+
 	/* revisit is used here to solve the problems
 		where we have circular dependencies */
-	return node_walk(context->target,
+	error_code = node_walk(context->target,
 		NODEWALK_BOTTOMUP|NODEWALK_FORCE|NODEWALK_REVISIT,
 		build_prepare_callback, context);
+
+	return error_code;
+}
+
+static int build_prioritize_callback(struct NODEWALK *walkinfo)
+{
+	struct JOB *job = walkinfo->node->job;
+	struct NODELINK *link;
+
+	job->priority++;
+	
+	/* propagate priority */
+	for(link = job->firstjobdep; link; link = link->next)
+		link->node->job->priority += job->priority;
+	return 0;
+}	
+
+static int job_prio_compare(const void *a, const void *b)
+{
+	const struct JOB * const job_a = *(const struct JOB * const *)a;
+	const struct JOB * const job_b = *(const struct JOB * const *)b;
+	return job_b->priority - job_a->priority;
+}
+
+int context_build_prioritize(struct CONTEXT *context)
+{
+	int error_code;
+
+	error_code = node_walk(context->target,
+		NODEWALK_TOPDOWN|NODEWALK_FORCE|NODEWALK_QUICK|NODEWALK_JOBS,
+		build_prioritize_callback, context);
+
+	if(error_code)
+		return error_code;
+
+	/* sort the list */
+	qsort(context->joblist, context->num_jobs, sizeof(struct JOB*), job_prio_compare);
+
+	return error_code;
 }
