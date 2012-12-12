@@ -288,7 +288,7 @@ static int check_job(struct CONTEXT *context, struct JOB *job)
 	}
 
 	/* if it doesn't have a tool, just mark it as done */
-	if(!job->real)
+	if(!job->cmdline)
 	{
 		job->status = JOBSTATUS_DONE;
 		return 0;
@@ -418,7 +418,7 @@ static int build_clean_callback(struct NODEWALK *walkinfo)
 	struct NODE *node = walkinfo->node;
 	
 	/* no tool, no processing */
-	if(node->job->real && node->timestamp)
+	if(node->job->cmdline && node->timestamp)
 	{
 		if(remove(node->filename) == 0)
 			printf("%s: removed '%s'\n", session.name, node->filename);
@@ -449,7 +449,7 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 	if(node->timestamp > context->buildtime)
 		printf("%s: WARNING:'%s' comes from the future\n", session.name, node->filename);
 	
-	if(node->job->real)
+	if(node->job->cmdline)
 	{
 		/* dirty checking, check against cmdhash and global timestamp first */
 		cachenode = cache_find_byhash(context->cache, node->hashid);
@@ -471,7 +471,7 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 	/* check against all the dependencies */
 	for(dep = node->firstdep; dep; dep = dep->next)
 	{
-		if(dep->node->job->real)
+		if(dep->node->job->cmdline)
 		{
 			/* do circular action dependency checking */
 			for(path = walkinfo->parent; path; path = path->parent)
@@ -505,7 +505,7 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 				node->dirty = NODEDIRTY_DEPDIRTY;
 			else if(node->timestamp < dep->node->timestamp)
 			{
-				if(node->job->real)
+				if(node->job->cmdline)
 					node->dirty = NODEDIRTY_DEPNEWER;
 				else /* no cmdline, just propagate the timestamp */
 					node->timestamp = dep->node->timestamp;
@@ -519,11 +519,11 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 		
 	/* invalidate the cache cmd hash if we are dirty because
 		we could be dirty because if a dependency is missing */
-	if(node->dirty && node->job->real)
+	if(node->dirty && node->job->cmdline)
 		node->job->cachehash = 0;
 	
 	/* count commands */
-	if(node->job->real && node->dirty && !node->job->counted && node->targeted)
+	if(node->job->cmdline && node->dirty && !node->job->counted && node->targeted)
 	{
 		node->job->counted = 1;
 

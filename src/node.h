@@ -55,7 +55,6 @@ struct JOB
 
 	unsigned priority; /* the priority is the priority of all jobs dependent on this job */
 
-	unsigned real:1; /* set if this isn't a nulljob */
 	unsigned counted:1; /* set if we have counted this job towards the number of targets to build */
 
 	volatile unsigned status; /* build status of the job, JOBSTATUS_* flags */

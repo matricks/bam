@@ -112,7 +112,6 @@ struct JOB *node_job_create_null(struct GRAPH *graph)
 struct JOB *node_job_create(struct GRAPH *graph, const char *label, const char *cmdline)
 {
 	struct JOB *job = node_job_create_null(graph);
-	job->real = 1;
 	graph->num_jobs++;
 
 	/* set label and command */
@@ -207,7 +206,7 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 	/* set job */
 	if(job)
 	{
-		if(node->job && node->job->real)
+		if(node->job && node->job->cmdline)
 		{
 			printf("%s: error: job '%s' already exists\n", session.name, filename);
 			return NODECREATE_EXISTS;
@@ -267,7 +266,7 @@ struct NODE *node_add_dependency (struct NODE *node, struct NODE *depnode)
 	/* make sure that the node doesn't try to depend on it self */
 	if(depnode == node)
 	{
-		if(node->job->real)
+		if(node->job->cmdline)
 		{
 			printf("error: node '%s' is depended on itself and is produced by a job\n", node->filename);
 			return (struct NODE*)0x0;
@@ -311,7 +310,7 @@ struct NODE *node_job_add_dependency (struct NODE *node, struct NODE *depnode)
 	/* make sure that the node doesn't try to depend on it self */
 	if(depnode == node)
 	{
-		if(node->job->real)
+		if(node->job->cmdline)
 		{
 			printf("error: node '%s' is depended on itself and is produced by a job\n", node->filename);
 			return (struct NODE*)0x0;

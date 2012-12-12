@@ -153,7 +153,7 @@ int lf_add_output(lua_State *L)
 	if(!output)
 		luaL_error(L, "add_output: couldn't find node with name '%s'", lua_tostring(L,1));
 
-	if(!output->job->real)
+	if(!output->job->cmdline)
 		luaL_error(L, "add_output: '%s' does not have a job", lua_tostring(L,1));
 
 
