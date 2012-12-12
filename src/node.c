@@ -176,32 +176,33 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 		if(graph->last) graph->last->next = node;
 		else graph->first = node;
 		graph->last = node;		
-	}
 
-	/* fix timestamp */
-	if(timestamp >= 0)
-	{
-		node->timestamp = timestamp;
-		node->timestamp_raw = timestamp;
-	}
-	else
-	{
-		if(graph->statthread)
+		/* fix timestamp */
+		if(timestamp >= 0)
 		{
-			/* make sure that the node is written down before we queue it for a stat */
-			sync_barrier();
-			if(graph->laststatnode)
-				graph->laststatnode->nextstat = node;
-			else
-				graph->firststatnode = node;
-			graph->laststatnode = node;	
+			node->timestamp = timestamp;
+			node->timestamp_raw = timestamp;
 		}
 		else
 		{
-			/* no stat-thread running, do it here and now */
-			node_stat(node);
+			if(graph->statthread)
+			{
+				/* make sure that the node is written down before we queue it for a stat */
+				sync_barrier();
+				if(graph->laststatnode)
+					graph->laststatnode->nextstat = node;
+				else
+					graph->firststatnode = node;
+				graph->laststatnode = node;	
+			}
+			else
+			{
+				/* no stat-thread running, do it here and now */
+				node_stat(node);
+			}
 		}
 	}
+
 
 	/* set job */
 	if(job)

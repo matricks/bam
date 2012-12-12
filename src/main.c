@@ -531,9 +531,6 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 	if(session.verbose)
 		printf("%s: reading script from '%s'\n", session.name, scriptfile);
 
-	/* start the background stat thread */
-	node_graph_start_statthread(context->graph);
-
 	event_begin(0, "script load", NULL);
 	/* push error function to stack and load the script */
 	lua_getglobal(context->lua, "errorfunc");
@@ -555,10 +552,14 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 	}
 	event_end(0, "script load", NULL);
 
+	/* start the background stat thread */
+	node_graph_start_statthread(context->graph);
+
 	/* call the code chunk */	
 	event_begin(0, "script run", NULL);
 	if(lua_pcall(context->lua, 0, LUA_MULTRET, -2) != 0)
 	{
+		node_graph_end_statthread(context->graph);
 		printf("%s: script error (-t for more detail)\n", session.name);
 		return -1;
 	}
