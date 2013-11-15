@@ -517,19 +517,32 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 	if(!walkinfo->revisiting)
 		node->targeted = 1;
 		
-	/* invalidate the cache cmd hash if we are dirty because
-		we could be dirty because if a dependency is missing */
 	if(node->dirty && node->job->cmdline)
-		node->job->cachehash = 0;
-	
-	/* count commands */
-	if(node->job->cmdline && node->dirty && !node->job->counted && node->targeted)
 	{
-		node->job->counted = 1;
+		/* invalidate the cache cmd hash if we are dirty because
+			we could be dirty because if a dependency is missing */
+		node->job->cachehash = 0;
 
-		/* add job to the list over jobs todo */
-		context->joblist[context->num_jobs] = node->job;
-		context->num_jobs++;
+		/* propagate dirty to our other outputs */
+		for(dep = node->job->firstoutput; dep; dep = dep->next)
+		{
+			if(!dep->node->dirty)
+			{
+				dep->node->dirty = node->dirty;
+				for(parent = dep->node->firstparent; parent; parent = parent->next)
+					node_walk_revisit(walkinfo, parent->node);				
+			}
+		}
+	
+		/* count commands */
+		if(!node->job->counted && node->targeted)
+		{
+			node->job->counted = 1;
+
+			/* add job to the list over jobs todo */
+			context->joblist[context->num_jobs] = node->job;
+			context->num_jobs++;
+		}
 	}
 	
 	/* check if we should revisit it's parents to
