@@ -117,15 +117,19 @@ static void runjob_print_report(struct CONTEXT *context, struct JOB *job, int th
 	if(!format)
 	{
 		static char buf[64];
-		int num = 0;
-		int c = context->num_jobs;
-		for(; c; c /= 10)
-			num++;
+		int jobdigits = 0;
+		int threaddigits = 0;
+		int c;
+		for(c = context->num_jobs; c; c /= 10)
+			jobdigits++;
+
+		for(c = session.threads; c; c /= 10)
+			threaddigits++;
 		
 		if(session.report_color)
-			sprintf(buf, "\033[01;32m[%%%dd/%%%dd] \033[01;36m#%%d\033[00m %%s\n", num, num);
+			sprintf(buf, "\033[01;32m[%%%dd/%%%dd] \033[01;36m(%%%dd)\033[00m %%s\n", jobdigits, jobdigits, threaddigits);
 		else
-			sprintf(buf, "[%%%dd/%%%dd] #%%d %%s\n", num, num);
+			sprintf(buf, "[%%%dd/%%%dd] (%%%dd) %%s\n", jobdigits, jobdigits, threaddigits);
 		format = buf;
 	}
 	
