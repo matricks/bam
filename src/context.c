@@ -127,9 +127,9 @@ static void runjob_print_report(struct CONTEXT *context, struct JOB *job, int th
 			threaddigits++;
 		
 		if(session.report_color)
-			sprintf(buf, "\033[01;32m[%%%dd/%%%dd] \033[01;36m(%%%dd)\033[00m %%s\n", jobdigits, jobdigits, threaddigits);
+			sprintf(buf, "\033[01;32m[%%%dd/%%%dd] \033[01;36m[%%%dd]\033[00m %%s\n", jobdigits, jobdigits, threaddigits);
 		else
-			sprintf(buf, "[%%%dd/%%%dd] (%%%dd) %%s\n", jobdigits, jobdigits, threaddigits);
+			sprintf(buf, "[%%%dd/%%%dd] [%%%dd] %%s\n", jobdigits, jobdigits, threaddigits);
 		format = buf;
 	}
 	
