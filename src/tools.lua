@@ -1,7 +1,18 @@
+checkCompilerCL = nil
+checkCompilerClang = nil
+
 function SetDefaultDrivers(settings)
+	if checkCompilerCL == nil then
+		checkCompilerCL = ExecuteSilent("cl") == 0
+	end
+	if checkCompilerClang == nil then
+		checkCompilerClang = ExecuteSilent("clang --version") == 0
+	end
 	-- set default drivers
-	if family == "windows" then
+	if family == "windows" and checkCompilerCL then
 		SetDriversCL(settings)
+	elseif checkCompilerClang then
+		SetDriversClang(settings)
 	else
 		SetDriversGCC(settings)
 	end
