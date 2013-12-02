@@ -1,9 +1,21 @@
+_checked_default_drivers = false
+
 function SetDefaultDrivers(settings)
+	-- check for compilers first time
+	if _checked_default_drivers == false then
+		_checked_default_drivers = true
+		if ExecuteSilent("cl") == 0 then
+			SetDriversDefault = SetDriversCL
+		elseif ExecuteSilent("gcc -v") == 0 then
+			SetDriversDefault = SetDriversGCC
+		elseif ExecuteSilent("clang -v") == 0 then
+			SetDriversDefault = SetDriversClang
+		end
+	end
+
 	-- set default drivers
-	if family == "windows" then
-		SetDriversCL(settings)
-	else
-		SetDriversGCC(settings)
+	if SetDriversDefault then
+		SetDriversDefault(settings)
 	end
 end
 
