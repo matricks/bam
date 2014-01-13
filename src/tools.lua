@@ -67,6 +67,7 @@ function Compile(settings, ...)
 	CheckSettings(settings)
 	local outputs = {}
 	local mappings = settings.compile.mappings
+	local scanners = settings.compile.scanners
 	local insert = table.insert
 	
 	-- TODO: this here is aware of the different compilers, should be moved somewhere
@@ -77,12 +78,20 @@ function Compile(settings, ...)
 		-- fetch correct compiler
 		local ext = PathFileExt(inname)
 		local Compiler = mappings[ext]
+		local Scanner = scanners[ext]
 
 		if not Compiler then
 			error("'"..inname.."' has unknown extention '"..ext.."' which there are no compiler for")
 		end
 		
-		insert(outputs, Compiler(settings, inname))
+		local output = Compiler(settings, inname)
+		if Scanner then
+			local deps = Scanner(settings, inname)
+			for _,dep in pairs(deps) do
+				AddDependency(inname, dep)
+			end
+		end
+		insert(outputs, output)
 	end
 	
 	-- return the output
@@ -104,6 +113,7 @@ AddTool(function (settings)
 	@END]]
 	settings.compile = {}
 	settings.compile.mappings = {}
+	settings.compile.scanners = {}
 	TableLock(settings.compile)
 end)
 
@@ -253,7 +263,6 @@ function CompileC(settings, input)
 	local outname = cc.Output(settings, input) .. cc.extension
 	cc.DriverC(settings.labelprefix .. "c " .. input, outname, input, settings)
 	AddDependency(outname, input)
-	bam_add_dependency_cpp(input)
 	return outname
 end
 
@@ -262,16 +271,22 @@ function CompileCXX(settings, input)
 	local outname = cc.Output(settings, input) .. cc.extension
 	cc.DriverCXX(settings.labelprefix .. "c++ " .. input, outname, input, settings)
 	AddDependency(outname, input)
-	bam_add_dependency_cpp(input)
 	return outname
 end
 
+function ScanC(settings, input)
+	bam_add_dependency_cpp(input)
+	return {}
+end
 
 AddTool(function (settings)
 	InitCommonCCompiler(settings)
 	settings.compile.mappings["c"] = CompileC
 	settings.compile.mappings["m"] = CompileC
 	settings.compile.mappings["S"] = CompileC
+	settings.compile.scanners["c"] = ScanC
+	settings.compile.scanners["m"] = ScanC
+	settings.compile.scanners["S"] = ScanC
 end)
 
 AddTool(function (settings)
@@ -280,6 +295,10 @@ AddTool(function (settings)
 	settings.compile.mappings["cxx"] = CompileCXX
 	settings.compile.mappings["c++"] = CompileCXX
 	settings.compile.mappings["cc"] = CompileCXX
+	settings.compile.scanners["cpp"] = ScanC
+	settings.compile.scanners["cxx"] = ScanC
+	settings.compile.scanners["c++"] = ScanC
+	settings.compile.scanners["cc"] = ScanC
 end)
 
 --[[@GROUP Other @END]]--
