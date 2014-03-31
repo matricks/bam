@@ -117,15 +117,19 @@ static void runjob_print_report(struct CONTEXT *context, struct JOB *job, int th
 	if(!format)
 	{
 		static char buf[64];
-		int num = 0;
-		int c = context->num_jobs;
-		for(; c; c /= 10)
-			num++;
+		int jobdigits = 0;
+		int threaddigits = 0;
+		int c;
+		for(c = context->num_jobs; c; c /= 10)
+			jobdigits++;
+
+		for(c = session.threads; c; c /= 10)
+			threaddigits++;
 		
 		if(session.report_color)
-			sprintf(buf, "\033[01;32m[%%%dd/%%%dd] \033[01;36m#%%d\033[00m %%s\n", num, num);
+			sprintf(buf, "\033[01;32m[%%%dd/%%%dd] \033[01;36m[%%%dd]\033[00m %%s\n", jobdigits, jobdigits, threaddigits);
 		else
-			sprintf(buf, "[%%%dd/%%%dd] #%%d %%s\n", num, num);
+			sprintf(buf, "[%%%dd/%%%dd] [%%%dd] %%s\n", jobdigits, jobdigits, threaddigits);
 		format = buf;
 	}
 	
@@ -288,7 +292,7 @@ static int check_job(struct CONTEXT *context, struct JOB *job)
 	}
 
 	/* if it doesn't have a tool, just mark it as done */
-	if(!job->real)
+	if(!job->cmdline)
 	{
 		job->status = JOBSTATUS_DONE;
 		return 0;
@@ -418,7 +422,7 @@ static int build_clean_callback(struct NODEWALK *walkinfo)
 	struct NODE *node = walkinfo->node;
 	
 	/* no tool, no processing */
-	if(node->job->real && node->timestamp)
+	if(node->job->cmdline && node->timestamp)
 	{
 		if(remove(node->filename) == 0)
 			printf("%s: removed '%s'\n", session.name, node->filename);
@@ -449,7 +453,7 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 	if(node->timestamp > context->buildtime)
 		printf("%s: WARNING:'%s' comes from the future\n", session.name, node->filename);
 	
-	if(node->job->real)
+	if(node->job->cmdline)
 	{
 		/* dirty checking, check against cmdhash and global timestamp first */
 		cachenode = cache_find_byhash(context->cache, node->hashid);
@@ -471,7 +475,7 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 	/* check against all the dependencies */
 	for(dep = node->firstdep; dep; dep = dep->next)
 	{
-		if(dep->node->job->real)
+		if(dep->node->job->cmdline)
 		{
 			/* do circular action dependency checking */
 			for(path = walkinfo->parent; path; path = path->parent)
@@ -505,7 +509,7 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 				node->dirty = NODEDIRTY_DEPDIRTY;
 			else if(node->timestamp < dep->node->timestamp)
 			{
-				if(node->job->real)
+				if(node->job->cmdline)
 					node->dirty = NODEDIRTY_DEPNEWER;
 				else /* no cmdline, just propagate the timestamp */
 					node->timestamp = dep->node->timestamp;
@@ -517,19 +521,32 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 	if(!walkinfo->revisiting)
 		node->targeted = 1;
 		
-	/* invalidate the cache cmd hash if we are dirty because
-		we could be dirty because if a dependency is missing */
-	if(node->dirty && node->job->real)
-		node->job->cachehash = 0;
-	
-	/* count commands */
-	if(node->job->real && node->dirty && !node->job->counted && node->targeted)
+	if(node->dirty && node->job->cmdline)
 	{
-		node->job->counted = 1;
+		/* invalidate the cache cmd hash if we are dirty because
+			we could be dirty because if a dependency is missing */
+		node->job->cachehash = 0;
 
-		/* add job to the list over jobs todo */
-		context->joblist[context->num_jobs] = node->job;
-		context->num_jobs++;
+		/* propagate dirty to our other outputs */
+		for(dep = node->job->firstoutput; dep; dep = dep->next)
+		{
+			if(!dep->node->dirty)
+			{
+				dep->node->dirty = node->dirty;
+				for(parent = dep->node->firstparent; parent; parent = parent->next)
+					node_walk_revisit(walkinfo, parent->node);				
+			}
+		}
+	
+		/* count commands */
+		if(!node->job->counted && node->targeted)
+		{
+			node->job->counted = 1;
+
+			/* add job to the list over jobs todo */
+			context->joblist[context->num_jobs] = node->job;
+			context->num_jobs++;
+		}
 	}
 	
 	/* check if we should revisit it's parents to

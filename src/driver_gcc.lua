@@ -108,6 +108,9 @@ function SetDriversGCC(settings)
 		if platform == "macosx" then
 			settings.dll.prefix = "lib"
 			settings.dll.extension = ".dylib"
+		elseif family == "windows" then
+			settings.dll.prefix = ""
+			settings.dll.extension = ".dll"
 		else
 			settings.dll.prefix = ""
 			settings.dll.extension = ".so"
