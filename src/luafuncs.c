@@ -17,6 +17,14 @@
 #include "mem.h"
 #include "session.h"
 
+static struct NODE *node_get_or_fail(lua_State *L, struct GRAPH *graph, const char *filename)
+{
+	struct NODE *node = node_get(graph, filename);
+	if(node == NULL)
+		luaL_error(L, "error creating node");
+	return node;
+}
+
 void build_stringlist(lua_State *L, struct HEAP *heap, struct STRINGLIST **first, int table_index)
 {
 	struct STRINGLIST *listitem;
@@ -179,7 +187,7 @@ static void callback_node_attrib(lua_State *L, void *user)
 {
 	struct NODEATTRIB_CBINFO *info = (struct NODEATTRIB_CBINFO *)user;
 	const char *othername = lua_tostring(L, -1);
-	struct NODE *othernode = node_get(info->node->graph, othername);
+	struct NODE *othernode = node_get_or_fail(L, info->node->graph, othername);
 	if(!info->callback(info->node, othernode))
 		luaL_error(L, "could not add '%s' to '%s'", othername, lua_tostring(L, 1));
 }
@@ -245,7 +253,7 @@ static void callback_addjob_deps(lua_State *L, void *user)
 	filename = lua_tostring(L, -1);
 
 	for(link = job->firstoutput; link; link = link->next)
-		node_add_dependency (link->node, node_get(link->node->graph, filename));
+		node_add_dependency (link->node, node_get_or_fail(L, link->node->graph, filename));
 }
 
 /* add_job(string/table output, string label, string command, ...) */
