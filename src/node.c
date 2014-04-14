@@ -337,15 +337,6 @@ struct NODE *node_job_add_dependency (struct NODE *node, struct NODE *depnode)
 
 
 /* adds a dependency to a node */
-/*
-struct NODE *node_add_dependency(struct NODE *node, const char *filename)
-{
-	struct NODE *depnode = node_get(node->graph, filename);
-	if(!depnode)
-		return NULL;
-	return node_add_dependency (node, depnode);
-}*/
-
 static struct NODE *node_add_constraint (struct NODELINK **first, struct NODE *node, struct NODE *contraint)
 {
 	struct NODELINK *link = (struct NODELINK *)mem_allocate(node->graph->heap, sizeof(struct NODELINK));
