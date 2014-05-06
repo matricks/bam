@@ -742,6 +742,8 @@ int lf_table_tostring(struct lua_State *L)
 	size_t prefix_len, postfix_len;
 	size_t total_len = 0;
 	size_t item_len = 0;
+	size_t table_len = 0;
+	size_t iterator = 0;	
 	const char *prefix;
 	const char *postfix;
 	char *buffer;
@@ -757,12 +759,14 @@ int lf_table_tostring(struct lua_State *L)
 	postfix = lua_tolstring(L, 3, &postfix_len);
 	
 	/* first, figure out the total size */
+	table_len = lua_objlen(L, 1 );
 	
 	/* 4: iterator */
-	lua_pushnil(L);
-	while(lua_next(L, 1))
+	for( iterator = 1; iterator <= table_len; iterator++ )
 	{
 		/* 5: value */
+		lua_rawgeti(L, 1, iterator);
+
 		if(lua_type(L, -1) == LUA_TSTRING)
 		{
 			lua_tolstring(L, -1, &item_len);
@@ -782,10 +786,11 @@ int lf_table_tostring(struct lua_State *L)
 	current = buffer;
 
 	/* 4: iterator */
-	lua_pushnil(L);
-	while(lua_next(L, 1))
+	for( iterator = 1; iterator <= table_len; iterator++ )
 	{
 		/* 5: value */
+		lua_rawgeti(L, 1, iterator);
+
 		if(lua_type(L, -1) == LUA_TSTRING)
 		{
 			item = lua_tolstring(L, -1, &item_len);
