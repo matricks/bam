@@ -21,6 +21,8 @@ int lf_default_target(struct lua_State *L);
 int lf_update_globalstamp(struct lua_State *L);
 int lf_nodeexist(struct lua_State *L);
 
+int lf_isoutput(struct lua_State *L);
+
 /* dependency */
 int lf_add_dependency_cpp_set_paths(lua_State *L); /* dep_cpp.c */
 int lf_add_dependency_cpp(lua_State *L); /* dep_cpp.c */

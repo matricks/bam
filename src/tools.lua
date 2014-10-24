@@ -265,7 +265,9 @@ function CompileC(settings, input)
 	local outname = cc.Output(settings, input) .. cc.extension
 	cc.DriverC(settings.labelprefix .. "c " .. input, outname, input, settings)
 	AddDependency(outname, input)
-	bam_add_dependency_cpp(input)
+	if not IsOutput(input) then
+		bam_add_dependency_cpp(input)
+	end
 	return outname
 end
 
@@ -274,7 +276,9 @@ function CompileCXX(settings, input)
 	local outname = cc.Output(settings, input) .. cc.extension
 	cc.DriverCXX(settings.labelprefix .. "c++ " .. input, outname, input, settings)
 	AddDependency(outname, input)
-	bam_add_dependency_cpp(input)
+	if not IsOutput(input) then
+		bam_add_dependency_cpp(input)
+	end
 	return outname
 end
 

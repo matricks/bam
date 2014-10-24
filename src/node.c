@@ -274,6 +274,13 @@ struct NODE *node_add_dependency (struct NODE *node, struct NODE *depnode)
 		
 		return node;
 	}
+
+	/* */
+	if(node->job == depnode->job && node->job->cmdline)
+	{
+		printf("error: node '%s' is depended on '%s' and they are produced by the same job\n", node->filename, depnode->filename);
+		return (struct NODE*)0x0;
+	}
 	
 	/* check if we are already dependent on this node */
 	treelink = nodelinktree_find_closest(node->deproot, depnode->hashid);

@@ -374,6 +374,7 @@ int register_lua_globals(struct lua_State *lua, const char* script_directory, co
 
 	lua_register(lua, L_FUNCTION_PREFIX"isstring", lf_isstring);
 	lua_register(lua, L_FUNCTION_PREFIX"istable", lf_istable);
+	lua_register(lua, L_FUNCTION_PREFIX"isoutput", lf_isoutput);
 
 	lua_register(lua, L_FUNCTION_PREFIX"table_walk", lf_table_walk);
 	lua_register(lua, L_FUNCTION_PREFIX"table_deepcopy", lf_table_deepcopy);

@@ -327,6 +327,28 @@ int lf_nodeexist(struct lua_State *L)
 	return 1;
 }
 
+/* isoutput(string nodename) */
+int lf_isoutput(struct lua_State *L)
+{
+	struct NODE *node;
+	
+	if(lua_gettop(L) != 1)
+		luaL_error(L, "isoutput: takes exactly one argument");
+
+	luaL_checktype(L, 1, LUA_TSTRING);
+	
+	node = node_find(context_get_pointer(L)->graph, lua_tostring(L,1));
+	if(!node)
+		luaL_error(L, "isoutput: couldn't find node with name '%s'", lua_tostring(L,1));
+	else
+	{
+		if(node->job->cmdline)
+			lua_pushboolean(L, 1);
+		else
+			lua_pushboolean(L, 0);
+	}
+	return 1;
+}
 
 /* default_target(string filename) */
 int lf_default_target(lua_State *L)

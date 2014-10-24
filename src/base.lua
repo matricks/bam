@@ -2,6 +2,7 @@
 ScriptArgs = _bam_scriptargs
 IsString = bam_isstring
 IsTable = bam_istable
+IsOutput = bam_isoutput
 Exist = bam_fileexist
 NodeExist = bam_nodeexist
 SetFilter = bam_set_filter
