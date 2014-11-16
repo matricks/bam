@@ -651,16 +651,16 @@ void node_debug_dump_jobs(struct GRAPH *graph)
 	static const char *dirtyflag[] = {"--", "MI", "CH", "DD", "DN", "GS", "FO"};
 	printf("MI = Missing CH = Command hash dirty, DD = Dependency dirty\n");
 	printf("DN = Dependency is newer, GS = Global stamp is newer, FO = Forced dirty\n");
-	printf("Dirty %-30s Command\n", "Label");
+	printf("Dirty Prio %-30s Command\n", "Label");
 	for(;job;job = job->next)
 	{
 
-		printf(" %s   %-30s %s\n", "  ", job->label, job->cmdline);
+		printf(" %s   %4d %-30s %s\n", "  ", job->priority, job->label, job->cmdline);
 		
 		for(link = job->firstoutput; link; link = link->next)
-			printf(" %s     OUTPUT %-30s\n", dirtyflag[link->node->dirty], link->node->filename);
+			printf(" %s          OUTPUT %-30s\n", dirtyflag[link->node->dirty], link->node->filename);
 
 		for(link = job->firstjobdep; link; link = link->next)
-			printf(" %s     DEPEND %-30s\n", dirtyflag[link->node->dirty], link->node->filename);
+			printf(" %s          DEPEND %-30s\n", dirtyflag[link->node->dirty], link->node->filename);
 	}
 }
