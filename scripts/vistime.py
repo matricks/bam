@@ -138,7 +138,7 @@ class TkGui:
 		self.statusbar.pack( side=Tkinter.BOTTOM, fill=Tkinter.X )
 		
 		self.scrollbarx = Tkinter.Scrollbar( self.win, orient=Tkinter.HORIZONTAL, width=24 )
-		self.scrollbarx.grid(column=0, row=1, sticky=(Tkinter.W,Tkinter.E))
+		#self.scrollbarx.grid(column=0, row=1, sticky=(Tkinter.W,Tkinter.E))
 		self.scrollbarx.pack( side = Tkinter.BOTTOM, fill=Tkinter.X )
 		
 		self.canvas = Tkinter.Canvas( self.win, bg="lightgray",
@@ -146,7 +146,7 @@ class TkGui:
 			scrollregion=( 0, 0, canvasSize[ 0 ], canvasSize[ 1 ] ),
 			xscrollcommand=self.scrollbarx.set 
 			)
-		self.canvas.grid( column=0, row=0, sticky=( Tkinter.N, Tkinter.W, Tkinter.E, Tkinter.S ) )
+		#self.canvas.grid( column=0, row=0, sticky=( Tkinter.N, Tkinter.W, Tkinter.E, Tkinter.S ) )
 		
 		
 		self.scrollbarx.config( command = self.canvas.xview )
