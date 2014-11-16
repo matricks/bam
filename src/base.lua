@@ -7,6 +7,8 @@ Exist = bam_fileexist
 NodeExist = bam_nodeexist
 SetFilter = bam_set_filter
 AddOutput = bam_add_output
+SetPriority = bam_set_priority
+ModifyPriority = bam_modify_priority
 
 --[[@GROUP Common @END]]--
 

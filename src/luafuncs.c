@@ -350,6 +350,50 @@ int lf_isoutput(struct lua_State *L)
 	return 1;
 }
 
+
+/* lf_set_priority(string nodename, prio) */
+int lf_set_priority(struct lua_State *L)
+{
+	struct NODE *node;
+	
+	if(lua_gettop(L) != 2)
+		luaL_error(L, "set_priority: takes exactly one argument");
+
+	luaL_checktype(L, 1, LUA_TSTRING);
+	luaL_checktype(L, 2, LUA_TNUMBER);
+	
+	node = node_find(context_get_pointer(L)->graph, lua_tostring(L,1));
+	if(!node)
+		luaL_error(L, "set_priority: couldn't find node with name '%s'", lua_tostring(L,1));
+	else if(!node->job->cmdline)
+		luaL_error(L, "set_priority: '%s' is not a job", lua_tostring(L,1));
+	else
+		node->job->priority = lua_tointeger(L,2);
+	return 1;
+}
+
+
+/* lf_modify_priority(string nodename, prio) */
+int lf_modify_priority(struct lua_State *L)
+{
+	struct NODE *node;
+	
+	if(lua_gettop(L) != 2)
+		luaL_error(L, "modify_priority: takes exactly one argument");
+
+	luaL_checktype(L, 1, LUA_TSTRING);
+	luaL_checktype(L, 2, LUA_TNUMBER);
+	
+	node = node_find(context_get_pointer(L)->graph, lua_tostring(L,1));
+	if(!node)
+		luaL_error(L, "modify_priority: couldn't find node with name '%s'", lua_tostring(L,1));
+	else if(!node->job->cmdline)
+		luaL_error(L, "modify_priority: '%s' is not a job", lua_tostring(L,1));
+	else
+		node->job->priority += lua_tointeger(L,2);
+	return 1;
+}
+
 /* default_target(string filename) */
 int lf_default_target(lua_State *L)
 {

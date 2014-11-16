@@ -347,6 +347,9 @@ int register_lua_globals(struct lua_State *lua, const char* script_directory, co
 	lua_register(lua, L_FUNCTION_PREFIX"default_target", lf_default_target);
 	lua_register(lua, L_FUNCTION_PREFIX"set_filter", lf_set_filter);
 
+	lua_register(lua, L_FUNCTION_PREFIX"set_priority", lf_set_priority);
+	lua_register(lua, L_FUNCTION_PREFIX"modify_priority", lf_modify_priority);
+
 	/* advanced dependency checkers */
 	lua_register(lua, L_FUNCTION_PREFIX"add_dependency_cpp_set_paths", lf_add_dependency_cpp_set_paths);
 	lua_register(lua, L_FUNCTION_PREFIX"add_dependency_cpp", lf_add_dependency_cpp);
