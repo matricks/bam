@@ -69,6 +69,7 @@ static int option_abort_on_error = 0;
 static int option_debug_nodes = 0;
 static int option_debug_nodes_detailed = 0;
 static int option_debug_jobs = 0;
+static int option_debug_joblist = 0;
 static int option_debug_dot = 0;
 static int option_debug_jobs_dot = 0;
 static int option_debug_dumpinternal = 0;
@@ -245,6 +246,10 @@ static struct OPTION options[] = {
 	/*@OPTION Debug: Dump Jobs ( --debug-jobs )
 	@END*/
 	{OF_DEBUG, 0, &option_debug_jobs		, "--debug-jobs", "prints all the jobs that exist"},
+
+	/*@OPTION Debug: Dump Joblist ( --debug-joblist )
+	@END*/
+	{OF_DEBUG, 0, &option_debug_joblist		, "--debug-joblist", "prints all the job in the order that they will be attempted"},
 
 	/*@OPTION Debug: Dump Dot ( --debug-dot )
 		Dumps all nodes in the dependency graph into a dot file that can
@@ -771,6 +776,8 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 				node_debug_dump_detailed(context.graph);
 			else if(option_debug_jobs) /* debug dump all jobs */
 				node_debug_dump_jobs(context.graph);
+			else if(option_debug_joblist) /* debug dumps the joblist */
+				context_dump_joblist(&context);
 			else if(option_debug_dot) /* debug dump all nodes as dot */
 				node_debug_dump_dot(context.graph, context.target);
 			else if(option_debug_jobs_dot) /* debug dump all jobs as dot */

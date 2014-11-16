@@ -56,6 +56,8 @@ int context_build_prioritize(struct CONTEXT *context);
 int context_build_clean(struct CONTEXT *context);
 int context_build_make(struct CONTEXT *context);
 
+void context_dump_joblist(struct CONTEXT *context);
+
 extern const char *CONTEXT_LUA_SCRIPTARGS_TABLE;
 extern const char *CONTEXT_LUA_TARGETS_TABLE;
 extern const char *CONTEXT_LUA_PATH;

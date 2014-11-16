@@ -616,3 +616,21 @@ int context_build_prioritize(struct CONTEXT *context)
 
 	return error_code;
 }
+
+void context_dump_joblist(struct CONTEXT *context)
+{
+	int i;
+	struct JOB * job;
+	struct NODELINK * link;
+
+	printf("Priority Outputs\n");
+	for(i = 0; i < context->num_jobs; i++)
+	{
+		job = context->joblist[i];
+		link = job->firstoutput;
+		printf("%8d %s\n", job->priority, link->node->filename);
+		link = link->next;
+		for(; link; link = link->next)
+			printf("         %s\n", link->node->filename);
+	}
+}
