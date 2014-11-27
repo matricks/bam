@@ -61,13 +61,12 @@ function DriverCL_CTest(code, options)
 	return ret==0
 end
 
-__DriverCL_ResponseId = 0
 function DriverCL_BuildResponse(exec, output, input)
 	if string.len(exec) + string.len(input) < 8000 then
 		return exec .. " " .. input
 	else
-		__DriverCL_ResponseId = __DriverCL_ResponseId + 1
-		local response_filename = ".bam/" .. __DriverCL_ResponseId .. ".resp"
+		-- use the hash of the input so the command line changes if the input changes
+		local response_filename = ".bam/" .. Hash(input) .. ".resp"
 		local response_file = io.open(response_filename, "w")
 		response_file:write(input)
 		response_file:close()
