@@ -10,6 +10,12 @@ AddOutput = bam_add_output
 SetPriority = bam_set_priority
 ModifyPriority = bam_modify_priority
 
+--[[@UNITTESTS
+	catch="0000000000001505" : Hash("")
+	catch="bc517990f19c4304" : Hash("Hello World!")
+@END]]--
+Hash = bam_hash
+
 --[[@GROUP Common @END]]--
 
 --[[@FUNCTION CheckVersion

@@ -50,6 +50,7 @@ int lf_table_tostring(struct lua_State *L);
 int lf_table_flatten(struct lua_State *L);
 
 /* support, misc */
+int lf_hash(struct lua_State *L);
 int lf_istable(struct lua_State *L);
 int lf_isstring(struct lua_State *L);
 int lf_loadfile(struct lua_State *L);

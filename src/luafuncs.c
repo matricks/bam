@@ -609,6 +609,21 @@ int lf_isstring(lua_State *L)
 	return 1;
 }
 
+int lf_hash(struct lua_State *L)
+{
+	char hashstr[64];
+
+	if(lua_gettop(L) < 1)
+		luaL_error(L, "hash: too few arguments");	
+
+	if(!lua_isstring(L, 1))
+		luaL_error(L, "hash: expected string");
+		
+	string_hash_tostr(string_hash(lua_tostring(L,1)), hashstr);
+	lua_pushstring(L, hashstr);
+	return 1;
+}
+
 /* TODO: remove this limit */
 #define WALK_MAXDEPTH 32
 
