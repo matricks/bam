@@ -760,7 +760,7 @@ hash_t string_hash_add(hash_t h, const char *str_in)
 {
 	const unsigned char *str = (const unsigned char *)str_in;
 	for (; *str; str++)
-		h = 33*h + tolower_table[*str];
+		h = (33*h) ^ tolower_table[*str];
 	return h;
 }
 #else
@@ -768,7 +768,7 @@ hash_t string_hash_add(hash_t h, const char *str_in)
 hash_t string_hash_add(hash_t h, const char *str)
 {
 	for (; *str; str++)
-		h = 33*h + *str;
+		h = (33*h) ^ *str;
 	return h;
 }
 #endif
