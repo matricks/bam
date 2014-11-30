@@ -700,6 +700,8 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 	return 0;
 }
 
+extern struct CONTEXT *lua_context;
+
 /* *** */
 static int bam(const char *scriptfile, const char **targets, int num_targets)
 {
@@ -725,7 +727,10 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	/* create lua context */
 	/* HACK: Store the context pointer as the userdata pointer to the allocator to make
 		sure that we have fast access to it. This makes the context_get_pointer call very fast */
-	context.lua = lua_newstate(lua_alloctor_malloc, &context);
+	/*context.lua = lua_newstate(lua_alloctor_malloc, &context);*/
+	lua_context = &context;
+	context.lua = luaL_newstate();
+	/*lua_setallocf(context.lua, lua_alloctor_malloc, &context);*/
 
 	/* install panic function */
 	lua_atpanic(context.lua, lf_panicfunc);

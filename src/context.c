@@ -20,14 +20,19 @@ const char *CONTEXT_LUA_TARGETS_TABLE = "_bam_targets";
 const char *CONTEXT_LUA_PATH = "_bam_path";
 const char *CONTEXT_LUA_WORKPATH = "_bam_workpath";
 
+struct CONTEXT *lua_context = NULL;
+
 /* */
 struct CONTEXT *context_get_pointer(lua_State *L)
 {
 	/* HACK: we store the context pointer as the user data to
 		to the allocator for fast access to it */
+	return lua_context;
+	/*
 	void *context;
 	lua_getallocf(L, &context);
 	return (struct CONTEXT*)context;
+	*/
 }
 
 /*  */

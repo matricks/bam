@@ -5,10 +5,10 @@
 
 @REM ------ Generate fileliest
 @move src\tools\txt2c.c src\tools\txt2c.c.temp > nul
-@dir /s /b src\*.c > files
+@dir /s /b src\*.c external\lua\*.c > files
 @move src\tools\txt2c.c.temp src\tools\txt2c.c > nul
 
-@dmc -Isrc/lua @files -o bam.exe
+@dmc -Iexternal/lua @files -o bam.exe
 
 @REM ------ Restore everything
 @del *.obj *.map
