@@ -339,7 +339,7 @@ int lf_isoutput(struct lua_State *L)
 	
 	node = node_find(context_get_pointer(L)->graph, lua_tostring(L,1));
 	if(!node)
-		luaL_error(L, "isoutput: couldn't find node with name '%s'", lua_tostring(L,1));
+		lua_pushboolean(L, 0);
 	else
 	{
 		if(node->job->cmdline)
