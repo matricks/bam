@@ -320,7 +320,7 @@ int lf_nodeexist(struct lua_State *L)
 	luaL_checktype(L, 1, LUA_TSTRING);
 	
 	node = node_find(context_get_pointer(L)->graph, lua_tostring(L,1));
-	if(!node)
+	if(node)
 		lua_pushboolean(L, 1);
 	else
 		lua_pushboolean(L, 0);
