@@ -147,40 +147,39 @@ struct HEAP;
 struct CONTEXT;
 
 /* job status */
-#define JOBSTATUS_UNDONE 0   /* node needs build */
-#define JOBSTATUS_WORKING 1  /* a thread is working on this node */
-#define JOBSTATUS_DONE 2     /* node built successfully */
-#define JOBSTATUS_BROKEN 3   /* node tool reported an error or a dependency is broken */
+#define JOBSTATUS_UNDONE	0	/* node needs build */
+#define JOBSTATUS_WORKING	1	/* a thread is working on this node */
+#define JOBSTATUS_DONE		2	/* node built successfully */
+#define JOBSTATUS_BROKEN	3	/* node tool reported an error or a dependency is broken */
 
 /* special defines */
 #define TIMESTAMP_NONE		-1
 #define TIMESTAMP_PSEUDO	1
 
 /* node creation error codes */
-#define NODECREATE_OK 0
-#define NODECREATE_EXISTS 1  /* the node already exists */
-#define NODECREATE_NOTNICE 2 /* the path is not normalized */
-#define NODECREATE_INVALID_ARG 3 /* invalid arguments */
+#define NODECREATE_OK			0
+#define NODECREATE_EXISTS		1	/* the node already exists */
+#define NODECREATE_NOTNICE		2	/* the path is not normalized */
+#define NODECREATE_INVALID_ARG	3	/* invalid arguments */
 
 /* node walk flags */
-#define NODEWALK_FORCE 1    /* skips dirty checks and*/
-#define NODEWALK_TOPDOWN 2  /* callbacks are done top down */
-#define NODEWALK_BOTTOMUP 4 /* callbacks are done bottom up */
-#define NODEWALK_UNDONE 8   /* causes checking of the undone flag, does not decend if it's set */
-#define NODEWALK_QUICK 16   /* never visit the same node twice */
-#define NODEWALK_JOBS 32   /* walk the jobtree instead of the complete tree */
-#define NODEWALK_REVISIT (64|NODEWALK_QUICK) /* will do a quick pass and revisits all nodes thats
+#define NODEWALK_FORCE		1	/* skips dirty checks and*/
+#define NODEWALK_TOPDOWN	2	/* callbacks are done top down */
+#define NODEWALK_BOTTOMUP	4	/* callbacks are done bottom up */
+#define NODEWALK_UNDONE		8	/* causes checking of the undone flag, does not decend if it's set */
+#define NODEWALK_QUICK		16	/* never visit the same node twice */
+#define NODEWALK_JOBS		32	/* walk the jobtree instead of the complete tree */
+#define NODEWALK_REVISIT	(64|NODEWALK_QUICK) /* will do a quick pass and revisits all nodes thats
 	have been marked by node_walk_revisit(). path info won't be available when revisiting nodes */
 
 /* node dirty status */
 /* make sure to update node_debug_dump_jobs() when changing these */
-#define NODEDIRTY_NOT 0
-#define NODEDIRTY_MISSING 1     /* the output file is missing */
-#define NODEDIRTY_CMDHASH 2     /* the command doesn't match the one in the cache */
-#define NODEDIRTY_DEPDIRTY 3    /* one of the dependencies is dirty */
-#define NODEDIRTY_DEPNEWER 4    /* one of the dependencies is newer */
-#define NODEDIRTY_GLOBALSTAMP 5 /* the globaltimestamp is newer */
-#define NODEDIRTY_FORCED 6 		/* forced dirty */
+#define NODEDIRTY_MISSING		1	/* the output file is missing */
+#define NODEDIRTY_CMDHASH		2	/* the command doesn't match the one in the cache */
+#define NODEDIRTY_DEPDIRTY		4	/* one of the dependencies is dirty */
+#define NODEDIRTY_DEPNEWER		8	/* one of the dependencies is newer */
+#define NODEDIRTY_GLOBALSTAMP	16	/* the globaltimestamp is newer */
+#define NODEDIRTY_FORCED		32	/* forced dirty */
 
 /* you destroy graphs by destroying the heap */
 struct GRAPH *node_graph_create(struct HEAP *heap);
