@@ -4,7 +4,6 @@
 
 struct CHUNK
 {
-	char *memory;
 	char *current;
 	char *end;
 	struct CHUNK *next;
@@ -34,9 +33,8 @@ static struct CHUNK *mem_newchunk(int chunksize)
 	/* the chunk structure is located in the begining of the chunk */
 	/* init it and return the chunk */
 	chunk = (struct CHUNK*)mem;
-	chunk->memory = (char*)(chunk+1);
-	chunk->current = chunk->memory;
-	chunk->end = chunk->memory + chunksize;
+	chunk->current = (char*)(chunk+1);
+	chunk->end = chunk->current + chunksize;
 	chunk->next = (struct CHUNK *)0x0;
 	return chunk;
 }
