@@ -15,6 +15,8 @@
 
 #if defined(__GNUC__)
 	#define sync_barrier() __sync_synchronize()
+#elif defined(_AIX)
+	#define sync_barrier() __lwsync()
 #elif defined(_MSC_VER)
 	#include <intrin.h>
 	#define sync_barrier() _ReadWriteBarrier()

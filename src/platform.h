@@ -55,6 +55,13 @@
 	#define BAM_PLATFORM_STRING "macosx"
 #endif
 
+#if defined(_AIX)
+	#define BAM_FAMILY_UNIX
+	#define BAM_FAMILY_STRING "unix"
+	#define BAM_PLATFORM_AIX
+	#define BAM_PLATFORM_STRING "aix"
+#endif
+
 #if defined(__sun)
 	#define BAM_FAMILY_UNIX
 	#define BAM_FAMILY_STRING "unix"
