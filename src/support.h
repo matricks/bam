@@ -20,6 +20,8 @@
 #elif defined(__SUNPRO_C) || defined(__SUNPRO_CC)
 	#include <mbarrier.h>
 	#define sync_barrier() __compiler_barrier()
+#elif defined(__hpux)
+	#define sync_barrier() _Asm_mf()
 #elif defined(_MSC_VER)
 	#include <intrin.h>
 	#define sync_barrier() _ReadWriteBarrier()

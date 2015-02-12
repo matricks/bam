@@ -69,6 +69,13 @@
 	#define BAM_PLATFORM_STRING "solaris"
 #endif
 
+#if defined(__hpux)
+	#define BAM_FAMILY_UNIX
+	#define BAM_FAMILY_STRING "unix"
+	#define BAM_PLATFORM_HPUX
+	#define BAM_PLATFORM_STRING "hpux"
+#endif
+
 /* beos family */
 #if defined(__BeOS) || defined(__BEOS__)
 	#define BAM_FAMILY_BEOS

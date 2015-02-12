@@ -270,6 +270,15 @@
 		if(count >= 1)
 			return count;
 		return 1;
+#elif defined(BAM_PLATFORM_HPUX)
+#include <sys/pstat.h>
+	struct pst_dynamic psd;
+
+	if (!pstat_getdynamic(&psd, sizeof(psd), (size_t)1, 0))
+	{
+		return psd.psd_proc_cnt;
+	}
+	return 1;
 #else
 	    int count = sysconf(_SC_NPROCESSORS_ONLN);
 	    if(count >= 1)
