@@ -16,7 +16,10 @@
 #if defined(__GNUC__)
 	#define sync_barrier() __sync_synchronize()
 #elif defined(_AIX)
-	#define sync_barrier() __lwsync()
+	#define sync_barrier() __lwsync()i
+#elif defined(__SUNPRO_C) || defined(__SUNPRO_CC)
+	#include <mbarrier.h>
+	#define sync_barrier() __compiler_barrier
 #elif defined(_MSC_VER)
 	#include <intrin.h>
 	#define sync_barrier() _ReadWriteBarrier()
