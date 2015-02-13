@@ -118,6 +118,11 @@
 	#define BAM_ARCH_STRING "sparc"
 #endif
 
+#if defined(__ARM_ARCH_7A__)
+	#define BAM_ARCH_ARM7
+	#define BAM_ARCH_STRING "armv7l"
+#endif
+
 
 #ifndef BAM_FAMILY_STRING
 #define BAM_FAMILY_STRING "unknown"
