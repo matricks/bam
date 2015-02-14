@@ -65,7 +65,7 @@
 #if defined(__sun)
 	#define BAM_FAMILY_UNIX
 	#define BAM_FAMILY_STRING "unix"
-	#define BAM_PLATFROM_SOLARIS
+	#define BAM_PLATFORM_SOLARIS
 	#define BAM_PLATFORM_STRING "solaris"
 #endif
 
