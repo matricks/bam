@@ -113,7 +113,7 @@
 	#define BAM_ARCH_STRING "ppc"
 #endif
 
-#if defined(__sparc__)
+#if defined(__sparc)
 	#define BAM_ARCH_SPARC
 	#define BAM_ARCH_STRING "sparc"
 #endif
