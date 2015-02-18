@@ -118,7 +118,7 @@
 	#define BAM_ARCH_STRING "sparc"
 #endif
 
-#if defined(__ARM_ARCH_7A__)
+#if defined(__arm__) || defined(__ARM_ARCH_6__) || defined(__ARM_ARCH_7A__)
 	#define BAM_ARCH_ARM7
 	#define BAM_ARCH_STRING "armv7l"
 #endif
