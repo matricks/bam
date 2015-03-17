@@ -50,6 +50,8 @@ end
 ------------------------ LIB GCC DRIVER ------------------------
 
 function DriverGCC_Lib(output, inputs, settings)
+	-- output archive must be removed because ar will update existing archives, possibly leaving stray objects
+	os.remove(output)
 	local e = settings.lib.exe .. " rcu " .. output
 	local e = e .. " " .. TableToString(inputs, '', ' ') .. settings.lib.flags:ToString()
 	return e
