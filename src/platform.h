@@ -55,11 +55,25 @@
 	#define BAM_PLATFORM_STRING "macosx"
 #endif
 
+#if defined(_AIX)
+	#define BAM_FAMILY_UNIX
+	#define BAM_FAMILY_STRING "unix"
+	#define BAM_PLATFORM_AIX
+	#define BAM_PLATFORM_STRING "aix"
+#endif
+
 #if defined(__sun)
 	#define BAM_FAMILY_UNIX
 	#define BAM_FAMILY_STRING "unix"
-	#define BAM_PLATFROM_SOLARIS
+	#define BAM_PLATFORM_SOLARIS
 	#define BAM_PLATFORM_STRING "solaris"
+#endif
+
+#if defined(__hpux)
+	#define BAM_FAMILY_UNIX
+	#define BAM_FAMILY_STRING "unix"
+	#define BAM_PLATFORM_HPUX
+	#define BAM_PLATFORM_STRING "hpux"
 #endif
 
 /* beos family */
@@ -99,9 +113,14 @@
 	#define BAM_ARCH_STRING "ppc"
 #endif
 
-#if defined(__sparc__)
+#if defined(__sparc)
 	#define BAM_ARCH_SPARC
 	#define BAM_ARCH_STRING "sparc"
+#endif
+
+#if defined(__arm__) || defined(__ARM_ARCH_7A__)
+	#define BAM_ARCH_ARM7
+	#define BAM_ARCH_STRING "armv7l"
 #endif
 
 
