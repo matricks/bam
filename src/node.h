@@ -87,7 +87,7 @@ struct NODE
 	hash_t hashid; /* hash of the filename/nodename */
 	
 	/* time stamps, 0 == does not exist. */
-	time_t timestamp; /* timestamp. this will be updated from the deps of the node */
+	time_t timestamp; /* timestamp. this will be propagated from the deps of the node */
 	time_t timestamp_raw; /* raw timestamp. contains the timestamp on the disc */
 	
 	unsigned id; /* used when doing traversal with marking (bitarray) */
