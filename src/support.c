@@ -373,7 +373,7 @@ static void passthru(FILE *fp)
 }
 #endif
 
-#ifdef BAM_FAMILY_WINDOWS
+#if defined(BAM_FAMILY_WINDOWS) || defined(BAM_PLATFORM_CYGWIN)
 /* forward declaration */
 FILE *_popen(const char *, const char *);
 int _pclose(FILE *);
