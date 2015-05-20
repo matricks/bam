@@ -420,12 +420,16 @@ int context_build_make(struct CONTEXT *context)
 static int build_clean_callback(struct NODEWALK *walkinfo)
 {
 	struct NODE *node = walkinfo->node;
+	struct NODELINK *link;
 	
 	/* no tool, no processing */
 	if(node->job->cmdline && node->timestamp)
 	{
-		if(remove(node->filename) == 0)
-			printf("%s: removed '%s'\n", session.name, node->filename);
+		for(link = node->job->firstoutput; link; link = link->next)
+		{
+			if(remove(link->node->filename) == 0)
+				printf("%s: removed '%s'\n", session.name, link->node->filename);
+		}
 	}
 	return 0;
 }
