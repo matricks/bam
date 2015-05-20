@@ -9,10 +9,17 @@
 #include "support.h"
 
 /* */
+struct STRINGLINK
+{
+	struct STRINGLINK *next;
+	char *str;
+};
+
+/* */
 struct NODELINK
 {
-	struct NODE *node;
 	struct NODELINK *next;
+	struct NODE *node;
 };
 
 struct NODETREELINK
@@ -35,7 +42,8 @@ struct JOB
 
 	struct JOB *next; /* next job in the global joblist. head is stored in the graph */
 
-	struct NODELINK *firstoutput;
+	struct NODELINK *firstoutput; /* list of all outputs */
+	struct STRINGLINK *firstclean; /* list of extra files to remove when cleaning */
 
 	struct NODELINK *firstjobdep; /* list of job dependencies */
 	struct NODETREELINK *jobdeproot; /* tree of job dependencies */
@@ -199,6 +207,7 @@ struct NODE *node_find_byhash(struct GRAPH *graph, hash_t hashid);
 struct NODE *node_get(struct GRAPH *graph, const char *filename);
 /*struct NODE *node_add_dependency(struct NODE *node, const char *filename);*/
 struct NODE *node_add_dependency(struct NODE *node, struct NODE *depnode);
+int node_add_clean(struct NODE *node, const char * filename);
 void node_cached(struct NODE *node);
 
 /* */
