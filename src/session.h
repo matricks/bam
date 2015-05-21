@@ -11,11 +11,11 @@ struct SESSION
 	
 	hash_t cache_hash;
 
-	// lua options
+	/* lua options */
 	int lua_backtrace;
 	int lua_locals;
 	
-	// report options
+	/* report options */
 	int report_color;
 	int report_bar;
 	int report_steps;
@@ -23,7 +23,7 @@ struct SESSION
 	FILE *eventlog;
 	int eventlogflush;
 
-	// windows options
+	/* windows options */
 	int win_msvcmode;
 
 	volatile int abort; /* raised to 1 when it's time to give up */
