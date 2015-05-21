@@ -26,6 +26,8 @@
 	#include <sys/utime.h>
 	#include <signal.h>
 	#include <direct.h> /* _mkdir */
+
+	#include <Aclapi.h> /* for protect_process */
 	
 	static void list_directory(const char *path, void (*callback)(const char *filename, int dir, void *user), void *user)
 	{
@@ -64,27 +66,162 @@
 		FindClose(handle);
 	}
 
+	static HANDLE singleton_mutex = 0;
+	static DWORD observe_pid = 0;
+	static void observer_thread(void *u)
+	{
+		HANDLE process = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, observe_pid);
+		DWORD errcode = -1;
+
+		while(1) {
+			WaitForSingleObject(process, INFINITE);
+			if(GetExitCodeProcess(process, &errcode) != 0) {
+				if(errcode != STILL_ACTIVE) {
+					printf("observed process %d died, aborting!\n", observe_pid);
+					session.abort = 1;
+					break;
+				}
+			}
+			Sleep(100);
+		}
+
+		CloseHandle(process);
+	}
+
 	/* signals. should be moved to platform.c or similar? */
 	void install_signals(void (*abortsignal)(int))
 	{
+		//abortsignal_func = abortsignal;
 		signal(SIGINT, abortsignal);
 		signal(SIGBREAK, abortsignal);
+	}
+
+	static const int protect_process()
+	{
+		HANDLE hProcess = GetCurrentProcess();
+		EXPLICIT_ACCESS denyAccess = {0};
+		DWORD dwAccessPermissions = GENERIC_WRITE|PROCESS_ALL_ACCESS|WRITE_DAC|DELETE|WRITE_OWNER|READ_CONTROL;
+		PACL pTempDacl = NULL;
+		DWORD dwErr = 0;
+		BuildExplicitAccessWithName( &denyAccess, "CURRENT_USER", dwAccessPermissions, DENY_ACCESS, NO_INHERITANCE );
+		dwErr = SetEntriesInAcl( 1, &denyAccess, NULL, &pTempDacl );
+		// check dwErr...
+		dwErr = SetSecurityInfo( hProcess, SE_KERNEL_OBJECT, DACL_SECURITY_INFORMATION, NULL, NULL, pTempDacl, NULL );
+		// check dwErr...
+		LocalFree( pTempDacl );
+		CloseHandle( hProcess );
+		return dwErr == ERROR_SUCCESS;
 	}
 
 	static CRITICAL_SECTION criticalsection;
 	void platform_init()
 	{
-		InitializeCriticalSection(&criticalsection);
-		
+		char buffer[512] = {0};
+
 		/* this environment variable is set by Microsoft Visual Studio
 			when building. It causes cl.exe to redirect it's output to
 			the specified pipe id. this causes loads of problems with
 			output.
 		*/ 
 		SetEnvironmentVariable("VS_UNICODE_OUTPUT", NULL);
+
+		/* check if we are being spawned by bam in msvc mode so we should be singleton */
+		if(GetEnvironmentVariable("BAM_SINGLETON", buffer, sizeof(buffer)-1))
+		{
+			DWORD ret;
+			SetEnvironmentVariable("BAM_SINGLETON", NULL);
+
+			singleton_mutex = CreateMutex(NULL, FALSE, "Global\\bam_singleton_mutex");
+			if(!singleton_mutex)
+			{
+				printf("bam is already running, wait for it to finish and then try again 1\n");
+				exit(1);
+			}
+
+			while(1)
+			{
+				ret = WaitForSingleObject( singleton_mutex, 100 );
+				if(ret == WAIT_OBJECT_0)
+					break;
+				else
+				{
+					//printf("bam is already running, wait for it to finish and then try again 2 (%d)\n", ret);
+					printf("bam is already running, waiting for it to finish\n"); fflush(stdout);
+					Sleep(1000);
+				}
+			}
+		}
+
+		/* this environment variable can be setup so that bam can observe if
+			a specific process dies and abort the building if it does. This
+			is used in conjunction with Microsoft Visual Studio to make sure
+			that it doesn't kill processes wildly.
+		*/
+		if(GetEnvironmentVariable("BAM_OBSERVE_PID", buffer, sizeof(buffer)-1))
+		{
+			observe_pid = atoi(buffer);
+			threads_create(observer_thread, NULL);
+
+			/* protect process from being killed */
+			protect_process();
+		}
+		else
+		{
+			if( session.win_msvcmode )
+			{
+				DWORD errcode;
+				PROCESS_INFORMATION pi;
+				STARTUPINFO si;
+
+				/* setup ourself to be watched */
+				sprintf(buffer, "%d", GetCurrentProcessId());
+				SetEnvironmentVariable("BAM_OBSERVE_PID", buffer);
+
+				/* signal that we want to be singleton */
+				SetEnvironmentVariable("BAM_SINGLETON", "1");
+
+				/* init structs and create process */
+				ZeroMemory( &si, sizeof(si) );
+				si.cb = sizeof(si);
+				ZeroMemory( &pi, sizeof(pi) );
+
+				if( CreateProcess(
+					NULL,      /* No module name (use command line) */
+					GetCommandLine(),   /* Command line */
+					NULL,      /* Process handle not inheritable */
+					NULL,      /* Thread handle not inheritable */
+					TRUE,      /* Set handle inheritance to FALSE */
+					0,         /* No creation flags */
+					NULL,      /* Use parent's environment block */
+					NULL,      /* Use parent's starting directory */
+					&si,       /* Pointer to STARTUPINFO structure */
+					&pi        /* Pointer to PROCESS_INFORMATION structure */
+				) ) {
+					/* wait for the child to complete */
+					WaitForSingleObject(pi.hProcess, INFINITE);
+					GetExitCodeProcess(pi.hProcess, &errcode);
+					CloseHandle(pi.hProcess);
+					CloseHandle(pi.hThread);
+					exit(errcode);
+				} else {
+					printf("failed to spawn new bam process in msvc mode\n");
+					printf("%s\n", GetCommandLine());
+					exit(1);
+				}
+			}
+		}
+
+		InitializeCriticalSection(&criticalsection);
 	}
 	
-	void platform_shutdown() { DeleteCriticalSection(&criticalsection); }
+	void platform_shutdown()
+	{
+		if(singleton_mutex)
+			ReleaseMutex(singleton_mutex);
+		CloseHandle(singleton_mutex);
+		DeleteCriticalSection(&criticalsection);
+	}
+
 	void criticalsection_enter() { EnterCriticalSection(&criticalsection); }
 	void criticalsection_leave() { LeaveCriticalSection(&criticalsection); }
 
