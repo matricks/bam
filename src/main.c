@@ -91,6 +91,8 @@ static int option_num_targets = 0;
 static const char *option_scriptargs[128] = {0};
 static int option_num_scriptargs = 0;
 
+static int option_win_msvcmode = 0;
+
 /* filename of the cache, will be filled in at start up, ".bam/xxxxxxxxyyyyyyyyy" = 22 top */
 static char cache_filename[32] = {0};
 
@@ -286,6 +288,15 @@ static struct OPTION options[] = {
 		Disables all the internal scripts that bam loads on startup.
 	@1, END*/
 	{OF_DEBUG, 0, &option_debug_nointernal		, "--debug-no-int", "don't load internal scripts"},
+
+	/* Magic highly exprimental switch for Microsoft Visual Studio. Enabling this will cause bam to execute
+		itself again and wait for the new child process to finish. The child process then removes the permissions
+		from the current user so visual studio can't kill the process. Then it starts a thread that monitors if
+		the parent process dies and then aborts the build softly without killing it's jobs. This fixes issues if
+		you abort a build in visual studio, it might leave broken object files behind. This also prevents
+		two bams to be started at the same time.
+	 */
+	{0, 0, &option_win_msvcmode		, "--win-msvc-mode", "exprimental option for visual studio"},
 
 	/* terminate list */
 	{0, 0, 0, (const char*)0, (const char*)0}
@@ -1008,9 +1019,6 @@ int main(int argc, char **argv)
 {
 	int i, error;
 
-	/* init platform */
-	platform_init();
-
 	/* set exe */
 	session.exe = argv[0];
 
@@ -1031,6 +1039,13 @@ int main(int argc, char **argv)
 	/* parse commandline parameters */
 	if(parse_parameters(argc-1, argv+1))
 		return -1;
+
+	/* set eventlog */
+	if(option_win_msvcmode)
+		session.win_msvcmode = option_win_msvcmode;
+
+	/* init platform */
+	platform_init();
 
 	/* set eventlog */
 	if(option_debug_eventlog)
