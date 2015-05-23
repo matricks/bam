@@ -2,6 +2,8 @@
 #include <lua.h>
 #include <lauxlib.h>
 #include <stdlib.h> /* system() */
+#include <string.h> /* strerror() */
+#include <errno.h> /* errno */
 
 #include "mem.h"
 #include "context.h"
@@ -457,33 +459,50 @@ int context_build_make(struct CONTEXT *context)
 	return context->errorcode;
 }
 
+static int clean_file(const char *filename)
+{
+	if(remove(filename) == 0)
+	{
+		printf("%s: removed '%s'\n", session.name, filename);
+		return 0;
+	}
+	else if(errno == ENOENT)
+	{
+		/* the error is "No such file or directory" which is fine */
+		return 0;
+	}
+	else
+	{
+		printf("%s: error removing '%s': %s\n", session.name, filename, strerror(errno));
+		return 1;
+	}
+}
+
 static int build_clean_callback(struct NODEWALK *walkinfo)
 {
 	struct NODE *node = walkinfo->node;
 	struct NODELINK *link;
 	struct STRINGLINK *strlink;
-	
+	int result = 0;
+
 	/* no tool, no processing */
-	if(node->job->cmdline)
+	if(node->job->cmdline && !node->job->cleaned)
 	{
 		for(link = node->job->firstoutput; link; link = link->next)
-		{
-			if(remove(link->node->filename) == 0)
-				printf("%s: removed '%s'\n", session.name, link->node->filename);
-		}
+			result |= clean_file(link->node->filename);
 
 		for(strlink = node->job->firstclean; strlink; strlink = strlink->next)
-		{
-			if(remove(strlink->str) == 0)
-				printf("%s: removed '%s'\n", session.name, strlink->str);
-		}
+			result |= clean_file(strlink->str);
+
+		node->job->cleaned = 1;
 	}
-	return 0;
+
+	return result;
 }
 
 int context_build_clean(struct CONTEXT *context)
 {
-	return node_walk(context->target, NODEWALK_BOTTOMUP|NODEWALK_FORCE|NODEWALK_QUICK, build_clean_callback, 0);
+	return node_walk(context->target, NODEWALK_BOTTOMUP|NODEWALK_FORCE|NODEWALK_QUICK|NODEWALK_NOABORT, build_clean_callback, 0);
 }
 
 static int build_prepare_callback(struct NODEWALK *walkinfo)
