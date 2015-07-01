@@ -855,7 +855,7 @@ static void abortsignal(int i)
 	static unsigned print = 1;
 	(void)i;
 	if(print)
-		printf("%s: signal cought, waiting for jobs to finish\n", session.name);
+		printf("%s: signal caught, waiting for jobs to finish\n", session.name);
 	print = 0;
 	session.abort = 1;
 }
