@@ -312,6 +312,14 @@ time_t file_timestamp(const char *filename)
 #endif
 }
 
+int file_isregular(const char *filename)
+{
+	struct stat s;
+	if(stat(filename, &s) == 0)
+		return S_ISREG(s.st_mode);
+	return 0;
+}
+
 int file_createdir(const char *path)
 {
 	int r;

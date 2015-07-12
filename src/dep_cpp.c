@@ -245,7 +245,7 @@ static int node_findfile(struct GRAPH *graph, const char *filename, struct NODE 
 
 	/* then check the file system */
 	*timestamp = file_timestamp(filename);
-	if(*timestamp)
+	if(*timestamp && file_isregular(filename))
 		return 1;
 
 	return 0;
