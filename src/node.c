@@ -342,6 +342,20 @@ struct NODE *node_job_add_dependency (struct NODE *node, struct NODE *depnode)
 	return depnode;
 }
 
+int node_add_clean(struct NODE *node, const char * filename)
+{
+	struct STRINGLINK * link;
+	if(!node->job->cmdline)
+		return -1;
+
+	/* create and add clean link */
+	link = (struct STRINGLINK *)mem_allocate(node->graph->heap, sizeof(struct STRINGLINK));
+	link->str = duplicate_string(node->graph, filename, strlen(filename));
+	link->next = node->job->firstclean;
+	node->job->firstclean = link;
+	return 0;
+}
+
 
 /* adds a dependency to a node */
 static struct NODE *node_add_constraint (struct NODELINK **first, struct NODE *node, struct NODE *contraint)
@@ -646,6 +660,7 @@ void node_debug_dump_jobs_dot(struct GRAPH *graph, struct NODE *top)
 void node_debug_dump_jobs(struct GRAPH *graph)
 {
 	struct NODELINK *link;
+	struct STRINGLINK *strlink;
 	struct JOB *job = graph->firstjob;
 
 	static const char *dirtyflag[] = {"--", "MI", "CH", "DD", "DN", "GS", "FO"};
@@ -654,11 +669,13 @@ void node_debug_dump_jobs(struct GRAPH *graph)
 	printf("Dirty Prio %-30s Command\n", "Label");
 	for(;job;job = job->next)
 	{
-
 		printf(" %s   %4d %-30s %s\n", "  ", job->priority, job->label, job->cmdline);
 		
 		for(link = job->firstoutput; link; link = link->next)
 			printf(" %s          OUTPUT %-30s\n", dirtyflag[link->node->dirty], link->node->filename);
+
+		for(strlink = job->firstclean; strlink; strlink = strlink->next)
+			printf(" %s          CLEAN  %-30s\n", "  ", strlink->str);
 
 		for(link = job->firstjobdep; link; link = link->next)
 			printf(" %s          DEPEND %-30s\n", dirtyflag[link->node->dirty], link->node->filename);

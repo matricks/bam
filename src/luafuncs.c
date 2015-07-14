@@ -177,6 +177,33 @@ int lf_add_output(lua_State *L)
 	return 0;
 }
 
+/* add_clean(string output, string other_output) */
+int lf_add_clean(lua_State *L)
+{
+	struct NODE *output;
+	struct CONTEXT *context;
+	const char *filename;
+	
+	if(lua_gettop(L) != 2)
+		luaL_error(L, "add_clean: incorrect number of arguments");
+
+	luaL_checktype(L, 1, LUA_TSTRING);
+	luaL_checktype(L, 2, LUA_TSTRING);
+	
+	context = context_get_pointer(L);
+
+	output = node_find(context->graph, lua_tostring(L,1));
+	if(!output)
+		luaL_error(L, "add_clean: couldn't find node with name '%s'", lua_tostring(L,1));
+
+	if(!output->job->cmdline)
+		luaL_error(L, "add_clean: '%s' does not have a job", lua_tostring(L,1));
+
+	filename = lua_tostring(L, -1);
+	if(node_add_clean(output, filename) != 0)
+		luaL_error(L, "add_clean: could not add '%s' to '%s'", filename, output->filename);
+	return 0;
+}
 struct NODEATTRIB_CBINFO
 {
 	struct NODE *node;
