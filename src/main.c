@@ -340,6 +340,7 @@ int register_lua_globals(struct lua_State *lua, const char* script_directory, co
 	/* add specific functions */
 	lua_register(lua, L_FUNCTION_PREFIX"add_job", lf_add_job);
 	lua_register(lua, L_FUNCTION_PREFIX"add_output", lf_add_output);
+	lua_register(lua, L_FUNCTION_PREFIX"add_clean", lf_add_clean);
 	lua_register(lua, L_FUNCTION_PREFIX"add_pseudo", lf_add_pseudo);
 	lua_register(lua, L_FUNCTION_PREFIX"add_dependency", lf_add_dependency);
 	lua_register(lua, L_FUNCTION_PREFIX"add_constraint_shared", lf_add_constraint_shared);
@@ -855,7 +856,7 @@ static void abortsignal(int i)
 	static unsigned print = 1;
 	(void)i;
 	if(print)
-		printf("%s: signal cought, waiting for jobs to finish\n", session.name);
+		printf("%s: signal caught, waiting for jobs to finish\n", session.name);
 	print = 0;
 	session.abort = 1;
 }

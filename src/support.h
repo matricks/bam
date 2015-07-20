@@ -15,6 +15,13 @@
 
 #if defined(__GNUC__)
 	#define sync_barrier() __sync_synchronize()
+#elif defined(_AIX)
+	#define sync_barrier() __lwsync()
+#elif defined(__SUNPRO_C) || defined(__SUNPRO_CC)
+	#include <mbarrier.h>
+	#define sync_barrier() __compiler_barrier()
+#elif defined(__hpux)
+	#define sync_barrier() _Asm_mf()
 #elif defined(_MSC_VER)
 	#include <intrin.h>
 	#define sync_barrier() _ReadWriteBarrier()
@@ -45,6 +52,7 @@ int64 time_freq();
 /* filesystem and timestamps */
 time_t timestamp();
 time_t file_timestamp(const char *filename);
+int file_isregular(const char *path);
 int file_createdir(const char *path);
 int file_createpath(const char *output_name);
 void file_touch(const char *filename);

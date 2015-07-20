@@ -183,6 +183,47 @@ static int runjob_create_outputpaths(struct JOB *job)
 	return 0;
 }
 
+/*
+	Makes sure that the job has updated the output timestamps correctly.
+	If not, we touch the output ourself.
+*/
+static void verify_outputs(struct CONTEXT *context, struct JOB *job)
+{
+	struct NODELINK *link;
+	time_t output_stamp;
+	const char *reason = NULL;
+
+	/* make sure that the tool updated the output timestamps */
+	for(link = job->firstoutput; link; link = link->next)
+	{
+		output_stamp = file_timestamp(link->node->filename);
+
+		/* did the job update the timestamp correctly */
+		reason = NULL;
+		if(output_stamp == link->node->timestamp_raw)
+			reason = "job did not update timestamp";
+		else if(output_stamp < context->buildtime)
+			reason = "timestamp was less then the build start timestamp";
+		else  if(output_stamp < link->node->timestamp)
+			reason = "timestamp was less then the propagated timestamp";
+
+		if(reason)
+		{
+			/* touch the file and get the new stamp */
+			file_touch(link->node->filename);
+			output_stamp = file_timestamp(link->node->filename);
+
+			if(session.verbose)
+			{
+				printf("%s: output '%s' was touched. %s\n", session.name, link->node->filename, reason);
+			}
+		}
+
+		/* set new timestamp */
+		link->node->timestamp_raw = output_stamp;
+	}
+}
+
 static int run_job(struct CONTEXT *context, struct JOB *job, int thread_id)
 {
 	struct NODELINK *link;
@@ -215,8 +256,7 @@ static int run_job(struct CONTEXT *context, struct JOB *job, int thread_id)
 	if(errorcode == 0)
 	{
 		/* make sure that the tool updated the timestamp */
-		for(link = job->firstoutput; link; link = link->next)
-			file_touch(link->node->filename);
+		verify_outputs(context, job);
 	}
 	criticalsection_enter();
 
@@ -420,12 +460,23 @@ int context_build_make(struct CONTEXT *context)
 static int build_clean_callback(struct NODEWALK *walkinfo)
 {
 	struct NODE *node = walkinfo->node;
+	struct NODELINK *link;
+	struct STRINGLINK *strlink;
 	
 	/* no tool, no processing */
-	if(node->job->cmdline && node->timestamp)
+	if(node->job->cmdline)
 	{
-		if(remove(node->filename) == 0)
-			printf("%s: removed '%s'\n", session.name, node->filename);
+		for(link = node->job->firstoutput; link; link = link->next)
+		{
+			if(remove(link->node->filename) == 0)
+				printf("%s: removed '%s'\n", session.name, link->node->filename);
+		}
+
+		for(strlink = node->job->firstclean; strlink; strlink = strlink->next)
+		{
+			if(remove(strlink->str) == 0)
+				printf("%s: removed '%s'\n", session.name, strlink->str);
+		}
 	}
 	return 0;
 }

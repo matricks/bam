@@ -270,6 +270,15 @@
 		if(count >= 1)
 			return count;
 		return 1;
+#elif defined(BAM_PLATFORM_HPUX)
+#include <sys/pstat.h>
+	struct pst_dynamic psd;
+
+	if (!pstat_getdynamic(&psd, sizeof(psd), (size_t)1, 0))
+	{
+		return psd.psd_proc_cnt;
+	}
+	return 1;
 #else
 	    int count = sysconf(_SC_NPROCESSORS_ONLN);
 	    if(count >= 1)
@@ -310,6 +319,14 @@ time_t file_timestamp(const char *filename)
 		return s.st_mtime;
 	return 0;
 #endif
+}
+
+int file_isregular(const char *filename)
+{
+	struct stat s;
+	if(stat(filename, &s) == 0)
+		return S_ISREG(s.st_mode);
+	return 0;
 }
 
 int file_createdir(const char *path)
@@ -373,7 +390,7 @@ static void passthru(FILE *fp)
 }
 #endif
 
-#ifdef BAM_FAMILY_WINDOWS
+#if defined(BAM_FAMILY_WINDOWS) || defined(BAM_PLATFORM_CYGWIN)
 /* forward declaration */
 FILE *_popen(const char *, const char *);
 int _pclose(FILE *);

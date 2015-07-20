@@ -288,6 +288,7 @@ AddTool(function (settings)
 	settings.compile.mappings["c"] = CompileC
 	settings.compile.mappings["m"] = CompileC
 	settings.compile.mappings["S"] = CompileC
+	settings.compile.mappings["s"] = CompileC
 end)
 
 AddTool(function (settings)
