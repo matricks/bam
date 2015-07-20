@@ -242,6 +242,9 @@ int cache_save(const char *filename, struct GRAPH *graph)
 	info.index = 0;
 	info.graph = graph;
 
+	/* create the cache and tmp directory */
+	file_createdir(".bam");
+
 	info.fp = io_open_write(filename);
 	if(!io_valid(info.fp))
 		return -1;
