@@ -36,9 +36,7 @@ end
 ------------------------ LINK GCC DRIVER ------------------------
 
 function DriverGCC_Link(label, output, inputs, settings)
-	-- output archive must be removed because ar will update existing archives, possibly leaving stray objects
-	local e = "rm -f " .. output .. " 2> /dev/null; "
-	local e = e .. settings.link.exe .. " -o " .. output
+	local e = settings.link.exe .. " -o " .. output
 	local e = e .. " " .. settings.link.inputflags .. " " .. TableToString(inputs, '', ' ') 
 	local e = e .. TableToString(settings.link.extrafiles, '', ' ')
 	local e = e .. TableToString(settings.link.libpath, '-L', ' ')
@@ -52,7 +50,9 @@ end
 ------------------------ LIB GCC DRIVER ------------------------
 
 function DriverGCC_Lib(output, inputs, settings)
-	local e = settings.lib.exe .. " rcu " .. output
+	-- output archive must be removed because ar will update existing archives, possibly leaving stray objects
+	local e = "rm -f " .. output .. " 2> /dev/null; "
+	local e = e .. settings.lib.exe .. " rcu " .. output
 	local e = e .. " " .. TableToString(inputs, '', ' ') .. settings.lib.flags:ToString()
 	return e
 end
