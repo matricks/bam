@@ -323,9 +323,18 @@ time_t file_timestamp(const char *filename)
 
 int file_isregular(const char *filename)
 {
+#ifdef BAM_FAMILY_WINDOWS
+	struct stat s;
+	if(stat(filename, &s) == 0)
+	{
+		if (s.st_mode&_S_IFREG)
+			return 1;
+	}
+#else
 	struct stat s;
 	if(stat(filename, &s) == 0)
 		return S_ISREG(s.st_mode);
+#endif
 	return 0;
 }
 
