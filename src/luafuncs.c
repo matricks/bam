@@ -578,7 +578,7 @@ int lf_mkdir(struct lua_State *L)
 	if(lua_gettop(L) < 1)
 		luaL_error(L, "mkdir: too few arguments");	
 
-	if(!lua_isstring(L,1))
+	if(!lua_isstring(L, 1))
 		luaL_error(L, "mkdir: expected string");
 		
 	if(file_createdir(lua_tostring(L,1)) == 0)
@@ -593,7 +593,7 @@ int lf_mkdirs(struct lua_State *L)
 	if(lua_gettop(L) < 1)
 		luaL_error(L, "mkdirs: too few arguments");	
 
-	if(!lua_isstring(L,1))
+	if(!lua_isstring(L, 1))
 		luaL_error(L, "mkdirs: expected string");
 		
 	if(file_createpath(lua_tostring(L,1)) == 0)
@@ -608,7 +608,7 @@ int lf_fileexist(struct lua_State *L)
 	if(lua_gettop(L) < 1)
 		luaL_error(L, "fileexist: too few arguments");	
 
-	if(!lua_isstring(L,1))
+	if(!lua_isstring(L, 1))
 		luaL_error(L, "fileexist: expected string");
 		
 	if(file_timestamp(lua_tostring(L,1)))
@@ -842,11 +842,10 @@ int lf_table_flatten(struct lua_State *L)
 	return 1;
 }
 
-static char string_buffer[1024*4];
-
 int lf_table_tostring(struct lua_State *L)
 {
 	/* 1: table 2: prefix, 3: postfix */
+	static char string_buffer[1024*4];
 	size_t prefix_len, postfix_len;
 	size_t total_len = 0;
 	size_t item_len = 0;
@@ -916,5 +915,375 @@ int lf_table_tostring(struct lua_State *L)
 	if(buffer != string_buffer)
 		free(buffer);
 	
+	return 1;
+}
+
+
+
+/* list directory functionallity */
+typedef struct
+{
+	lua_State *lua;
+	int i;
+} LISTDIR_CALLBACK_INFO;
+
+static void listdir_callback(const char *filename, int dir, void *user)
+{
+	LISTDIR_CALLBACK_INFO *info = (LISTDIR_CALLBACK_INFO *)user;
+	lua_pushstring(info->lua, filename);
+	lua_rawseti(info->lua, -2, info->i++);
+}
+
+int lf_listdir(lua_State *L)
+{
+	LISTDIR_CALLBACK_INFO info;
+	info.lua = L;
+	info.i = 1;
+	
+	/* create the table */
+	lua_newtable(L);
+
+	/* add all the entries */
+	if(strlen(lua_tostring(L, 1)) < 1)
+		file_listdirectory(context_get_path(L), listdir_callback, &info);
+	else
+	{
+		char buffer[1024];
+		path_join(context_get_path(L), -1, lua_tostring(L,1), -1, buffer, sizeof(buffer));
+		file_listdirectory(buffer, listdir_callback, &info);
+	}
+
+	return 1;
+}
+
+/* collect functionallity */
+enum
+{
+	COLLECTFLAG_FILES=1,
+	COLLECTFLAG_DIRS=2,
+	COLLECTFLAG_HIDDEN=4,
+	COLLECTFLAG_RECURSIVE=8
+};
+
+typedef struct
+{
+	int path_len;
+	const char *start_str;
+	int start_len;
+	
+	const char *end_str;
+	int end_len;
+	
+	lua_State *lua;
+	int i;
+	int flags;
+} COLLECT_CALLBACK_INFO;
+
+static void run_collect(COLLECT_CALLBACK_INFO *info, const char *input);
+
+static void collect_callback(const char *filename, int dir, void *user)
+{
+	COLLECT_CALLBACK_INFO *info = (COLLECT_CALLBACK_INFO *)user;
+	const char *no_pathed = filename + info->path_len;
+	int no_pathed_len = strlen(no_pathed);
+
+	/* don't process . and .. paths */
+	if(filename[0] == '.')
+	{
+		if(filename[1] == 0)
+			return;
+		if(filename[1] == '.' && filename[2] == 0)
+			return;
+	}
+	
+	/* don't process hidden stuff if not wanted */
+	if(no_pathed[0] == '.' && !(info->flags&COLLECTFLAG_HIDDEN))
+		return;
+
+	do
+	{
+		/* check end */
+		if(info->end_len > no_pathed_len || strcmp(no_pathed+no_pathed_len-info->end_len, info->end_str))
+			break;
+
+		/* check start */
+		if(info->start_len && strncmp(no_pathed, info->start_str, info->start_len))
+			break;
+		
+		/* check dir vs search param */
+		if(!dir && info->flags&COLLECTFLAG_DIRS)
+			break;
+		
+		if(dir && info->flags&COLLECTFLAG_FILES)
+			break;
+			
+		/* all criterias met, push the result */
+		lua_pushstring(info->lua, filename);
+		lua_rawseti(info->lua, -2, info->i++);
+	} while(0);
+	
+	/* recurse */
+	if(dir && info->flags&COLLECTFLAG_RECURSIVE)
+	{
+		char recursepath[1024];
+		COLLECT_CALLBACK_INFO recurseinfo = *info;
+		strcpy(recursepath, filename);
+		strcat(recursepath, "/");
+		strcat(recursepath, info->start_str);
+		run_collect(&recurseinfo, recursepath);
+		info->i = recurseinfo.i;
+	}	
+}
+
+static void run_collect(COLLECT_CALLBACK_INFO *info, const char *input)
+{
+	char dir[1024];
+	int dirlen = 0;
+	
+	/* get the directory */
+	path_directory(input, dir, sizeof(dir));
+	dirlen = strlen(dir);
+	info->path_len = dirlen+1;
+	
+	/* set the start string */
+	if(dirlen)
+		info->start_str = input + dirlen + 1;
+	else
+		info->start_str = input;
+		
+	for(info->start_len = 0; info->start_str[info->start_len]; info->start_len++)
+	{
+		if(info->start_str[info->start_len] == '*')
+			break;
+	}
+	
+	/* set the end string */
+	if(info->start_str[info->start_len])
+		info->end_str = info->start_str + info->start_len + 1;
+	else
+		info->end_str = info->start_str + info->start_len;
+	info->end_len = strlen(info->end_str);
+	
+	/* search the path */
+	file_listdirectory(dir, collect_callback, info);	
+}
+
+static int collect(lua_State *L, int flags)
+{
+	int n = lua_gettop(L);
+	int i;
+	COLLECT_CALLBACK_INFO info;
+	
+	if(n < 1)
+		luaL_error(L, "collect: incorrect number of arguments");
+
+	/* create the table */
+	lua_newtable(L);
+
+	/* set common info */		
+	info.lua = L;
+	info.i = 1;
+	info.flags = flags;
+
+	/* start processing the input strings */
+	for(i = 1; i <= n; i++)
+	{
+		const char *input = lua_tostring(L, i);
+		
+		if(!input)
+			continue;
+			
+		run_collect(&info, input);
+	}
+	
+	return 1;
+}
+
+int lf_collect(lua_State *L) { return collect(L, COLLECTFLAG_FILES); }
+int lf_collectrecursive(lua_State *L) { return collect(L, COLLECTFLAG_FILES|COLLECTFLAG_RECURSIVE); }
+int lf_collectdirs(lua_State *L) { return collect(L, COLLECTFLAG_DIRS); }
+int lf_collectdirsrecursive(lua_State *L) { return collect(L, COLLECTFLAG_DIRS|COLLECTFLAG_RECURSIVE); }
+
+/*  */
+int lf_path_join(lua_State *L)
+{
+	char buffer[1024*2];
+	int n = lua_gettop(L);
+	int err;
+	const char *base;
+	const char *extend;
+	size_t base_len, extend_len;
+
+	if(n != 2)
+		luaL_error(L, "path_join: incorrect number of arguments");
+
+	luaL_checktype(L, 1, LUA_TSTRING);
+	luaL_checktype(L, 2, LUA_TSTRING);
+	
+	base = lua_tolstring(L, 1, &base_len);
+	extend = lua_tolstring(L, 2, &extend_len);
+	err = path_join(base, base_len, extend, extend_len, buffer, 2*1024);
+	if(err != 0)
+	{
+		luaL_error(L, "path_join: error %d, couldn't join\n\t'%s'\n  and\n\t'%s'",
+			err,
+			lua_tostring(L, 1),
+			lua_tostring(L, 2));
+	}
+	
+	lua_pushstring(L, buffer);
+	return 1;
+}
+
+/*  */
+int lf_path_isnice(lua_State *L)
+{
+	int n = lua_gettop(L);
+	const char *path = 0;
+
+	if(n != 1)
+		luaL_error(L, "path_isnice: incorrect number of arguments");
+
+	luaL_checktype(L, 1, LUA_TSTRING);
+	
+	path = lua_tostring(L, 1);
+	lua_pushnumber(L, path_isnice(path));
+	return 1;
+}
+
+int lf_path_normalize(lua_State *L)
+{
+	int n = lua_gettop(L);
+	const char *path = 0;
+
+	if(n != 1)
+		luaL_error(L, "path_normalize: incorrect number of arguments");
+
+	luaL_checktype(L, 1, LUA_TSTRING);
+	
+	path = lua_tostring(L, 1);
+	
+	if(path_isnice(path))
+	{
+		/* path is ok */
+		lua_pushstring(L, path);
+	}
+	else
+	{
+		/* normalize and return */
+		char buffer[2*1024];
+		strcpy(buffer, path);
+		path_normalize(buffer);
+		lua_pushstring(L, buffer);
+	}
+	
+	return 1;
+}
+
+/*  */
+int lf_path_ext(lua_State *L)
+{
+	int n = lua_gettop(L);
+	const char *path = 0;
+	if(n < 1)
+		luaL_error(L, "path_ext: incorrect number of arguments");
+	
+	path = lua_tostring(L, 1);
+	if(!path)
+		luaL_error(L, "path_ext: argument is not a string");
+		
+	lua_pushstring(L, path_ext(path));
+	return 1;
+}
+
+
+/*  */
+int lf_path_base(lua_State *L)
+{
+	int n = lua_gettop(L);
+	size_t org_len;
+	size_t new_len;
+	size_t count = 0;
+	const char *cur = 0;
+	const char *path = 0;
+	if(n < 1)
+		luaL_error(L, "path_base: incorrect number of arguments");
+	
+	path = lua_tolstring(L, 1, &org_len);
+	if(!path)
+		luaL_error(L, "path_base: argument is not a string");
+
+	/* cut off the ext */
+	new_len = org_len;
+	for(cur = path; *cur; cur++, count++)
+	{
+		if(*cur == '.')
+			new_len = count;
+		else if(path_is_separator(*cur))
+			new_len = org_len;
+	}
+		
+	lua_pushlstring(L, path, new_len);
+	return 1;
+}
+
+
+static int path_dir_length(const char *path)
+{
+	const char *cur = path;
+	int total = 0;
+	int len = -1;
+	for(; *cur; cur++, total++)
+	{
+		if(path_is_separator(*cur))
+			len = (int)(cur-path);
+	}
+
+	if(len == -1)
+		return 0;
+	return len;
+}
+
+/*  */
+int lf_path_dir(lua_State *L)
+{
+	char buffer[1024];
+	int n = lua_gettop(L);
+	const char *path = 0;
+	if(n < 1)
+		luaL_error(L, "path_dir: incorrect number of arguments");
+
+	path = lua_tostring(L, 1);
+	if(!path)
+		luaL_error(L, "path_dir: argument is not a string");
+	
+	/* check if we can take the easy way out */
+	if(path_isnice(path))
+	{
+		lua_pushlstring(L, path, path_dir_length(path));
+		return 1;
+	}
+	
+	/* we must normalize the path as well */
+	strncpy(buffer, path, sizeof(buffer));
+	path_normalize(buffer);
+	lua_pushlstring(L, buffer, path_dir_length(buffer));
+	return 1;
+}
+
+/*  */
+int lf_path_filename(lua_State *L)
+{
+	int n = lua_gettop(L);
+	const char *path = 0;
+	if(n < 1)
+		luaL_error(L, "path_filename: incorrect number of arguments");
+
+	path = lua_tostring(L, 1);
+
+	if(!path)
+		luaL_error(L, "path_filename: null name");
+
+	lua_pushstring(L, path_filename(path));
 	return 1;
 }

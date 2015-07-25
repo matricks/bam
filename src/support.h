@@ -56,6 +56,7 @@ int file_isregular(const char *path);
 int file_createdir(const char *path);
 int file_createpath(const char *output_name);
 void file_touch(const char *filename);
+void file_listdirectory(const char *path, void (*callback)(const char *filename, int dir, void *user), void *user);
 
 /* string hashing function */
 hash_t string_hash(const char *str_in);

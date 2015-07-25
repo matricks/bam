@@ -1,11 +1,22 @@
 /* max path length for bam */
 #define MAX_PATH_LENGTH 1024
 
+
+/* make sure that this gets inlined */
+#if defined(BAM_FAMILY_WINDOWS)
+	#define path_is_separator(c) (c == '/' || c == '\\')
+#else
+	#define path_is_separator(c) (c == '/')
+#endif
+
 /* returns a pointer to the filename, /foo/bar.a -> bar.a */
 extern const char *path_filename(const char *path);
 
 /*  /foo/bar.a -> /foo */
 extern int path_directory(const char *path, char *directory, int size);
+
+/* returns a pointer to where the extention starts, or empty string if there is none */
+extern const char *path_ext(const char *filename);
 
 /* normalizes a path, rewrites the path */
 extern int path_normalize(char *path);
@@ -21,16 +32,3 @@ extern int path_isabs(const char *path);
 /* must begin with / (absolute) */
 /* does not end with / */
 extern int path_isnice(const char *path);
-
-/*  */
-struct lua_State;
-extern int lf_path_isnice(struct lua_State *L);
-extern int lf_path_isabs(struct lua_State *L);
-extern int lf_path_join(struct lua_State *L);
-extern int lf_path_normalize(struct lua_State *L);
-
-extern int lf_path_ext(struct lua_State *L);
-extern int lf_path_dir(struct lua_State *L);
-extern int lf_path_base(struct lua_State *L);
-extern int lf_path_filename(struct lua_State *L);
-
