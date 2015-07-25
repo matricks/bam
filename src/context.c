@@ -490,7 +490,7 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 {
 	struct NODE *node = walkinfo->node;
 	struct CONTEXT *context = (struct CONTEXT *)walkinfo->user;
-	struct CACHENODE *cachenode;
+	struct CACHEINFO_OUTPUT *outputcacheinfo = NULL;
 	struct NODELINK *dep;
 	struct NODELINK *parent;
 	struct NODELINK *jobdep;
@@ -502,15 +502,17 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 
 	/* time sanity check */
 	if(node->timestamp > context->buildtime)
-		printf("%s: WARNING:'%s' comes from the future\n", session.name, node->filename);
+		printf("%s: warning:'%s' comes from the future\n", session.name, node->filename);
 	
 	if(node->job->cmdline)
 	{
 		/* dirty checking, check against cmdhash and global timestamp first */
-		cachenode = cache_find_byhash(context->cache, node->hashid);
-		if(cachenode)
+		if(context->outputcache)
+			outputcacheinfo = outputcache_find_byhash(context->outputcache, node->hashid);
+
+		if(outputcacheinfo)
 		{
-			node->job->cachehash = cachenode->cmdhash;
+			node->job->cachehash = outputcacheinfo->cmdhash;
 			if(node->job->cachehash != node->job->cmdhash)
 				node->dirty = NODEDIRTY_CMDHASH;
 		}

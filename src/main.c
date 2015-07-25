@@ -91,8 +91,11 @@ static int option_num_targets = 0;
 static const char *option_scriptargs[128] = {0};
 static int option_num_scriptargs = 0;
 
-/* filename of the cache, will be filled in at start up, ".bam/xxxxxxxxyyyyyyyyy" = 22 top */
-static char cache_filename[32] = {0};
+/* filename of the dependency cache, will be filled in at start up, ".bam/xxxxxxxxyyyyyyyyy" = 22 top */
+static char depcache_filename[32] = {0};
+
+/* filename of the command cache */
+static char outputcache_filename[] = ".bam/outputcache";
 
 /* session object */
 struct SESSION session = {
@@ -743,11 +746,15 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 			cache_hash = string_hash_add(cache_hash, option_scriptargs[i]);
 
 		string_hash_tostr(cache_hash, hashstr);
-		sprintf(cache_filename, ".bam/%s", hashstr);
+		sprintf(depcache_filename, ".bam/%s", hashstr);
 
-		event_begin(0, "cache load", cache_filename);
-		context.cache = cache_load(cache_filename);
-		event_end(0, "cache load", NULL);
+		event_begin(0, "depcache load", depcache_filename);
+		context.depcache = depcache_load(depcache_filename);
+		event_end(0, "depcache load", NULL);
+
+		event_begin(0, "outputcache load", outputcache_filename);
+		context.outputcache = outputcache_load(outputcache_filename);
+		event_end(0, "outputcache load", NULL);
 	}
 
 	/* do the setup */
@@ -813,15 +820,19 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	/* save cache (thread?) */
 	if(option_no_cache == 0 && setup_error == 0)
 	{
-		event_begin(0, "cache save", cache_filename);
-		cache_save(cache_filename, context.graph);
-		event_end(0, "cache save", NULL);
+		event_begin(0, "depcache save", depcache_filename);
+		depcache_save(depcache_filename, context.graph);
+		event_end(0, "depcache save", NULL);
+
+		event_begin(0, "outputcache save", outputcache_filename);
+		outputcache_save(outputcache_filename, context.outputcache, context.graph);
+		event_end(0, "outputcache save", NULL);
 	}
 	
 	/* clean up */
 	mem_destroy(context.graphheap);
 	free(context.joblist);
-	cache_free(context.cache);
+	depcache_free(context.depcache);
 
 	/* print final report and return */
 	if(setup_error)
@@ -878,7 +889,7 @@ static void print_help(int mask)
 	}
 	printf("\n");
 	printf("bam version " BAM_VERSION_STRING_COMPLETE ". built "__DATE__" "__TIME__" using " LUA_VERSION "\n");
-	printf("by Magnus Auvinen (magnus.auvinen@gmail.com)\n");
+	printf("by Magnus Auvinen (bam@matricks.se)\n");
 	printf("\n");
 
 }
