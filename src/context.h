@@ -38,6 +38,7 @@ struct CONTEXT
 	struct HEAP *deferredheap;
 	struct DEFERRED *firstdeferred_cpp;
 	struct DEFERRED *firstdeferred_search;
+	struct DEFERRED *firstdeferred_rule;
 	
 	time_t globaltimestamp;		/* timestamp of the script files */
 	time_t buildtime;			/* timestamp when the build started */

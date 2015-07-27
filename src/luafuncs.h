@@ -32,6 +32,9 @@ int lf_add_dependency_cpp_set_paths(lua_State *L); /* dep_cpp.c */
 int lf_add_dependency_cpp(lua_State *L); /* dep_cpp.c */
 int lf_add_dependency_search(lua_State *L); /* dep_search.c */
 
+/* rules */
+int lf_add_dependency_rule(lua_State *L);
+
 /* lua file and directory discovery */
 int lf_collect(struct lua_State *L);
 int lf_collectrecursive(struct lua_State *L);

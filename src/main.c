@@ -24,6 +24,7 @@
 #include "platform.h"
 #include "session.h"
 #include "version.h"
+#include "rules.h"
 
 /* internal base.bam file */
 #include "internal_base.h"
@@ -391,6 +392,8 @@ int register_lua_globals(struct lua_State *lua, const char* script_directory, co
 	lua_register(lua, L_FUNCTION_PREFIX"table_tostring", lf_table_tostring);
 	lua_register(lua, L_FUNCTION_PREFIX"table_flatten", lf_table_flatten);
 
+	lua_register(lua, L_FUNCTION_PREFIX"add_dependency_rule", lf_add_dependency_rule);
+
 	/* error handling */
 	lua_register(lua, "errorfunc", lf_errorfunc);
 
@@ -605,6 +608,15 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 	if(run_deferred_functions(context, context->firstdeferred_search) != 0)
 		return -1;
 	event_end(0, "deferred search dependencies", NULL);
+
+	/* finalize the patterns so we can start during pattern matching */
+	rules_finalize_patterns(context->graph);
+
+	/* do the dependency rules */
+	event_begin(0, "deferred dependency rules", NULL);
+	if(run_deferred_functions(context, context->firstdeferred_rule) != 0)
+		return -1;
+	event_end(0, "deferred dependency rules", NULL);
 
 	/* */	
 	if(session.verbose)

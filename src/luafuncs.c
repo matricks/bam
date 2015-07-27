@@ -16,6 +16,7 @@
 #include "path.h"
 #include "mem.h"
 #include "session.h"
+#include "rules.h"
 
 static struct NODE *node_get_or_fail(lua_State *L, struct GRAPH *graph, const char *filename)
 {
@@ -1287,3 +1288,56 @@ int lf_path_filename(lua_State *L)
 	lua_pushstring(L, path_filename(path));
 	return 1;
 }
+
+
+static void callback_dependency_test(lua_State *L, void *user)
+{
+	struct DEPENDENCYRULE *rule = (struct DEPENDENCYRULE *)user;
+	struct PATTERNLINK *link;
+	struct CONTEXT *context;
+
+	context = context_get_pointer(L);
+
+	luaL_checktype(L, -1, LUA_TSTRING);
+
+	/* add pattern */
+	link = (struct PATTERNLINK *)mem_allocate(context->graph->heap, sizeof(struct PATTERNLINK));
+	link->pattern = rules_add_pattern(context->graph, lua_tostring(L, -1));
+	link->next = rule->firsttest;
+	rule->firsttest = link;
+}
+
+/* this functions takes the whole deferred lookup list and searches for the file */
+static int deferred_run_dependency_rule(struct CONTEXT *context, struct DEFERRED *info)
+{
+	return rules_test(context->graph, (struct DEPENDENCYRULE *)info->user);
+}
+
+/* lf_add_dependency_rule(string srcpattern, ...) */
+int lf_add_dependency_rule(lua_State *L)
+{
+	struct CONTEXT *context;
+	struct DEFERRED *deferred;
+	struct DEPENDENCYRULE *rule;
+	
+	if(lua_gettop(L) < 2)
+		luaL_error(L, "add_dep_rule: expected atleast 2 arguments");
+	luaL_checktype(L, 1, LUA_TSTRING);
+
+	context = context_get_pointer(L);
+		
+	rule = (struct DEPENDENCYRULE *)mem_allocate(context->deferredheap, sizeof(struct DEPENDENCYRULE));
+	rule->pattern = rules_add_pattern(context->graph, lua_tostring(L,1));
+	deep_walk(L, 2, lua_gettop(L), callback_dependency_test, rule);
+
+	/* setup defered call */
+	deferred = (struct DEFERRED *)mem_allocate(context->deferredheap, sizeof(struct DEFERRED));
+	deferred->node = NULL;
+	deferred->user = rule;
+	deferred->run = deferred_run_dependency_rule;
+	deferred->next = context->firstdeferred_rule;
+	context->firstdeferred_rule = deferred;
+	
+	return 0;
+}
+

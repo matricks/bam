@@ -92,6 +92,8 @@ struct NODE
 	struct JOB *job; /* job that produces this node */
 	const char *filename; /* this contains the filename with the FULLPATH */
 
+	unsigned char *patternstatus; /* array of patterns that have been tested and the result of it */
+
 	hash_t hashid; /* hash of the filename/nodename */
 	
 	/* time stamps, 0 == does not exist. */
@@ -136,6 +138,9 @@ struct GRAPH
 	/* jobs */
 	struct JOB *firstjob;
 
+	/* patterns */
+	struct PATTERN *firstpattern;
+
 	/* file stating */
 	void *statthread;
 	struct NODE * volatile firststatnode; /* first node that we should stat, written by main-thread, read by stat-thread */
@@ -149,6 +154,7 @@ struct GRAPH
 	int num_nodes;
 	int num_jobs; /* only real jobs */
 	int num_deps;
+	int num_patterns;
 };
 
 struct HEAP;
@@ -163,6 +169,11 @@ struct CONTEXT;
 /* special defines */
 #define TIMESTAMP_NONE		-1
 #define TIMESTAMP_PSEUDO	1
+
+/* */
+#define PATTENSTATUS_UNKNOWN	0
+#define PATTENSTATUS_POSITIVE	1
+#define PATTENSTATUS_NEGATIVE	2
 
 /* node creation error codes */
 #define NODECREATE_OK			0

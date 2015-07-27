@@ -469,6 +469,12 @@ AddDependency = bam_add_dependency
 @END]]--
 AddDependencySearch = bam_add_dependency_search
 
+
+--[[@FUNCTION AddDependencyRule(filename, ...)
+	TODODOC:
+@END]]--
+AddDependencyRule = bam_add_dependency_rule
+
 function Default_Intermediate_Output(settings, input)
 	return PathBase(input) .. settings.config_ext
 end
