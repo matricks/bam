@@ -13,15 +13,6 @@
 
 #include "nodelinktree.inl"
 
-
-static char *duplicate_string(struct GRAPH *graph, const char *src, size_t len)
-{
-	char *str = (char *)mem_allocate(graph->heap, len+1);
-	memcpy(str, src, len);
-	str[len] = 0;
-	return str;
-}
-
 /* */
 struct GRAPH *node_graph_create(struct HEAP *heap)
 {
@@ -115,8 +106,8 @@ struct JOB *node_job_create(struct GRAPH *graph, const char *label, const char *
 	graph->num_jobs++;
 
 	/* set label and command */
-	job->label = duplicate_string(graph, label, strlen(label));
-	job->cmdline = duplicate_string(graph, cmdline, strlen(cmdline));
+	job->label = string_dup(graph->heap, label, strlen(label));
+	job->cmdline = string_dup(graph->heap, cmdline, strlen(cmdline));
 	job->cmdhash = string_hash(cmdline);
 	job->cachehash = job->cmdhash;
 
@@ -165,7 +156,7 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 		
 		/* set filename */
 		node->filename_len = strlen(filename)+1;
-		node->filename = duplicate_string(graph, filename, node->filename_len);
+		node->filename = string_dup(graph->heap, filename, node->filename_len);
 		node->hashid = hashid;
 		
 		/* add to hashed tree */
@@ -350,7 +341,7 @@ int node_add_clean(struct NODE *node, const char * filename)
 
 	/* create and add clean link */
 	link = (struct STRINGLINK *)mem_allocate(node->graph->heap, sizeof(struct STRINGLINK));
-	link->str = duplicate_string(node->graph, filename, strlen(filename));
+	link->str = string_dup(node->graph->heap, filename, strlen(filename));
 	link->next = node->job->firstclean;
 	node->job->firstclean = link;
 	return 0;

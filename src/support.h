@@ -28,7 +28,9 @@
 #else
 	#error missing atomic implementation for this compiler
 #endif
+
 struct lua_State;
+struct HEAP;
 
 void install_signals(void (*abortsignal)(int));
 int run_command(const char *cmd, const char *filter);
@@ -62,6 +64,7 @@ void file_listdirectory(const char *path, void (*callback)(const char *filename,
 hash_t string_hash(const char *str_in);
 hash_t string_hash_add(hash_t base, const char *str_in);
 void string_hash_tostr(hash_t value, char *output);
+char *string_dup(struct HEAP *heap, const char *src, size_t len);
 
 /* logging */
 void event_begin(int thread, const char *name, const char *data);

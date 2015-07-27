@@ -10,6 +10,7 @@
 #include "path.h"
 #include "context.h"
 #include "session.h"
+#include "mem.h"
 #include "support.h"
 
 #ifdef BAM_FAMILY_BEOS
@@ -623,6 +624,14 @@ hash_t string_hash(const char *str_in)
 void string_hash_tostr(hash_t value, char *output)
 {
 	sprintf(output, "%08x%08x", (unsigned)(value>>32), (unsigned)(value&0xffffffff));
+}
+
+char *string_dup(struct HEAP *heap, const char *src, size_t len)
+{
+	char *str = (char *)mem_allocate(heap, len+1);
+	memcpy(str, src, len);
+	str[len] = 0;
+	return str;
 }
 
 
