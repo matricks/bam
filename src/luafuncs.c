@@ -17,11 +17,36 @@
 #include "mem.h"
 #include "session.h"
 
+static const char *curfuncname(lua_State *L)
+{
+	lua_Debug ar;
+	if (!lua_getstack(L, 0, &ar))  /* no stack frame? */
+		return "?";
+	lua_getinfo(L, "n", &ar);
+	if (ar.name == NULL)
+		return "?";
+	return ar.name;
+}
+
+static void luaL_checknumarg_eq(lua_State *L, int expect)
+{
+	int n = lua_gettop(L);
+	if(n != expect)
+		luaL_error(L, "bad number of arguments to '%s', expected %d, got %d", curfuncname(L), expect, n );
+}
+
+static void luaL_checknumarg_ge(lua_State *L, int expect)
+{
+	int n = lua_gettop(L);
+	if(n < expect)
+		luaL_error(L, "bad number of arguments to '%s', expected %d or more, got %d", curfuncname(L), expect, n );
+}
+
 static struct NODE *node_get_or_fail(lua_State *L, struct GRAPH *graph, const char *filename)
 {
 	struct NODE *node = node_get(graph, filename);
 	if(node == NULL)
-		luaL_error(L, "error creating node");
+		luaL_error(L, "node '%s' cloud not be created", filename);
 	return node;
 }
 
@@ -63,7 +88,7 @@ static struct
 	void *user;
 } deepwalkinfo;
 
-static void deep_walk_r(lua_State *L, int table_index)
+static void deep_walk_r(lua_State *L, int narg, int table_index)
 {
 	int i;
 	for(i = 1;; i++)
@@ -72,7 +97,7 @@ static void deep_walk_r(lua_State *L, int table_index)
 		lua_rawgeti(L, table_index, i);
 		
 		if(lua_istable(L, -1))
-			deep_walk_r(L, lua_gettop(L));
+			deep_walk_r(L, narg, lua_gettop(L));
 		else if(lua_type(L, -1) == LUA_TSTRING)
 			deepwalkinfo.callback(L, deepwalkinfo.user);
 		else if(lua_type(L, -1) == LUA_TNIL)
@@ -80,7 +105,7 @@ static void deep_walk_r(lua_State *L, int table_index)
 		else
 		{
 			/* other value */
-			luaL_error(L, "encountered something besides a string or a table");
+			luaL_argerror(L, i, lua_pushfstring(L, "table structure contains a %s", luaL_typename(L, -1)));
 		}
 
 		/* pop -1 */
@@ -100,7 +125,7 @@ static void deep_walk(lua_State *L, int start, int stop, void (*callback)(lua_St
 	for(i = start; i <= stop; i++)
 	{
 		if(lua_istable(L, i))
-			deep_walk_r(L, i);
+			deep_walk_r(L, i, i);
 		else if(lua_type(L, i) == LUA_TSTRING)
 		{
 			lua_pushvalue(L, i);
@@ -109,34 +134,56 @@ static void deep_walk(lua_State *L, int start, int stop, void (*callback)(lua_St
 		}
 		else
 		{
-			luaL_error(L, "encountered something besides a string or a table");
+			luaL_argerror(L, i, "not a string or table");
 		}
 	}
 }
+
+static void handle_node_errors(lua_State *L, int errorcode, int narg)
+{
+	if(errorcode == NODECREATE_NOTNICE)
+		luaL_argerror(L, narg, lua_pushfstring(L, "node '%s' is not nice", lua_tostring(L, narg)));
+	else if(errorcode == NODECREATE_EXISTS)
+		luaL_argerror(L, narg, lua_pushfstring(L, "node '%s' already exists", lua_tostring(L, narg)));
+	else if(errorcode != NODECREATE_OK)
+		luaL_argerror(L, narg, lua_pushfstring(L, "unknown error creating node '%s'", lua_tostring(L,narg)));
+}
+
+static struct NODE *luaL_checknode(lua_State *L, struct CONTEXT *context, int narg)
+{
+	struct NODE *node = node_find(context->graph, luaL_checklstring(L,narg,NULL));
+	if(!node)
+		luaL_argerror(L, narg, lua_pushfstring(L, "node '%s' does not exist", lua_tostring(L, narg)));
+	return node;
+}
+
+static struct NODE *luaL_checkjobnode(lua_State *L, struct CONTEXT *context, int narg)
+{
+	struct NODE *node = luaL_checkjobnode(L, context, narg);
+	if(!node->job->cmdline)
+		luaL_argerror(L, narg, lua_pushfstring(L, "node '%s' is not a job", lua_tostring(L, narg)));
+	return node;
+}
+
+
 
 /* add_pseudo(string node) */
 int lf_add_pseudo(lua_State *L)
 {
 	struct NODE *node;
 	struct CONTEXT *context;
+	const char *name;
 	int i;
 	
-	if(lua_gettop(L) != 1)
-		luaL_error(L, "add_pseudo: incorrect number of arguments");
-
-	luaL_checktype(L, 1, LUA_TSTRING);
+	luaL_checknumarg_eq(L, 1);
+	name = luaL_checklstring(L, 1, NULL);
 	
 	/* fetch contexst from lua */
 	context = context_get_pointer(L);
 
 	/* create the node */
-	i = node_create(&node, context->graph, lua_tostring(L,1), NULL, TIMESTAMP_PSEUDO);
-	if(i == NODECREATE_NOTNICE)
-		luaL_error(L, "add_pseudo: node '%s' is not nice", lua_tostring(L,1));
-	else if(i == NODECREATE_EXISTS)
-		luaL_error(L, "add_pseudo: node '%s' already exists", lua_tostring(L,1));
-	else if(i != NODECREATE_OK)
-		luaL_error(L, "add_pseudo: unknown error creating node '%s'", lua_tostring(L,1));
+	i = node_create(&node, context->graph, name, NULL, TIMESTAMP_PSEUDO);
+	handle_node_errors(L, i, 1);
 	return 0;
 }
 
@@ -145,34 +192,17 @@ int lf_add_output(lua_State *L)
 {
 	struct NODE *output;
 	struct NODE *other_output;
-	struct CONTEXT *context;
+	struct CONTEXT *context = context_get_pointer(L);
 	int i;
 	const char *filename;
 	
-	if(lua_gettop(L) != 2)
-		luaL_error(L, "add_output: incorrect number of arguments");
+	luaL_checknumarg_eq(L, 2);
 
-	luaL_checktype(L, 1, LUA_TSTRING);
-	luaL_checktype(L, 2, LUA_TSTRING);
-	
-	context = context_get_pointer(L);
+	output = luaL_checkjobnode(L, context, 1);
+	filename = luaL_checklstring(L, 2, NULL);
 
-	output = node_find(context->graph, lua_tostring(L,1));
-	if(!output)
-		luaL_error(L, "add_output: couldn't find node with name '%s'", lua_tostring(L,1));
-
-	if(!output->job->cmdline)
-		luaL_error(L, "add_output: '%s' does not have a job", lua_tostring(L,1));
-
-
-	filename = lua_tostring(L, -1);
 	i = node_create(&other_output, context->graph, filename, output->job, TIMESTAMP_NONE);
-	if(i == NODECREATE_NOTNICE)
-		luaL_error(L, "add_output: node '%s' is not nice", filename);
-	else if(i == NODECREATE_EXISTS)
-		luaL_error(L, "add_output: node '%s' already exists", filename);
-	else if(i != NODECREATE_OK)
-		luaL_error(L, "add_output: unknown error creating node '%s'", filename);
+	handle_node_errors(L, i, 2);
 
 	return 0;
 }
@@ -181,29 +211,18 @@ int lf_add_output(lua_State *L)
 int lf_add_clean(lua_State *L)
 {
 	struct NODE *output;
-	struct CONTEXT *context;
+	struct CONTEXT *context = context_get_pointer(L);
 	const char *filename;
-	
-	if(lua_gettop(L) != 2)
-		luaL_error(L, "add_clean: incorrect number of arguments");
 
-	luaL_checktype(L, 1, LUA_TSTRING);
-	luaL_checktype(L, 2, LUA_TSTRING);
-	
-	context = context_get_pointer(L);
+	luaL_checknumarg_eq(L, 2);
+	output = luaL_checkjobnode(L, context, 1);
+	filename = luaL_checklstring(L, 2, NULL);
 
-	output = node_find(context->graph, lua_tostring(L,1));
-	if(!output)
-		luaL_error(L, "add_clean: couldn't find node with name '%s'", lua_tostring(L,1));
-
-	if(!output->job->cmdline)
-		luaL_error(L, "add_clean: '%s' does not have a job", lua_tostring(L,1));
-
-	filename = lua_tostring(L, -1);
-	if(node_add_clean(output, filename) != 0)
-		luaL_error(L, "add_clean: could not add '%s' to '%s'", filename, output->filename);
+	if(node_add_clean(output, filename) != 0) /* this should never fail as we already check that output has a job */
+		luaL_argerror(L, 2, lua_pushfstring(L, "could not add '%s' to '%s'", filename, output->filename));
 	return 0;
 }
+
 struct NODEATTRIB_CBINFO
 {
 	struct NODE *node;
@@ -216,7 +235,7 @@ static void callback_node_attrib(lua_State *L, void *user)
 	const char *othername = lua_tostring(L, -1);
 	struct NODE *othernode = node_get_or_fail(L, info->node->graph, othername);
 	if(!info->callback(info->node, othernode))
-		luaL_error(L, "could not add '%s' to '%s'", othername, lua_tostring(L, 1));
+		luaL_error(L, "%s: could not add '%s' to '%s'", curfuncname(L), othername, lua_tostring(L, 1));
 }
 
 /* add_dependency(string node, string dependency) */
@@ -224,24 +243,15 @@ static int add_node_attribute(lua_State *L, const char *funcname, struct NODE *(
 {
 	struct NODE *node;
 	struct CONTEXT *context;
-	int n = lua_gettop(L);
 	struct NODEATTRIB_CBINFO cbinfo;
 	
-	if(n < 2)
-		luaL_error(L, "%s: to few arguments", funcname);
-
-	luaL_checktype(L, 1, LUA_TSTRING);
-
 	context = context_get_pointer(L);
-
-	node = node_find(context->graph, lua_tostring(L,1));
-	if(!node)
-		luaL_error(L, "%s: couldn't find node with name '%s'", funcname, lua_tostring(L,1));
+	node = luaL_checknode(L, context, 1);
 	
 	/* seek deps */
 	cbinfo.node = node;
 	cbinfo.callback = callback;
-	deep_walk(L, 2, n, callback_node_attrib, &cbinfo);
+	deep_walk(L, 2, lua_gettop(L), callback_node_attrib, &cbinfo);
 	return 0;
 }
 
@@ -257,16 +267,10 @@ static void callback_addjob_node(lua_State *L, void *user)
 	const char *filename;
 	int i;
 
-	luaL_checktype(L, -1, LUA_TSTRING);
-	filename = lua_tostring(L, -1);
+	filename = luaL_checklstring(L, -1, NULL);
 
 	i = node_create(&node, context->graph, filename, job, TIMESTAMP_NONE);
-	if(i == NODECREATE_NOTNICE)
-		luaL_error(L, "add_job: node '%s' is not nice", filename);
-	else if(i == NODECREATE_EXISTS)
-		luaL_error(L, "add_job: node '%s' already exists", filename);
-	else if(i != NODECREATE_OK)
-		luaL_error(L, "add_job: unknown error creating node '%s'", filename);
+	handle_node_errors(L, i, 1); /* TODO: FIX THIS */
 }
 
 
@@ -276,8 +280,7 @@ static void callback_addjob_deps(lua_State *L, void *user)
 	struct NODELINK *link;
 	const char *filename;
 
-	luaL_checktype(L, -1, LUA_TSTRING);
-	filename = lua_tostring(L, -1);
+	filename = luaL_checklstring(L, -1, NULL);
 
 	for(link = job->firstoutput; link; link = link->next)
 		node_add_dependency (link->node, node_get_or_fail(L, link->node->graph, filename));
@@ -286,21 +289,13 @@ static void callback_addjob_deps(lua_State *L, void *user)
 /* add_job(string/table output, string label, string command, ...) */
 int lf_add_job(lua_State *L)
 {
+	struct CONTEXT *context = context_get_pointer(L);
 	struct JOB *job;
-	struct CONTEXT *context;
-	
-	if(lua_gettop(L) < 3)
-		luaL_error(L, "add_job: too few arguments");
 
-	/*luaL_checktype(L, 1, LUA_TSTRING); */
-	luaL_checktype(L, 2, LUA_TSTRING);
-	luaL_checktype(L, 3, LUA_TSTRING);
+	luaL_checknumarg_ge(L, 3);
 	
-	/* fetch contexst from lua */
-	context = context_get_pointer(L);
-
 	/* create the job */
-	job = node_job_create(context->graph, lua_tostring(L,2), lua_tostring(L,3));
+	job = node_job_create(context->graph, luaL_checklstring(L, 2, NULL), luaL_checklstring(L, 3, NULL));
 
 	/* create the nodes */
 	deep_walk(L, 1, 1, callback_addjob_node, job);
@@ -313,24 +308,18 @@ int lf_add_job(lua_State *L)
 
 int lf_set_filter(struct lua_State *L)
 {
+	struct CONTEXT *context = context_get_pointer(L);
 	struct NODE *node;
 	const char *str;
 	size_t len;
 	
-	/* check the arguments */
-	if(lua_gettop(L) < 2)
-		luaL_error(L, "set_filter: too few arguments");
-		
-	luaL_checktype(L, 1, LUA_TSTRING);
-	luaL_checktype(L, 2, LUA_TSTRING);
+	luaL_checknumarg_eq(L, 2);
 
 	/* find the node */
-	node = node_find(context_get_pointer(L)->graph, lua_tostring(L,1));
-	if(!node)
-		luaL_error(L, "set_filter: couldn't find node with name '%s'", lua_tostring(L,1));
+	node = luaL_checknode(L, context, 1);
 
 	/* setup the string */	
-	str = lua_tolstring(L, 2, &len);
+	str = luaL_checklstring(L, 2, &len);
 	node->job->filter = (char *)mem_allocate(node->graph->heap, len+1);
 	memcpy(node->job->filter, str, len+1);
 	return 0;
@@ -340,13 +329,8 @@ int lf_set_filter(struct lua_State *L)
 int lf_nodeexist(struct lua_State *L)
 {
 	struct NODE *node;
-	
-	if(lua_gettop(L) != 1)
-		luaL_error(L, "nodeexists: takes exactly one argument");
-
-	luaL_checktype(L, 1, LUA_TSTRING);
-	
-	node = node_find(context_get_pointer(L)->graph, lua_tostring(L,1));
+	luaL_checknumarg_eq(L, 1);
+	node = node_find(context_get_pointer(L)->graph, luaL_checklstring(L,1,NULL));
 	if(node)
 		lua_pushboolean(L, 1);
 	else
@@ -358,13 +342,8 @@ int lf_nodeexist(struct lua_State *L)
 int lf_isoutput(struct lua_State *L)
 {
 	struct NODE *node;
-	
-	if(lua_gettop(L) != 1)
-		luaL_error(L, "isoutput: takes exactly one argument");
-
-	luaL_checktype(L, 1, LUA_TSTRING);
-	
-	node = node_find(context_get_pointer(L)->graph, lua_tostring(L,1));
+	luaL_checknumarg_eq(L, 1);
+	node = node_find(context_get_pointer(L)->graph, luaL_checklstring(L,1,NULL));
 	if(!node)
 		lua_pushboolean(L, 0);
 	else
@@ -381,21 +360,9 @@ int lf_isoutput(struct lua_State *L)
 /* lf_set_priority(string nodename, prio) */
 int lf_set_priority(struct lua_State *L)
 {
-	struct NODE *node;
-	
-	if(lua_gettop(L) != 2)
-		luaL_error(L, "set_priority: takes exactly one argument");
-
-	luaL_checktype(L, 1, LUA_TSTRING);
-	luaL_checktype(L, 2, LUA_TNUMBER);
-	
-	node = node_find(context_get_pointer(L)->graph, lua_tostring(L,1));
-	if(!node)
-		luaL_error(L, "set_priority: couldn't find node with name '%s'", lua_tostring(L,1));
-	else if(!node->job->cmdline)
-		luaL_error(L, "set_priority: '%s' is not a job", lua_tostring(L,1));
-	else
-		node->job->priority = lua_tointeger(L,2);
+	struct CONTEXT *context = context_get_pointer(L);
+	luaL_checknumarg_eq(L, 2);
+	luaL_checkjobnode(L, context, 1)->job->priority = luaL_checkinteger(L, 2);
 	return 1;
 }
 
@@ -403,60 +370,33 @@ int lf_set_priority(struct lua_State *L)
 /* lf_modify_priority(string nodename, prio) */
 int lf_modify_priority(struct lua_State *L)
 {
-	struct NODE *node;
-	
-	if(lua_gettop(L) != 2)
-		luaL_error(L, "modify_priority: takes exactly one argument");
-
-	luaL_checktype(L, 1, LUA_TSTRING);
-	luaL_checktype(L, 2, LUA_TNUMBER);
-	
-	node = node_find(context_get_pointer(L)->graph, lua_tostring(L,1));
-	if(!node)
-		luaL_error(L, "modify_priority: couldn't find node with name '%s'", lua_tostring(L,1));
-	else if(!node->job->cmdline)
-		luaL_error(L, "modify_priority: '%s' is not a job", lua_tostring(L,1));
-	else
-		node->job->priority += lua_tointeger(L,2);
+	struct CONTEXT *context = context_get_pointer(L);
+	luaL_checknumarg_eq(L, 2);
+	luaL_checkjobnode(L, context, 1)->job->priority += luaL_checkinteger(L, 2);
 	return 1;
 }
 
 /* default_target(string filename) */
 int lf_default_target(lua_State *L)
 {
-	struct NODE *node;
-	struct CONTEXT *context;
+	struct CONTEXT *context = context_get_pointer(L);
 
-	int n = lua_gettop(L);
-	if(n != 1)
-		luaL_error(L, "default_target: incorrect number of arguments");
-	luaL_checktype(L, 1, LUA_TSTRING);
+	luaL_checknumarg_eq(L, 1);
 
-	/* fetch context from lua */
-	context = context_get_pointer(L);
-
-	/* search for the node */
-	node = node_find(context->graph, lua_tostring(L,1));
-	if(!node)
-		luaL_error(L, "default_target: node '%s' not found", lua_tostring(L,1));
-	
 	/* set target */
-	context_default_target(context, node);
+	context_default_target(context, luaL_checknode(L, context, 1));
 	return 0;
 }
 
 /* update_globalstamp(string filename) */
 int lf_update_globalstamp(lua_State *L)
 {
-	struct CONTEXT *context;
+	struct CONTEXT *context = context_get_pointer(L);
 	time_t file_stamp;
-	
-	if(lua_gettop(L) < 1)
-		luaL_error(L, "update_globalstamp: too few arguments");
-	luaL_checktype(L, 1, LUA_TSTRING);
 
-	context = context_get_pointer(L);
-	file_stamp = file_timestamp(lua_tostring(L,1)); /* update global timestamp */
+	luaL_checknumarg_eq(L, 1);
+
+	file_stamp = file_timestamp(luaL_checklstring(L,1,NULL)); /* update global timestamp */
 	
 	if(file_stamp > context->globaltimestamp)
 		context->globaltimestamp = file_stamp;
@@ -468,14 +408,12 @@ int lf_update_globalstamp(lua_State *L)
 /* loadfile(filename) */
 int lf_loadfile(lua_State *L)
 {
-	if(lua_gettop(L) < 1)
-		luaL_error(L, "loadfile: too few arguments");
-	luaL_checktype(L, 1, LUA_TSTRING);
+	luaL_checknumarg_eq(L, 1);
 
 	if(session.verbose)
-		printf("%s: reading script from '%s'\n", session.name, lua_tostring(L,1));
+		printf("%s: reading script from '%s'\n", session.name, luaL_checklstring(L,1,NULL));
 	
-	if(luaL_loadfile(L, lua_tostring(L,1)) != 0)
+	if(luaL_loadfile(L, luaL_checklstring(L,1,NULL)) != 0)
 		lua_error(L);
 	return 1;
 }
@@ -575,14 +513,9 @@ int lf_panicfunc(lua_State *L)
 
 int lf_mkdir(struct lua_State *L)
 {
-	if(lua_gettop(L) < 1)
-		luaL_error(L, "mkdir: too few arguments");	
-
-	if(!lua_isstring(L, 1))
-		luaL_error(L, "mkdir: expected string");
-		
-	if(file_createdir(lua_tostring(L,1)) == 0)
-		lua_pushnumber(L, 1);	
+	luaL_checknumarg_eq(L, 1);
+	if(file_createdir(luaL_checklstring(L,1,NULL)) == 0)
+		lua_pushboolean(L, 1);	
 	else
 		lua_pushnil(L);
 	return 1;
@@ -590,14 +523,9 @@ int lf_mkdir(struct lua_State *L)
 
 int lf_mkdirs(struct lua_State *L)
 {
-	if(lua_gettop(L) < 1)
-		luaL_error(L, "mkdirs: too few arguments");	
-
-	if(!lua_isstring(L, 1))
-		luaL_error(L, "mkdirs: expected string");
-		
-	if(file_createpath(lua_tostring(L,1)) == 0)
-		lua_pushnumber(L, 1);	
+	luaL_checknumarg_eq(L, 1);
+	if(file_createpath(luaL_checklstring(L,1,NULL)) == 0)
+		lua_pushboolean(L, 1);	
 	else
 		lua_pushnil(L);
 	return 1;
@@ -605,14 +533,9 @@ int lf_mkdirs(struct lua_State *L)
 
 int lf_fileexist(struct lua_State *L)
 {
-	if(lua_gettop(L) < 1)
-		luaL_error(L, "fileexist: too few arguments");	
-
-	if(!lua_isstring(L, 1))
-		luaL_error(L, "fileexist: expected string");
-		
-	if(file_timestamp(lua_tostring(L,1)))
-		lua_pushnumber(L, 1);	
+	luaL_checknumarg_eq(L, 1);
+	if(file_timestamp(luaL_checklstring(L,1,NULL)))
+		lua_pushboolean(L, 1);	
 	else
 		lua_pushnil(L);
 	return 1;
@@ -621,7 +544,7 @@ int lf_fileexist(struct lua_State *L)
 int lf_istable(lua_State *L)
 {
 	if(lua_type(L,-1) == LUA_TTABLE)
-		lua_pushnumber(L, 1);
+		lua_pushboolean(L, 1);
 	else
 		lua_pushnil(L);
 	return 1;
@@ -630,7 +553,7 @@ int lf_istable(lua_State *L)
 int lf_isstring(lua_State *L)
 {
 	if(lua_type(L,-1) == LUA_TSTRING)
-		lua_pushnumber(L, 1);
+		lua_pushboolean(L, 1);
 	else
 		lua_pushnil(L);
 	return 1;
@@ -639,14 +562,7 @@ int lf_isstring(lua_State *L)
 int lf_hash(struct lua_State *L)
 {
 	char hashstr[64];
-
-	if(lua_gettop(L) < 1)
-		luaL_error(L, "hash: too few arguments");	
-
-	if(!lua_isstring(L, 1))
-		luaL_error(L, "hash: expected string");
-		
-	string_hash_tostr(string_hash(lua_tostring(L,1)), hashstr);
+	string_hash_tostr(string_hash(luaL_checklstring(L,1,NULL)), hashstr);
 	lua_pushstring(L, hashstr);
 	return 1;
 }
@@ -706,7 +622,7 @@ static int lf_table_walk_iter(struct lua_State *L)
 			return 2;
 		}
 		else
-			luaL_error(L, "tablewalk: encountered strange value in tables");
+			luaL_argerror(L, 1, lua_pushfstring(L, "unexpected %s in tables", luaL_typename(L, -1)));
 	}
 }
 
@@ -723,8 +639,7 @@ int lf_table_walk(struct lua_State *L)
 {
 	struct WALKDATA *data;
 
-	if(lua_gettop(L) != 1)
-		luaL_error(L, "table_walk: incorrect number of arguments");
+	luaL_checknumarg_eq(L, 1);
 	luaL_checktype(L, 1, LUA_TTABLE);
 	
 	/* 1: table to iterate over */
@@ -786,10 +701,8 @@ static int table_deepcopy_r(struct lua_State *L)
 
 int lf_table_deepcopy(struct lua_State *L)
 {
-	if(lua_gettop(L) != 1)
-		luaL_error(L, "table_deepcopy: incorrect number of arguments");
+	luaL_checknumarg_eq(L, 1);
 	luaL_checktype(L, 1, LUA_TTABLE);
-	
 	return table_deepcopy_r(L);
 }
 
@@ -816,7 +729,7 @@ static int lf_table_flatten_r(struct lua_State *L, int table_index)
 		else
 		{
 			/* other value */
-			luaL_error(L, "encountered something besides a string or a table");
+			luaL_argerror(L, 1, lua_pushfstring(L, "unexpected %s in tables", luaL_typename(L, -1)));
 		}
 		
 		/* pops +2 */
@@ -829,9 +742,7 @@ static int lf_table_flatten_r(struct lua_State *L, int table_index)
 int lf_table_flatten(struct lua_State *L)
 {
 	size_t s;
-	
-	if(lua_gettop(L) != 1)
-		luaL_error(L, "table_flatten: incorrect number of arguments");
+	luaL_checknumarg_eq(L, 1);
 	luaL_checktype(L, 1, LUA_TTABLE);
 		
 	/* 1: table to copy, 2: new table */
@@ -857,13 +768,9 @@ int lf_table_tostring(struct lua_State *L)
 	char *current;
 	const char *item;
 	
-	if(lua_gettop(L) != 3)
-		luaL_error(L, "table_tostring: incorrect number of arguments");
-	
 	luaL_checktype(L, 1, LUA_TTABLE);
-
-	prefix = lua_tolstring(L, 2, &prefix_len);
-	postfix = lua_tolstring(L, 3, &postfix_len);
+	prefix = luaL_optlstring(L, 2, "", &prefix_len);
+	postfix = luaL_optlstring(L, 3, "", &postfix_len);
 	
 	/* first, figure out the total size */
 	table_len = lua_objlen(L, 1 );
@@ -1073,9 +980,6 @@ static int collect(lua_State *L, int flags)
 	int n = lua_gettop(L);
 	int i;
 	COLLECT_CALLBACK_INFO info;
-	
-	if(n < 1)
-		luaL_error(L, "collect: incorrect number of arguments");
 
 	/* create the table */
 	lua_newtable(L);
@@ -1088,7 +992,7 @@ static int collect(lua_State *L, int flags)
 	/* start processing the input strings */
 	for(i = 1; i <= n; i++)
 	{
-		const char *input = lua_tostring(L, i);
+		const char *input = luaL_checklstring(L, i, NULL);
 		
 		if(!input)
 			continue;
@@ -1108,20 +1012,14 @@ int lf_collectdirsrecursive(lua_State *L) { return collect(L, COLLECTFLAG_DIRS|C
 int lf_path_join(lua_State *L)
 {
 	char buffer[1024*2];
-	int n = lua_gettop(L);
 	int err;
 	const char *base;
 	const char *extend;
 	size_t base_len, extend_len;
 
-	if(n != 2)
-		luaL_error(L, "path_join: incorrect number of arguments");
-
-	luaL_checktype(L, 1, LUA_TSTRING);
-	luaL_checktype(L, 2, LUA_TSTRING);
-	
-	base = lua_tolstring(L, 1, &base_len);
-	extend = lua_tolstring(L, 2, &extend_len);
+	luaL_checknumarg_eq(L, 2);	
+	base = luaL_checklstring(L, 1, &base_len);
+	extend = luaL_checklstring(L, 2, &extend_len);
 	err = path_join(base, base_len, extend, extend_len, buffer, 2*1024);
 	if(err != 0)
 	{
@@ -1138,30 +1036,18 @@ int lf_path_join(lua_State *L)
 /*  */
 int lf_path_isnice(lua_State *L)
 {
-	int n = lua_gettop(L);
-	const char *path = 0;
-
-	if(n != 1)
-		luaL_error(L, "path_isnice: incorrect number of arguments");
-
-	luaL_checktype(L, 1, LUA_TSTRING);
-	
-	path = lua_tostring(L, 1);
-	lua_pushnumber(L, path_isnice(path));
+	luaL_checknumarg_eq(L, 1);
+	lua_pushnumber(L, path_isnice(luaL_checklstring(L, 1, NULL)));
 	return 1;
 }
 
 int lf_path_normalize(lua_State *L)
 {
-	int n = lua_gettop(L);
-	const char *path = 0;
-
-	if(n != 1)
-		luaL_error(L, "path_normalize: incorrect number of arguments");
-
-	luaL_checktype(L, 1, LUA_TSTRING);
+	const char *path;
 	
-	path = lua_tostring(L, 1);
+	luaL_checknumarg_eq(L, 1);
+
+	path = luaL_checklstring(L, 1, NULL);
 	
 	if(path_isnice(path))
 	{
@@ -1183,16 +1069,8 @@ int lf_path_normalize(lua_State *L)
 /*  */
 int lf_path_ext(lua_State *L)
 {
-	int n = lua_gettop(L);
-	const char *path = 0;
-	if(n < 1)
-		luaL_error(L, "path_ext: incorrect number of arguments");
-	
-	path = lua_tostring(L, 1);
-	if(!path)
-		luaL_error(L, "path_ext: argument is not a string");
-		
-	lua_pushstring(L, path_ext(path));
+	luaL_checknumarg_eq(L, 1);
+	lua_pushstring(L, path_ext(luaL_checklstring(L, 1, NULL)));
 	return 1;
 }
 
@@ -1200,18 +1078,15 @@ int lf_path_ext(lua_State *L)
 /*  */
 int lf_path_base(lua_State *L)
 {
-	int n = lua_gettop(L);
 	size_t org_len;
 	size_t new_len;
 	size_t count = 0;
 	const char *cur = 0;
 	const char *path = 0;
-	if(n < 1)
-		luaL_error(L, "path_base: incorrect number of arguments");
+
+	luaL_checknumarg_eq(L, 1);
 	
-	path = lua_tolstring(L, 1, &org_len);
-	if(!path)
-		luaL_error(L, "path_base: argument is not a string");
+	path = luaL_checklstring(L, 1, &org_len);
 
 	/* cut off the ext */
 	new_len = org_len;
@@ -1248,14 +1123,11 @@ static int path_dir_length(const char *path)
 int lf_path_dir(lua_State *L)
 {
 	char buffer[1024];
-	int n = lua_gettop(L);
-	const char *path = 0;
-	if(n < 1)
-		luaL_error(L, "path_dir: incorrect number of arguments");
+	const char *path;
 
-	path = lua_tostring(L, 1);
-	if(!path)
-		luaL_error(L, "path_dir: argument is not a string");
+	luaL_checknumarg_eq(L, 1);
+
+	path = luaL_checklstring(L, 1, NULL);
 	
 	/* check if we can take the easy way out */
 	if(path_isnice(path))
@@ -1274,16 +1146,7 @@ int lf_path_dir(lua_State *L)
 /*  */
 int lf_path_filename(lua_State *L)
 {
-	int n = lua_gettop(L);
-	const char *path = 0;
-	if(n < 1)
-		luaL_error(L, "path_filename: incorrect number of arguments");
-
-	path = lua_tostring(L, 1);
-
-	if(!path)
-		luaL_error(L, "path_filename: null name");
-
-	lua_pushstring(L, path_filename(path));
+	luaL_checknumarg_eq(L, 1);
+	lua_pushstring(L, path_filename(luaL_checklstring(L, 1, NULL)));
 	return 1;
 }

@@ -2,8 +2,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include <lua.h>
-
 #include "node.h"
 #include "mem.h"
 #include "support.h"
