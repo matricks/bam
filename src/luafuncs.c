@@ -159,7 +159,7 @@ static struct NODE *luaL_checknode(lua_State *L, struct CONTEXT *context, int na
 
 static struct NODE *luaL_checkjobnode(lua_State *L, struct CONTEXT *context, int narg)
 {
-	struct NODE *node = luaL_checkjobnode(L, context, narg);
+	struct NODE *node = luaL_checknode(L, context, narg);
 	if(!node->job->cmdline)
 		luaL_argerror(L, narg, lua_pushfstring(L, "node '%s' is not a job", lua_tostring(L, narg)));
 	return node;
