@@ -180,6 +180,7 @@ struct CONTEXT;
 #define NODEWALK_QUICK		32	/* never visit the same node twice */
 #define NODEWALK_JOBS		64	/* walk the jobtree instead of the complete tree */
 #define NODEWALK_REVISIT	(128|NODEWALK_QUICK) /* will do a quick pass and revisits all nodes thats
+	have been marked by node_walk_revisit(). path info won't be available when revisiting nodes */
 
 /* node dirty status */
 /* make sure to update node_debug_dump_jobs() when changing these */
