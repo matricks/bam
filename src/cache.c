@@ -601,16 +601,19 @@ struct CACHEINFO_OUTPUT *outputcache_find_byhash(struct OUTPUTCACHE *outputcache
 	if(!outputcache)
 		return NULL;
 
-	while(low != high)
+	while(low < high)
 	{
 		index = low + (high - low) / 2;
 		if(hashid < outputcache->info[index].hashid)
-			high = index;
+			high = index - 1;
 		else if(hashid > outputcache->info[index].hashid)
-			low = index;
+			low = index + 1;
 		else
 			return &outputcache->info[index];
 	}
+
+	if(hashid == outputcache->info[low].hashid)
+		return &outputcache->info[low];
 
 	return NULL;
 }
