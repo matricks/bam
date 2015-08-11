@@ -91,7 +91,7 @@
 	/* signals. should be moved to platform.c or similar? */
 	void install_signals(void (*abortsignal)(int))
 	{
-		/* abortsignal_func = abortsignal */;
+		/* abortsignal_func = abortsignal ;*/
 		signal(SIGINT, abortsignal);
 		signal(SIGBREAK, abortsignal);
 	}
