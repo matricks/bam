@@ -521,11 +521,12 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 	if(session.verbose)
 		printf("%s: setup started\n", session.name);
 	
-	/* set filename */
-	context->filename = scriptfile;
-	
+	/* set filename and normalize it */
+	strncpy(context->filename, scriptfile, sizeof(context->filename));
+	path_normalize(context->filename);
+
 	/* set global timestamp to the script file */
-	context->globaltimestamp = file_timestamp(scriptfile);
+	context->globaltimestamp = file_timestamp(context->filename);
 
 	/* */
 	context->forced = option_force;
@@ -565,12 +566,12 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 
 	/* load script */	
 	if(session.verbose)
-		printf("%s: reading script from '%s'\n", session.name, scriptfile);
+		printf("%s: reading script from '%s'\n", session.name, context->filename);
 
 	event_begin(0, "script load", NULL);
 	/* push error function to stack and load the script */
 	lua_getglobal(context->lua, "errorfunc");
-	switch(luaL_loadfile(context->lua, scriptfile))
+	switch(luaL_loadfile(context->lua, context->filename))
 	{
 		case 0: break;
 		case LUA_ERRSYNTAX:
@@ -580,7 +581,7 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 			printf("%s: memory allocation error\n", session.name);
 			return -1;
 		case LUA_ERRFILE:
-			printf("%s: error opening '%s'\n", session.name, scriptfile);
+			printf("%s: error opening '%s'\n", session.name, context->filename);
 			return -1;
 		default:
 			printf("%s: unknown error\n", session.name);
@@ -1026,7 +1027,7 @@ int main(int argc, char **argv)
 	/* fetch program name, if we can */
 	for(i = 0; argv[0][i]; ++i)
 	{
-		if(argv[0][i] == '/' || argv[0][i] == '\\')
+		if(path_is_separator(argv[0][i]))
 			session.name = &argv[0][i+1];
 	}
 

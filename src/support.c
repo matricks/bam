@@ -318,7 +318,7 @@
 			/* get starting point and append a slash */
 			strcpy(buffer, path);
 			startpoint = buffer + strlen(buffer);
-			*startpoint = '/';
+			*startpoint = PATH_SEPARATOR;
 			startpoint++;		
 		}
 		
@@ -684,7 +684,7 @@ int file_createpath(const char *output_name)
 	i = 0;
 	while(1)
 	{
-		if((buffer[i] == '/') || (buffer[i] == 0))
+		if((buffer[i] == PATH_SEPARATOR) || (buffer[i] == 0))
 		{
 			/* insert null terminator */
 			t = buffer[i];

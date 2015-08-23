@@ -6,9 +6,11 @@
 
 /* make sure that this gets inlined */
 #if defined(BAM_FAMILY_WINDOWS)
-	#define path_is_separator(c) (c == '/' || c == '\\')
+	#define PATH_SEPARATOR ('/')
+	#define path_is_separator(c) (c == PATH_SEPARATOR || c == '\\')
 #else
-	#define path_is_separator(c) (c == '/')
+	#define PATH_SEPARATOR ('/')
+	#define path_is_separator(c) (c == PATH_SEPARATOR)
 #endif
 
 /* returns a pointer to the filename, /foo/bar.a -> bar.a */

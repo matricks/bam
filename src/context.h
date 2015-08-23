@@ -1,5 +1,7 @@
 #include <time.h>
 
+#include "path.h"
+
 struct CONTEXT;
 
 struct DEFERRED
@@ -16,8 +18,8 @@ struct CONTEXT
 	struct lua_State *lua;
 	
 	/* general script information */
-	const char *filename;
-	char script_directory[512];
+	char filename[MAX_PATH_LENGTH];
+	char script_directory[MAX_PATH_LENGTH];
 	
 	struct HEAP *graphheap;
 	struct GRAPH *graph;

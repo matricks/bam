@@ -270,7 +270,7 @@ static int dependency_cpp_callback(struct NODE *node, void *user, const char *fi
 		int flen = strlen(node->filename)-1;
 		while(flen)
 		{
-			if(node->filename[flen] == '/')
+			if(path_is_separator(node->filename[flen]))
 				break;
 			flen--;
 		}

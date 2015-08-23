@@ -10,8 +10,6 @@
 #include "platform.h"
 #include "path.h"
 
-#define PATH_SEPARATOR '/'
-
 /* */
 const char *path_filename(const char *path)
 {
@@ -133,7 +131,8 @@ int path_normalize(char *path)
 			else if(path_is_separator(srcptr[0]))
 			{
 				/* store the point of this directory */
-				*dstptr++ = *srcptr++;
+				*dstptr++ = PATH_SEPARATOR;
+				srcptr++;
 				dirs[depth] = dstptr;
 				depth++;
 				
