@@ -1,5 +1,8 @@
 /* platforms */
 
+#ifndef FILE_PLATFORM_H
+#define FILE_PLATFORM_H
+
 /* windows family */
 #if defined(WIN64) || defined(_WIN64)
 	/* hmm, is this IA64 or x86-64? */
@@ -135,3 +138,5 @@
 #ifndef BAM_ARCH_STRING
 #define BAM_ARCH_STRING "unknown"
 #endif
+
+#endif /* FILE_PLATFORM_H */
