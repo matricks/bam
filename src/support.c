@@ -91,7 +91,7 @@
 	/* signals. should be moved to platform.c or similar? */
 	void install_signals(void (*abortsignal)(int))
 	{
-		//abortsignal_func = abortsignal;
+		/* abortsignal_func = abortsignal ;*/
 		signal(SIGINT, abortsignal);
 		signal(SIGBREAK, abortsignal);
 	}
@@ -105,9 +105,9 @@
 		DWORD dwErr = 0;
 		BuildExplicitAccessWithName( &denyAccess, "CURRENT_USER", dwAccessPermissions, DENY_ACCESS, NO_INHERITANCE );
 		dwErr = SetEntriesInAcl( 1, &denyAccess, NULL, &pTempDacl );
-		// check dwErr...
+		/* check dwErr... */
 		dwErr = SetSecurityInfo( hProcess, SE_KERNEL_OBJECT, DACL_SECURITY_INFORMATION, NULL, NULL, pTempDacl, NULL );
-		// check dwErr...
+		/* check dwErr... */
 		LocalFree( pTempDacl );
 		CloseHandle( hProcess );
 		return dwErr == ERROR_SUCCESS;
@@ -145,7 +145,7 @@
 					break;
 				else
 				{
-					//printf("bam is already running, wait for it to finish and then try again 2 (%d)\n", ret);
+					/* printf("bam is already running, wait for it to finish and then try again 2 (%d)\n", ret); */
 					printf("bam is already running, waiting for it to finish\n"); fflush(stdout);
 					Sleep(1000);
 				}
