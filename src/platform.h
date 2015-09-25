@@ -37,6 +37,13 @@
 	#define BAM_PLATFORM_STRING "openbsd"
 #endif
 
+#if defined(__NetBSD__)
+	#define BAM_FAMILY_UNIX
+	#define BAM_FAMILY_STRING "unix"
+	#define BAM_PLATFORM_NETBSD
+	#define BAM_PLATFORM_STRING "netbsd"
+#endif
+
 #if defined(__LINUX__) || defined(__linux__)
 	#define BAM_FAMILY_UNIX
 	#define BAM_FAMILY_STRING "unix"
