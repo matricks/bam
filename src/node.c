@@ -426,7 +426,7 @@ static int node_walk_r(
 	if(flags&NODEWALK_TOPDOWN)
 	{
 		walk->node = node;
-		result = walk->callback(walk);
+		result |= walk->callback(walk);
 	}
 
 	/* push parent */
@@ -442,7 +442,7 @@ static int node_walk_r(
 	for(; dep; dep = dep->next)
 	{
 		result = node_walk_r(walk, dep->node);
-		if(result)
+		if(!(flags&NODEWALK_NOABORT) && result)
 			break;
 	}
 
@@ -455,7 +455,7 @@ static int node_walk_r(
 		bitarray_clear(walk->mark, node->id);
 	
 	/* return if we have an error */
-	if(result)
+	if(!(flags&NODEWALK_NOABORT) && result)
 		return result;
 
 	/* check if we need to rebuild this node */
@@ -466,7 +466,7 @@ static int node_walk_r(
 	if(flags&NODEWALK_BOTTOMUP)
 	{
 		walk->node = node;
-		result = walk->callback(walk);
+		result |= walk->callback(walk);
 	}
 	
 	return result;

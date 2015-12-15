@@ -1,5 +1,8 @@
 /* platforms */
 
+#ifndef FILE_PLATFORM_H
+#define FILE_PLATFORM_H
+
 /* windows family */
 #if defined(WIN64) || defined(_WIN64)
 	/* hmm, is this IA64 or x86-64? */
@@ -32,6 +35,13 @@
 	#define BAM_FAMILY_STRING "unix"
 	#define BAM_PLATFORM_OPENBSD
 	#define BAM_PLATFORM_STRING "openbsd"
+#endif
+
+#if defined(__NetBSD__)
+	#define BAM_FAMILY_UNIX
+	#define BAM_FAMILY_STRING "unix"
+	#define BAM_PLATFORM_NETBSD
+	#define BAM_PLATFORM_STRING "netbsd"
 #endif
 
 #if defined(__LINUX__) || defined(__linux__)
@@ -135,3 +145,5 @@
 #ifndef BAM_ARCH_STRING
 #define BAM_ARCH_STRING "unknown"
 #endif
+
+#endif /* FILE_PLATFORM_H */

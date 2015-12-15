@@ -12,6 +12,11 @@ SetPriority = bam_set_priority
 ModifyPriority = bam_modify_priority
 
 --[[@UNITTESTS
+	err=1 : bam_add_dependency_cpp("missing node")
+	err=0: PseudoTarget("fakenode"); bam_add_dependency_cpp("fakenode")
+@END]]--
+
+--[[@UNITTESTS
 	catch="0000000000001505" : Hash("")
 	catch="bc517990f19c4304" : Hash("Hello World!")
 @END]]--

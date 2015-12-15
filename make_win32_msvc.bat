@@ -6,6 +6,10 @@ if exist "%VCINSTALLDIR%" (
 )
 
 @REM Check for Visual Studio
+if exist "%VS140COMNTOOLS%" (
+	set VSPATH="%VS140COMNTOOLS%"
+	goto set_env
+)
 if exist "%VS120COMNTOOLS%" (
 	set VSPATH="%VS120COMNTOOLS%"
 	goto set_env
@@ -27,7 +31,7 @@ if exist "%VS80COMNTOOLS%" (
 	goto set_env
 )
 
-echo You need Microsoft Visual Studio 8, 9, 10, 11 or 12 installed
+echo You need Microsoft Visual Studio 8, 9, 10, 11, 12 or 14 installed
 pause
 exit
 
@@ -48,7 +52,7 @@ call %VSPATH%vsvars32.bat
 @REM /GS- = no stack checks
 @REM /GL = Whole program optimization (ltcg)
 @REM /LTCG = link time code generation
-@cl /D_CRT_SECURE_NO_DEPRECATE /DLUA_BUILD_AS_DLL /W3 /O2 /TC /Zi /GS- /GL /nologo /I src/lua src/*.c src/lua/*.c /Febam.exe /link /LTCG
+@cl /D_CRT_SECURE_NO_DEPRECATE /DLUA_BUILD_AS_DLL /W3 /O2 /TC /Zi /GS- /GL /nologo /I src/lua src/*.c src/lua/*.c /Febam.exe /link Advapi32.lib /LTCG
 
 @REM clean up
 @del bam.exp

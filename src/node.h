@@ -64,6 +64,7 @@ struct JOB
 	unsigned priority; /* the priority is the priority of all jobs dependent on this job */
 
 	unsigned counted:1; /* set if we have counted this job towards the number of targets to build */
+	unsigned cleaned:1; /* set if we have cleaned this job */
 
 	volatile unsigned status; /* build status of the job, JOBSTATUS_* flags */
 };
@@ -179,13 +180,14 @@ struct CONTEXT;
 #define NODECREATE_INVALID_ARG	3	/* invalid arguments */
 
 /* node walk flags */
-#define NODEWALK_FORCE		1	/* skips dirty checks and*/
-#define NODEWALK_TOPDOWN	2	/* callbacks are done top down */
-#define NODEWALK_BOTTOMUP	4	/* callbacks are done bottom up */
-#define NODEWALK_UNDONE		8	/* causes checking of the undone flag, does not decend if it's set */
-#define NODEWALK_QUICK		16	/* never visit the same node twice */
-#define NODEWALK_JOBS		32	/* walk the jobtree instead of the complete tree */
-#define NODEWALK_REVISIT	(64|NODEWALK_QUICK) /* will do a quick pass and revisits all nodes thats
+#define NODEWALK_FORCE		1	/* skips dirty checks */
+#define NODEWALK_NOABORT	2	/* continues even if an error have been return by the callback */
+#define NODEWALK_TOPDOWN	4	/* callbacks are done top down */
+#define NODEWALK_BOTTOMUP	8	/* callbacks are done bottom up */
+#define NODEWALK_UNDONE		16	/* causes checking of the undone flag, does not decend if it's set */
+#define NODEWALK_QUICK		32	/* never visit the same node twice */
+#define NODEWALK_JOBS		64	/* walk the jobtree instead of the complete tree */
+#define NODEWALK_REVISIT	(128|NODEWALK_QUICK) /* will do a quick pass and revisits all nodes thats
 	have been marked by node_walk_revisit(). path info won't be available when revisiting nodes */
 
 /* node dirty status */
