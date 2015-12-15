@@ -1051,6 +1051,7 @@ int main(int argc, char **argv)
 	/* set eventlog */
 	if(option_debug_eventlog)
 	{
+		file_createpath(option_debug_eventlog);
 		session.eventlog = fopen(option_debug_eventlog, "w");
 		session.eventlogflush = option_debug_eventlogflush;
 		if(!session.eventlog)
