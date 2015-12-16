@@ -1,6 +1,8 @@
+
+#include "platform.h"
+
 /* max path length for bam */
 #define MAX_PATH_LENGTH 1024
-
 
 /* make sure that this gets inlined */
 #if defined(BAM_FAMILY_WINDOWS)

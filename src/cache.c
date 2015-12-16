@@ -400,6 +400,7 @@ struct OUTPUTCACHE
 {
 	struct CACHEINFO_OUTPUT *info;
 	unsigned count;
+	time_t cache_file_stamp;
 };
 
 static int output_hash_compare(const void * a, const void * b)
@@ -485,6 +486,12 @@ int outputcache_save(const char *filename, struct OUTPUTCACHE *oldcache, struct 
 	struct CACHEINFO_OUTPUT * final;
 	unsigned finalcount;
 
+	time_t current_stamp = file_timestamp(filename);
+	if(oldcache && oldcache->cache_file_stamp != current_stamp)
+		printf("%s: warning: cache file '%s' has been changed since cache load, will be overwritten (%08x,%08x), is bam called from bam?\n", session.name, filename, (unsigned)oldcache->cache_file_stamp, (unsigned)current_stamp);
+	else if( !oldcache && current_stamp != 0 )
+		printf("%s: warning: cache file '%s' was missing on cache load but has appeared during the run, will be overwritten (%08x), is bam called from bam?\n", session.name, filename, (unsigned)current_stamp);
+	
 	fp = io_open_write(filename);
 	if(!io_valid(fp))
 		return -1;
@@ -578,6 +585,7 @@ struct OUTPUTCACHE *outputcache_load(const char *filename)
 	cache = (struct OUTPUTCACHE*)malloc(sizeof(struct OUTPUTCACHE));
 	cache->info = (struct CACHEINFO_OUTPUT *)((char*)buffer + sizeof(bamheader));
 	cache->count = payloadsize /  sizeof(struct CACHEINFO_OUTPUT);
+	cache->cache_file_stamp = file_timestamp(filename);
 
 	if(validate_outputcache(cache->info, cache->count))
 	{
@@ -605,7 +613,12 @@ struct CACHEINFO_OUTPUT *outputcache_find_byhash(struct OUTPUTCACHE *outputcache
 	{
 		index = low + (high - low) / 2;
 		if(hashid < outputcache->info[index].hashid)
-			high = index - 1;
+		{
+			if(index == 0)
+				break;
+			else
+				high = index - 1;
+		}
 		else if(hashid > outputcache->info[index].hashid)
 			low = index + 1;
 		else
