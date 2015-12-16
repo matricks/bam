@@ -605,7 +605,12 @@ struct CACHEINFO_OUTPUT *outputcache_find_byhash(struct OUTPUTCACHE *outputcache
 	{
 		index = low + (high - low) / 2;
 		if(hashid < outputcache->info[index].hashid)
-			high = index - 1;
+		{
+			if(index == 0)
+				break;
+			else
+				high = index - 1;
+		}
 		else if(hashid > outputcache->info[index].hashid)
 			low = index + 1;
 		else
