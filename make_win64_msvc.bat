@@ -1,42 +1,38 @@
 @echo off
 
+@REM Check for Visual Studio
+call set "VSPATH="
+if defined VS140COMNTOOLS ( if not defined VSPATH (
+	call set "VSPATH=%%VS140COMNTOOLS%%"
+) )
+if defined VS120COMNTOOLS ( if not defined VSPATH (
+	call set "VSPATH=%%VS120COMNTOOLS%%"
+) )
+if defined VS110COMNTOOLS ( if not defined VSPATH (
+	call set "VSPATH=%%VS110COMNTOOLS%%"
+) )
+if defined VS100COMNTOOLS ( if not defined VSPATH (
+	call set "VSPATH=%%VS100COMNTOOLS%%"
+) )
+if defined VS90COMNTOOLS ( if not defined VSPATH (
+	call set "VSPATH=%%VS90COMNTOOLS%%"
+) )
+if defined VS80COMNTOOLS ( if not defined VSPATH (
+	call set "VSPATH=%%VS80COMNTOOLS%%"
+) )
+
 @REM check if we already have the tools in the environment
 if exist "%VCINSTALLDIR%" (
 	goto compile
 )
 
-@REM Check for Visual Studio
-if defined VS140COMNTOOLS (
-	call set VSPATH=%%VS140COMNTOOLS%%
-	goto set_env
-)
-if defined VS120COMNTOOLS (
-	call set VSPATH=%%VS120COMNTOOLS%%
-	goto set_env
-)
-if defined VS110COMNTOOLS (
-	call set VSPATH=%%VS110COMNTOOLS%%
-	goto set_env
-)
-if defined VS100COMNTOOLS (
-	call set VSPATH=%%VS100COMNTOOLS%%
-	goto set_env
-)
-if defined VS90COMNTOOLS" (
-	call set VSPATH=%%VS90COMNTOOLS%%
-	goto set_env
-)
-if defined VS80COMNTOOLS (
-	call set VSPATH=%%VS80COMNTOOLS%%
-	goto set_env
+if not defined VSPATH (
+	echo You need Microsoft Visual Studio 8, 9, 10, 11, 12, 13 or 15 installed
+	pause
+	exit
 )
 
-echo You need Microsoft Visual Studio 8, 9, 10, 11, 12 or 14 installed
-pause
-exit
-
-@ set up the environment
-:set_env
+@REM set up the environment
 if exist "%VSPATH%..\..\vc\vcvarsall.bat" (
 	call "%%VSPATH%%..\..\vc\vcvarsall.bat" amd64
 	goto compile
