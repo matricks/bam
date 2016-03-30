@@ -711,6 +711,7 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	int build_error = 0;
 	int setup_error = 0;
 	int report_done = 0;
+	time_t outputcache_timestamp = 0;
 
 	/* build time */
 	time_t starttime  = time(0x0);
@@ -735,7 +736,6 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	lua_atpanic(context.lua, lf_panicfunc);
 
 	/* load cache (thread?) */
-	time_t outputcache_timestamp = 0;
 	if(option_no_cache == 0)
 	{
 		/* create a hash of all the external variables that can cause the
