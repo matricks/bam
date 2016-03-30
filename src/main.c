@@ -735,6 +735,7 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	lua_atpanic(context.lua, lf_panicfunc);
 
 	/* load cache (thread?) */
+	time_t outputcache_timestamp = 0;
 	if(option_no_cache == 0)
 	{
 		/* create a hash of all the external variables that can cause the
@@ -753,7 +754,7 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 		event_end(0, "depcache load", NULL);
 
 		event_begin(0, "outputcache load", outputcache_filename);
-		context.outputcache = outputcache_load(outputcache_filename);
+		context.outputcache = outputcache_load(outputcache_filename, &outputcache_timestamp);
 		event_end(0, "outputcache load", NULL);
 	}
 
@@ -825,7 +826,7 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 		event_end(0, "depcache save", NULL);
 
 		event_begin(0, "outputcache save", outputcache_filename);
-		outputcache_save(outputcache_filename, context.outputcache, context.graph);
+		outputcache_save(outputcache_filename, context.outputcache, context.graph, outputcache_timestamp);
 		event_end(0, "outputcache save", NULL);
 	}
 	

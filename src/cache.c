@@ -400,7 +400,6 @@ struct OUTPUTCACHE
 {
 	struct CACHEINFO_OUTPUT *info;
 	unsigned count;
-	time_t cache_file_stamp;
 };
 
 static int output_hash_compare(const void * a, const void * b)
@@ -472,7 +471,7 @@ static unsigned outputcache_merge(
 	return curout;
 }
 
-int outputcache_save(const char *filename, struct OUTPUTCACHE *oldcache, struct GRAPH *graph)
+int outputcache_save(const char *filename, struct OUTPUTCACHE *oldcache, struct GRAPH *graph, time_t cache_timestamp)
 {
 	IO_HANDLE fp;
 
@@ -487,10 +486,8 @@ int outputcache_save(const char *filename, struct OUTPUTCACHE *oldcache, struct 
 	unsigned finalcount;
 
 	time_t current_stamp = file_timestamp(filename);
-	if(oldcache && oldcache->cache_file_stamp != current_stamp)
-		printf("%s: warning: cache file '%s' has been changed since cache load, will be overwritten (%08x,%08x), is bam called from bam?\n", session.name, filename, (unsigned)oldcache->cache_file_stamp, (unsigned)current_stamp);
-	else if( !oldcache && current_stamp != 0 )
-		printf("%s: warning: cache file '%s' was missing on cache load but has appeared during the run, will be overwritten (%08x), is bam called from bam?\n", session.name, filename, (unsigned)current_stamp);
+	if(cache_timestamp != current_stamp)
+		printf("%s: warning: cache file '%s' has been changed since cache load, will be overwritten (%08x,%08x), is bam called from bam?\n", session.name, filename, (unsigned)cache_timestamp, (unsigned)current_stamp);
 	
 	fp = io_open_write(filename);
 	if(!io_valid(fp))
@@ -561,13 +558,16 @@ int outputcache_save(const char *filename, struct OUTPUTCACHE *oldcache, struct 
 	return 0;
 }
 
-struct OUTPUTCACHE *outputcache_load(const char *filename)
+struct OUTPUTCACHE *outputcache_load(const char *filename, time_t *cache_timestamp)
 {
 	unsigned long filesize;
 	unsigned long payloadsize;
 	void *buffer;
 	struct OUTPUTCACHE *cache;
 
+	if(cache_timestamp)
+		*cache_timestamp = file_timestamp(filename);
+	
 	if(!io_read_cachefile(filename, "OUT", &buffer, &filesize))
 		return NULL;
 
@@ -585,7 +585,6 @@ struct OUTPUTCACHE *outputcache_load(const char *filename)
 	cache = (struct OUTPUTCACHE*)malloc(sizeof(struct OUTPUTCACHE));
 	cache->info = (struct CACHEINFO_OUTPUT *)((char*)buffer + sizeof(bamheader));
 	cache->count = payloadsize /  sizeof(struct CACHEINFO_OUTPUT);
-	cache->cache_file_stamp = file_timestamp(filename);
 
 	if(validate_outputcache(cache->info, cache->count))
 	{
