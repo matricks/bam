@@ -724,6 +724,7 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	int build_error = 0;
 	int setup_error = 0;
 	int report_done = 0;
+	time_t outputcache_timestamp = 0;
 
 	/* build time */
 	time_t starttime  = time(0x0);
@@ -763,7 +764,7 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 		event_end(0, "depcache load", NULL);
 
 		event_begin(0, "outputcache load", outputcache_filename);
-		context.outputcache = outputcache_load(outputcache_filename);
+		context.outputcache = outputcache_load(outputcache_filename, &outputcache_timestamp);
 		event_end(0, "outputcache load", NULL);
 	}
 
@@ -835,7 +836,7 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 		event_end(0, "depcache save", NULL);
 
 		event_begin(0, "outputcache save", outputcache_filename);
-		outputcache_save(outputcache_filename, context.outputcache, context.graph);
+		outputcache_save(outputcache_filename, context.outputcache, context.graph, outputcache_timestamp);
 		event_end(0, "outputcache save", NULL);
 	}
 	
