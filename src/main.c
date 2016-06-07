@@ -590,6 +590,9 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 	}
 	event_end(0, "script load", NULL);
 
+	/* create the cache and tmp directory */
+	file_createdir(".bam");
+
 	/* start the background stat thread */
 	node_graph_start_statthread(context->graph);
 
@@ -724,9 +727,6 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 
 	/* build time */
 	time_t starttime  = time(0x0);
-
-	/* create the cache and tmp directory */
-	file_createdir(".bam");
 	
 	/* zero out and create memory heap, graph */
 	memset(&context, 0, sizeof(struct CONTEXT));
