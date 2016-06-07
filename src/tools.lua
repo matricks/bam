@@ -4,7 +4,7 @@ function SetDefaultDrivers(settings)
 	-- check for compilers first time
 	if _checked_default_drivers == false then
 		_checked_default_drivers = true
-		if ExecuteSilent("cl") >= 0 then
+		if ExecuteSilent("cl") == 0 then
 			SetDriversDefault = SetDriversCL
 		elseif ExecuteSilent("gcc -v") == 0 then
 			SetDriversDefault = SetDriversGCC
