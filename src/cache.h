@@ -28,7 +28,7 @@ int depcache_do_dependency(
 
 
 /* output cache */
-int outputcache_save(const char *filename, struct OUTPUTCACHE *oldcache, struct GRAPH *graph);
-struct OUTPUTCACHE *outputcache_load(const char *filename);
+int outputcache_save(const char *filename, struct OUTPUTCACHE *oldcache, struct GRAPH *graph, time_t cache_timestamp);
+struct OUTPUTCACHE *outputcache_load(const char *filename, time_t *cache_timestamp);
 void outputcache_free(struct OUTPUTCACHE *outputcache);
 struct CACHEINFO_OUTPUT *outputcache_find_byhash(struct OUTPUTCACHE *outputcache, hash_t hashid);

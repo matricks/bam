@@ -471,7 +471,7 @@ static unsigned outputcache_merge(
 	return curout;
 }
 
-int outputcache_save(const char *filename, struct OUTPUTCACHE *oldcache, struct GRAPH *graph)
+int outputcache_save(const char *filename, struct OUTPUTCACHE *oldcache, struct GRAPH *graph, time_t cache_timestamp)
 {
 	IO_HANDLE fp;
 
@@ -485,6 +485,10 @@ int outputcache_save(const char *filename, struct OUTPUTCACHE *oldcache, struct 
 	struct CACHEINFO_OUTPUT * final;
 	unsigned finalcount;
 
+	time_t current_stamp = file_timestamp(filename);
+	if(cache_timestamp != current_stamp)
+		printf("%s: warning: cache file '%s' has been changed since cache load, will be overwritten (%08x,%08x), is bam called from bam?\n", session.name, filename, (unsigned)cache_timestamp, (unsigned)current_stamp);
+	
 	fp = io_open_write(filename);
 	if(!io_valid(fp))
 		return -1;
@@ -554,13 +558,16 @@ int outputcache_save(const char *filename, struct OUTPUTCACHE *oldcache, struct 
 	return 0;
 }
 
-struct OUTPUTCACHE *outputcache_load(const char *filename)
+struct OUTPUTCACHE *outputcache_load(const char *filename, time_t *cache_timestamp)
 {
 	unsigned long filesize;
 	unsigned long payloadsize;
 	void *buffer;
 	struct OUTPUTCACHE *cache;
 
+	if(cache_timestamp)
+		*cache_timestamp = file_timestamp(filename);
+	
 	if(!io_read_cachefile(filename, "OUT", &buffer, &filesize))
 		return NULL;
 
@@ -605,7 +612,12 @@ struct CACHEINFO_OUTPUT *outputcache_find_byhash(struct OUTPUTCACHE *outputcache
 	{
 		index = low + (high - low) / 2;
 		if(hashid < outputcache->info[index].hashid)
-			high = index - 1;
+		{
+			if(index == 0)
+				break;
+			else
+				high = index - 1;
+		}
 		else if(hashid > outputcache->info[index].hashid)
 			low = index + 1;
 		else
