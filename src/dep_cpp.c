@@ -105,12 +105,12 @@ struct CACHERUNINFO
 static int dependency_cpp_run(struct CONTEXT *context, struct NODE *node,
 		int (*callback)(struct NODE *, void *, const char *, int), void *userdata);
 
-static void cachehit_callback(struct NODE *node, struct CACHENODE *cachenode, void *user)
+static void cachehit_callback(struct NODE *node, struct CACHEINFO_DEPS *cacheinfo, void *user)
 {
 	struct CACHERUNINFO *info = (struct CACHERUNINFO *)user;
 	
 	/* check if the file has been removed */
-	struct NODE *existing_node = node_find_byhash(node->graph, cachenode->hashid);
+	struct NODE *existing_node = node_find_byhash(node->graph, cacheinfo->hashid);
 	if(existing_node)
 	{
 		struct NODE *newnode = node_add_dependency (node, existing_node);
@@ -118,12 +118,12 @@ static void cachehit_callback(struct NODE *node, struct CACHENODE *cachenode, vo
 	}
 	else
 	{
-		time_t timestamp = file_timestamp(cachenode->filename);
+		time_t timestamp = file_timestamp(cacheinfo->filename);
 		if(timestamp)
 		{
 			/* this shouldn't be able to fail */
 			struct NODE *newnode;
-			node_create(&newnode, info->context->graph, cachenode->filename, NULL, timestamp);
+			node_create(&newnode, info->context->graph, cacheinfo->filename, NULL, timestamp);
 			node_add_dependency (node, newnode);
 
 			/* recurse the dependency checking */
@@ -167,7 +167,7 @@ static int dependency_cpp_run(struct CONTEXT *context, struct NODE *node,
 	cacheinfo.context = context;
 	cacheinfo.callback = callback;
 	cacheinfo.userdata = userdata;
-	if(cache_do_dependency(context, node, cachehit_callback, &cacheinfo))
+	if(depcache_do_dependency(context, node, cachehit_callback, &cacheinfo))
 		return 0;
 
 	/* mark the node as checked */

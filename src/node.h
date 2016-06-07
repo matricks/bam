@@ -111,20 +111,28 @@ struct NODE
 };
 
 /* cache node */
-struct CACHENODE
+struct CACHEINFO_DEPS
 {
-	RB_ENTRY(CACHENODE) rbentry;
+	RB_ENTRY(CACHEINFO_DEPS) rbentry;
 
 	hash_t hashid;
 	time_t timestamp_raw;
 	char *filename;
-	hash_t cmdhash;
 
 	unsigned cached:1;
 	
 	unsigned deps_num;
 	unsigned *deps; /* index id, not hashid */
 };
+
+/* */
+struct CACHEINFO_OUTPUT
+{
+	hash_t hashid;
+	hash_t cmdhash;
+	time_t timestamp;
+};
+
 
 /* */
 struct GRAPH

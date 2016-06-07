@@ -21,7 +21,8 @@ struct CONTEXT
 	
 	struct HEAP *graphheap;
 	struct GRAPH *graph;
-	struct CACHE *cache;
+	struct DEPCACHE *depcache;
+	struct OUTPUTCACHE *outputcache;
 
 	/* targets */
 	struct NODE *defaulttarget;	/* default target if no targets are specified */
