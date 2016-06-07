@@ -1,6 +1,4 @@
 #include <string.h>
-#include <lua.h>
-#include <lauxlib.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
