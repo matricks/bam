@@ -37,7 +37,7 @@ const char *context_get_path(lua_State *L)
 {
 	const char *path;
 	lua_pushstring(L, CONTEXT_LUA_PATH);
-	lua_gettable(L, LUA_GLOBALSINDEX);
+	lua_gettable(L, LUA_REGISTRYINDEX);
 	path = lua_tostring(L, -1);
 	lua_pop(L, 1);
 	return path;

@@ -664,7 +664,7 @@ static int table_deepcopy_r(struct lua_State *L)
 	size_t s;
 	
 	/* 1: table to copy, 2: new table */
-	s = lua_objlen(L, -1);
+	s = lua_rawlen(L, -1);
 	lua_createtable(L, 0, s);
 	
 	/* 3: iterator */
@@ -746,7 +746,7 @@ int lf_table_flatten(struct lua_State *L)
 	luaL_checktype(L, 1, LUA_TTABLE);
 		
 	/* 1: table to copy, 2: new table */
-	s = lua_objlen(L, -1);
+	s = lua_rawlen(L, -1);
 	flatten_index = 1;
 	lua_createtable(L, 0, s);
 	lf_table_flatten_r(L, 1);
@@ -773,7 +773,7 @@ int lf_table_tostring(struct lua_State *L)
 	postfix = luaL_optlstring(L, 3, "", &postfix_len);
 	
 	/* first, figure out the total size */
-	table_len = lua_objlen(L, 1 );
+	table_len = lua_rawlen(L, 1);
 	
 	/* 4: iterator */
 	for( iterator = 1; iterator <= table_len; iterator++ )

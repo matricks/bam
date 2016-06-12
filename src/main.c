@@ -408,6 +408,7 @@ int register_lua_globals(struct lua_State *lua, const char* script_directory, co
 	lua_register(lua, "errorfunc", lf_errorfunc);
 
 	/* create arguments table */
+	lua_pushglobaltable(lua);
 	lua_pushstring(lua, CONTEXT_LUA_SCRIPTARGS_TABLE);
 	lua_newtable(lua);
 	for(i = 0; i < option_num_scriptargs; i++)
@@ -427,9 +428,11 @@ int register_lua_globals(struct lua_State *lua, const char* script_directory, co
 		}
 		lua_settable(lua, -3);
 	}
-	lua_settable(lua, LUA_GLOBALSINDEX);
+	lua_settable(lua, -3);
+	lua_pop(lua, 1);
 
 	/* create targets table */
+	lua_pushglobaltable(lua);
 	lua_pushstring(lua, CONTEXT_LUA_TARGETS_TABLE);
 	lua_newtable(lua);
 	for(i = 0; i < option_num_targets; i++)
@@ -437,7 +440,8 @@ int register_lua_globals(struct lua_State *lua, const char* script_directory, co
 		lua_pushstring(lua, option_targets[i]);
 		lua_rawseti(lua, -2, i);
 	}
-	lua_settable(lua, LUA_GLOBALSINDEX);
+	lua_settable(lua, -3);
+	lua_pop(lua, 1);
 	
 	/* set paths */
 	{
@@ -483,7 +487,7 @@ int register_lua_globals(struct lua_State *lua, const char* script_directory, co
 			lua_getglobal(lua, "errorfunc");
 			
 			/* push error function to stack */
-			ret = lua_load(lua, internal_base_reader, (void *)&p, internal_files[f].filename);
+			ret = lua_load(lua, internal_base_reader, (void *)&p, internal_files[f].filename, NULL);
 			if(ret != 0)
 			{
 				lf_errorfunc(lua);

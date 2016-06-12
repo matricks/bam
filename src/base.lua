@@ -13,7 +13,7 @@ ModifyPriority = bam_modify_priority
 
 --[[@UNITTESTS
 	err=1 : bam_add_dependency_cpp("missing node")
-	err=0: PseudoTarget("fakenode"); bam_add_dependency_cpp("fakenode")
+	err=0 : PseudoTarget("fakenode"); bam_add_dependency_cpp("fakenode")
 @END]]--
 
 --[[@UNITTESTS
@@ -42,16 +42,22 @@ end
 --[[@FUNCTION Execute(command)
 	Executes the ^command^ in the shell and returns the error code.
 @END]]--
-Execute = os.execute
+--[[@UNITTESTS
+	err=0 : Execute("echo")
+@END]]--
+function Execute(command)
+	local res,str,code = os.execute(command)
+	return code
+end
 
 --[[@FUNCTION ExecuteSilent(command)
 	Does the same as ^Execute(command)^ but supresses stdout and stderr of
 	that command.
 @END]]--
 if family == "windows" then
-	ExecuteSilent = function(command) return os.execute(command .. " >nul 2>&1") end
+	ExecuteSilent = function(command) return Execute(command .. " >nul 2>&1") end
 else
-	ExecuteSilent = function(command) return os.execute(command .. " >/dev/null 2>/dev/null") end
+	ExecuteSilent = function(command) return Execute(command .. " >/dev/null 2>/dev/null") end
 end
 
 --[[@GROUP Path Manipulation @END]]--
