@@ -377,6 +377,7 @@ static void threads_run(void *u)
 	struct THREADINFO *info = (struct THREADINFO *)u;
 	struct CONTEXT *context = info->context;
 	struct JOB *job;
+	int backofftime = 1;
 	
 	/* lock the dependency graph */
 	criticalsection_enter();
@@ -398,14 +399,19 @@ static void threads_run(void *u)
 		job = find_job(context);
 		if(job)
 		{
+			backofftime = 1;
 			run_job(context, job, info->id + 1);
 		}
 		else
 		{
 			/* if we didn't find a job todo, be a bit nice to the processor */
-			/* TODO: we should wait for an event here */
 			criticalsection_leave();
-			threads_yield();
+			/* TODO: we should wait for an event here */
+			/* back off more and more up to 200ms */
+			backofftime *= 2;
+			if(backofftime > 200)
+				backofftime = 200;
+			threads_sleep(backofftime);
 			criticalsection_enter();
 		}
 	}

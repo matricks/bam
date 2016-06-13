@@ -39,6 +39,7 @@ void platform_shutdown();
 /* threading */
 void *threads_create(void (*threadfunc)(void *), void *u);
 void threads_join(void *thread);
+void threads_sleep(int milliseconds);
 void threads_yield();
 int threads_corecount();
 
