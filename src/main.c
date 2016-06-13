@@ -903,8 +903,7 @@ static void print_help(int mask)
 			printf("  %-25s %s\n", options[j].sw, options[j].desc);
 	}
 	printf("\n");
-	printf("bam version " BAM_VERSION_STRING_COMPLETE ". built "__DATE__" "__TIME__" using " LUA_VERSION "\n");
-	printf("by Magnus Auvinen (bam@matricks.se)\n");
+	printf("bam version " BAM_VERSION_STRING_COMPLETE " using " LUA_RELEASE "\n");
 	printf("\n");
 
 }
