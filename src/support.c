@@ -237,6 +237,12 @@
 	{
 		Sleep(1);
 	}
+
+
+	void threads_sleep(int milliseconds)
+	{
+		Sleep(milliseconds);
+	}
 	
 	int threads_corecount()
 	{
@@ -385,6 +391,11 @@
 	void threads_yield()
 	{
 		sched_yield();
+	}
+
+	void threads_sleep(int milliseconds)
+	{
+		usleep(milliseconds*1000);
 	}
 
 	int threads_corecount()
