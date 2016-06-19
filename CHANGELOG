@@ -1,0 +1,9 @@
+Release 0.5.1
+	- Fixed issues with CC environment variables
+
+Release 0.5.0
+	- Upgraded to Lua 5.3.3 from 5.1
+	- More accurate cache to reduce recompiles when switching parameters
+	- Make use of CC environment variables when available by default
+	- Build should now be reproducable and not add date or timestamps into the executable
+	- Many more changes that isn't listed here
