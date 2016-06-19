@@ -5,14 +5,11 @@ function SetDefaultDrivers(settings)
 	if _checked_default_drivers == false then
 		_checked_default_drivers = true
 		if os.getenv("CC") then
-			if string.match(os.getenv("CC"), "^clang") then
-				print("CLANG!")
+			if string.match(os.getenv("CC"), ".*clang.*") then
 				SetDriversDefault = SetDriversClang
-			elseif string.match(os.getenv("CC"), "^gcc") then
-				print("GCC!")
+			elseif string.match(os.getenv("CC"), ".*gcc.*") then
 				SetDriversDefault = SetDriversGCC
-			elseif string.match(os.getenv("CC"), "^clang") then
-				print("CL!")
+			elseif string.match(os.getenv("CC"), ".*cl.*") then
 				SetDriversDefault = SetDriversCL
 			end
 		else
