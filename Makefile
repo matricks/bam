@@ -28,8 +28,10 @@ txt2c: src/tools/txt2c
 
 internal_base: src/internal_base.h
 
-src/internal_base.h:
+src/internal_base.h: txt2c
 	src/tools/txt2c $(TXT2C_LUA) > src/internal_base.h
+
+$(BAM_OBJ): internal_base
 
 bam: txt2c internal_base $(BAM_OBJ)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(BAM_OBJ) $(LIBS)
