@@ -12,7 +12,7 @@ PYTHON ?= python
 LUA_LIBS := $(shell $(PKG_CONFIG) --libs lua 2>/dev/null || echo "-llua")
 LIBS += -lm -lpthread $(LUA_LIBS) -ldl
 LUA_CFLAGS := $(shell $(PKG_CONFIG) --cflags lua 2>/dev/null || echo "-I/usr/include/lua")
-CFLAGS += $(LUA_CFLAGS)
+CFLAGS += $(LUA_CFLAGS) -DLUA_USE_POSIX
 
 
 # objects
