@@ -655,13 +655,26 @@ void node_debug_dump_jobs_dot(struct GRAPH *graph, struct NODE *top)
 	printf("}\n");
 }
 
+const char* dirty_flag_name(int flag)
+{
+	switch (flag)
+	{
+		case NODEDIRTY_MISSING: return "MI";
+		case NODEDIRTY_CMDHASH: return "CH";
+		case NODEDIRTY_DEPDIRTY: return "DD";
+		case NODEDIRTY_DEPNEWER: return "DN";
+		case NODEDIRTY_GLOBALSTAMP: return "GS";
+		case NODEDIRTY_FORCED: return "FO";
+		default: return "--";
+	}
+}
+
 void node_debug_dump_jobs(struct GRAPH *graph)
 {
 	struct NODELINK *link;
 	struct STRINGLINK *strlink;
 	struct JOB *job = graph->firstjob;
 
-	static const char *dirtyflag[] = {"--", "MI", "CH", "DD", "DN", "GS", "FO"};
 	printf("MI = Missing CH = Command hash dirty, DD = Dependency dirty\n");
 	printf("DN = Dependency is newer, GS = Global stamp is newer, FO = Forced dirty\n");
 	printf("Dirty Prio %-30s Command\n", "Label");
@@ -670,12 +683,12 @@ void node_debug_dump_jobs(struct GRAPH *graph)
 		printf(" %s   %4d %-30s %s\n", "  ", job->priority, job->label, job->cmdline);
 		
 		for(link = job->firstoutput; link; link = link->next)
-			printf(" %s          OUTPUT %-30s\n", dirtyflag[link->node->dirty], link->node->filename);
+			printf(" %s          OUTPUT %-30s\n", dirty_flag_name(link->node->dirty), link->node->filename);
 
 		for(strlink = job->firstclean; strlink; strlink = strlink->next)
 			printf(" %s          CLEAN  %-30s\n", "  ", strlink->str);
 
 		for(link = job->firstjobdep; link; link = link->next)
-			printf(" %s          DEPEND %-30s\n", dirtyflag[link->node->dirty], link->node->filename);
+			printf(" %s          DEPEND %-30s\n", dirty_flag_name(link->node->dirty), link->node->filename);
 	}
 }
