@@ -11,6 +11,8 @@ function SetDefaultDrivers(settings)
 				SetDriversDefault = SetDriversGCC
 			elseif string.match(os.getenv("CC"), ".*cl.*") then
 				SetDriversDefault = SetDriversCL
+			elseif string.match(os.getenv("CC"), ".*sunCC.*") then
+				SetDriversDefault = SetDriversSolarisStudio
 			end
 		else
 			if ExecuteSilent("cl") == 0 then
@@ -19,6 +21,8 @@ function SetDefaultDrivers(settings)
 				SetDriversDefault = SetDriversGCC
 			elseif ExecuteSilent("clang -v") == 0 then
 				SetDriversDefault = SetDriversClang
+			elseif ExecuteSilent("suncc -flags") == 0 then
+				SetDriversDefault = SetDriversSolarisStudio
 			end
 		end
 	end
