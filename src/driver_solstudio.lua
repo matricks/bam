@@ -13,16 +13,16 @@ function SetDriversSolarisStudio(settings)
 	SetDriversGCC(settings)
 
 	if settings.cc then
-		settings.cc.exe_c = "cc"
-		settings.cc.exe_cxx = "CC"
+		settings.cc.exe_c = "suncc"
+		settings.cc.exe_cxx = "sunCC"
 		settings.cc.DriverCTest = DriverSolarisStudio_CTest
 	end
 
 	if settings.link then
-		settings.link.exe = "CC"
+		settings.link.exe = "sunCC"
 	end
 
 	if settings.dll then
-		settings.dll.exe = "CC"
+		settings.dll.exe = "sunCC"
 	end
 end
