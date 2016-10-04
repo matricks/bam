@@ -45,7 +45,7 @@ exit
 :compile
 @echo === building bam ===
 @cl /D_CRT_SECURE_NO_DEPRECATE /O2 /nologo src/tools/txt2c.c /Fesrc/tools/txt2c.exe
-@src\tools\txt2c src/base.lua src/tools.lua src/driver_gcc.lua src/driver_clang.lua src/driver_cl.lua src/driver_solstudio.lua > src\internal_base.h
+@src\tools\txt2c src/base.lua src/tools.lua src/driver_gcc.lua src/driver_clang.lua src/driver_cl.lua src/driver_solstudio.lua src/driver_xlc.lua > src\internal_base.h
 
 @REM /DLUA_BUILD_AS_DLL = export lua functions
 @REM /W3 = Warning level 3
