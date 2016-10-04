@@ -605,7 +605,7 @@ struct CACHEINFO_OUTPUT *outputcache_find_byhash(struct OUTPUTCACHE *outputcache
 	unsigned high = outputcache->count;
 	unsigned index;
 
-	if(!outputcache)
+	if(!outputcache || outputcache->count == 0)
 		return NULL;
 
 	while(low < high)
@@ -624,7 +624,7 @@ struct CACHEINFO_OUTPUT *outputcache_find_byhash(struct OUTPUTCACHE *outputcache
 			return &outputcache->info[index];
 	}
 
-	if(hashid == outputcache->info[low].hashid)
+	if(low < outputcache->count && hashid == outputcache->info[low].hashid)
 		return &outputcache->info[low];
 
 	return NULL;
