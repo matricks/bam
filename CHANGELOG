@@ -1,5 +1,10 @@
 Release 0.5.1
 	- Fixed issues with CC environment variables
+	- Out of bounds fixed to debug output and output cache ( RyanLucchese )
+	- Solaris compiler support ( RyanLucchese )
+	- XLC compiler support ( RyanLucchese )
+	- Fixed parallel build with make ( hasufell )
+	- Syntax hilighting for the readme ( mailaender )
 
 Release 0.5.0
 	- Upgraded to Lua 5.3.3 from 5.1
