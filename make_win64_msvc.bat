@@ -32,6 +32,12 @@ if not defined VSPATH (
 	exit
 )
 
+if not defined cl (
+	echo Visual C++ not installed!
+	pause
+	exist
+)
+
 @REM set up the environment
 if exist "%VSPATH%..\..\vc\vcvarsall.bat" (
 	call "%%VSPATH%%..\..\vc\vcvarsall.bat" amd64
