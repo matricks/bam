@@ -331,31 +331,24 @@
 		
 		while((entry = readdir(dir)) != NULL)
 		{
+			int isdir;
 			/* make the path absolute */
 			strcpy(startpoint, entry->d_name);
 #ifdef D_TYPE_HACK
-			/* call the callback */
 			if(entry->d_type == DT_UNKNOWN)
 			{
 				/* do stat to obtain if it's a directory or not */
 				stat(buffer, &info);
-				if(S_ISDIR(info.st_mode))
-					callback(buffer, entry->d_name, 1, user);
-				else
-					callback(buffer, entry->d_name, 0, user);
+				isdir = S_ISDIR(info.st_mode);
 			}
-			else if(entry->d_type == DT_DIR)
-				callback(buffer, entry->d_name, 1, user);
-			else
-				callback(buffer, entry->d_name, 0, user);
+			else isdir = (entry->d_type == DT_DIR);
 #else
 			/* do stat to obtain if it's a directory or not */
 			stat(buffer, &info);
-			if(S_ISDIR(info.st_mode))
-				callback(buffer, entry->d_name, 1, user);
-			else
-				callback(buffer, entry->d_name, 0, user);
+			isdir = S_ISDIR(info.st_mode);
 #endif
+			/* call the callback */
+			callback(buffer, entry->d_name, isdir, user);
 		}
 		
 		closedir(dir);
