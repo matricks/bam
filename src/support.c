@@ -298,7 +298,7 @@
 #endif
 
 /* disable D_TYPE_HACK if we don't have support for it */
-#if !defined(DT_DIR) || !defined(DT_UNKNOWN)
+#if !defined(_DIRENT_HAVE_D_TYPE) || !defined(DT_DIR) || !defined(DT_UNKNOWN)
 	#undef D_TYPE_HACK
 #endif
 
