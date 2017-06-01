@@ -304,7 +304,8 @@
 
 	void file_listdirectory(const char *path, void (*callback)(const char *fullpath, const char *filename, int dir, void *user), void *user)
 	{
-		DIR *dir;
+		struct dirent **namelist;
+		int n;
 		struct dirent *entry;
 		struct stat info;
 		char buffer[1024];
@@ -324,14 +325,15 @@
 			*startpoint = 0;
 		}
 		
-		dir = opendir(buffer);
-		if(!dir)
+		n = scandir(buffer, &namelist, NULL, alphasort);
+		if(n == -1)
 			return;
 		
-		while((entry = readdir(dir)) != NULL)
+		while(n--)
 		{
 			int isdir;
 			int have_d_type = 0;
+			entry = namelist[n];
 			/* make the path absolute */
 			strcpy(startpoint, entry->d_name);
 #ifdef D_TYPE_HACK
@@ -346,11 +348,12 @@
 				stat(buffer, &info);
 				isdir = S_ISDIR(info.st_mode);
 			}
+			free(entry);
 			/* call the callback */
 			callback(buffer, entry->d_name, isdir, user);
 		}
 		
-		closedir(dir);
+		free(namelist);
 	}
 
 	/* signals. should be moved to platform.c or similar? */
