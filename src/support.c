@@ -312,20 +312,19 @@
 		
 		if(*path == 0) /* special case for current directory */
 		{
-			dir = opendir(".");
 			startpoint = buffer;
+			strcpy(buffer, ".");
 		}
 		else
 		{
-			dir = opendir(path);
-
 			/* get starting point and append a slash */
 			strcpy(buffer, path);
 			startpoint = buffer + strlen(buffer);
-			*startpoint = '/';
-			startpoint++;		
+			*(startpoint++) = '/';
+			*startpoint = 0;
 		}
 		
+		dir = opendir(buffer);
 		if(!dir)
 			return;
 		
