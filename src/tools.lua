@@ -44,6 +44,11 @@ function SetDefaultDrivers(settings)
 	if os.getenv("CXX") then
 		settings.cc.exe_cxx = os.getenv("CXX")
 		settings.link.exe = os.getenv("CXX")
+		settings.dll.exe = os.getenv("CXX")
+	end
+
+	if os.getenv("AR") then
+		settings.lib.exe = os.getenv("AR")
 	end
 
 	if os.getenv("CFLAGS") then

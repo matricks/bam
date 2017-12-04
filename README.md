@@ -5,7 +5,7 @@ Bam is a build system with the focus on being having fast build times and flexia
 
 This section is a short introduction to bam and is designed to get you started quickly.
 
-```
+```lua
 1: settings = NewSettings()
 2: settings.cc.defines:Add("MYDEFINE")
 3: source = Collect("src/*.c")
