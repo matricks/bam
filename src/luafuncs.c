@@ -67,6 +67,7 @@ void build_stringlist(lua_State *L, struct HEAP *heap, struct STRINGLIST **first
 			
 		/* allocate and fix copy the string */
 		orgstr = lua_tolstring(L, -1, &len);
+		if (!orgstr) continue;
 		listitem = (struct STRINGLIST *)mem_allocate(heap, sizeof(struct STRINGLIST) + len + 1);
 		listitem->str = (const char *)(listitem+1);
 		listitem->len = len;
