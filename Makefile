@@ -18,7 +18,7 @@ CFLAGS += $(LUA_CFLAGS)
 # objects
 TARGETS = bam
 BAM_OBJ = $(patsubst %.c,%.o,$(wildcard src/*.c))
-TXT2C_LUA = $(wildcard src/*.lua)
+TXT2C_LUA = src/base.lua src/tools.lua src/driver_gcc.lua src/driver_clang.lua src/driver_cl.lua src/driver_solstudio.lua src/driver_xlc.lua
 
 
 # make rules
