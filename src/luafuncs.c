@@ -207,6 +207,26 @@ int lf_add_output(lua_State *L)
 	return 0;
 }
 
+/* add_sideeffect(string output, string sideeffect) */
+int lf_add_sideeffect(lua_State *L)
+{
+	struct NODE *output;
+	struct NODE *sideeffect;
+	struct CONTEXT *context = context_get_pointer(L);
+	int i;
+	const char *filename;
+	
+	luaL_checknumarg_eq(L, 2);
+
+	output = luaL_checkjobnode(L, context, 1);
+	filename = luaL_checklstring(L, 2, NULL);
+
+	i = node_create(&sideeffect, context->graph, filename, output->job, TIMESTAMP_NONE);
+	handle_node_errors(L, i, 2);
+
+	return 0;
+}
+
 /* add_clean(string output, string other_output) */
 int lf_add_clean(lua_State *L)
 {

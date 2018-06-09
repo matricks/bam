@@ -43,6 +43,7 @@ struct JOB
 	struct JOB *next; /* next job in the global joblist. head is stored in the graph */
 
 	struct NODELINK *firstoutput; /* list of all outputs */
+	struct NODELINK *firstsideeffect; /* list of all side effects (used for verification) */
 	struct STRINGLINK *firstclean; /* list of extra files to remove when cleaning */
 
 	struct NODELINK *firstjobdep; /* list of job dependencies */

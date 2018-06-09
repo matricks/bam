@@ -24,6 +24,7 @@
 #include "platform.h"
 #include "session.h"
 #include "version.h"
+#include "verify.h"
 
 /* internal base.bam file */
 #include "internal_base.h"
@@ -75,6 +76,7 @@ static int option_debug_jobs_dot = 0;
 static int option_debug_dumpinternal = 0;
 static int option_debug_nointernal = 0;
 static int option_debug_trace_vm = 0;
+static int option_debug_verify = 0;
 
 static int option_print_help = 0;
 static int option_print_debughelp = 0;
@@ -234,6 +236,13 @@ static struct OPTION options[] = {
 	{OF_PRINT, 0, &option_print_debughelp		, "--help-debug", "prints debugging options"},
 
 	{OF_DEBUG, 0, 0						, "\n Debug:", ""},
+
+	/*@OPTION Debug: Verify ( --debug-verify )
+		Check changes to files after every job is runned to make sure the correct outputs are updated and no
+		unknown side effects happened. This is done by recursivly checking every file in the current working
+		directory. Can be very slow and threading will be turned off.
+	@END*/
+	{OF_DEBUG, 0, &option_debug_verify		, "--debug-verify", "(EXPRIMENTAL) verify job outputs and look for unknown side effects"},
 
 	/*@OPTION Debug: Dump Nodes ( --debug-nodes )
 		Dumps all nodes in the dependency graph.
@@ -721,6 +730,9 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 	return 0;
 }
 
+/* null verify callback, used to seed the initial state */
+static int verify_callback_null(const char *fullpath, hash_t hashid, time_t oldstamp, time_t newstamp, void *user) { return 0; }
+
 /* *** */
 static int bam(const char *scriptfile, const char **targets, int num_targets)
 {
@@ -795,6 +807,13 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 			event_end(0, "prioritize", NULL);
 		}
 
+		/* start verification */
+		if(option_debug_verify)
+		{
+			context.verifystate = verify_create();
+			verify_update(context.verifystate, verify_callback_null, NULL);
+		}
+
 		if(!build_error)
 		{
 			if(option_debug_nodes) /* debug dump all nodes */
@@ -848,6 +867,11 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	mem_destroy(context.graphheap);
 	free(context.joblist);
 	depcache_free(context.depcache);
+
+	if(context.verifystate)
+	{
+		verify_destroy(context.verifystate);
+	}
 
 	/* print final report and return */
 	if(setup_error)
@@ -1126,6 +1150,15 @@ int main(int argc, char **argv)
 		}
 				
 		return 0;
+	}
+
+	/* turn off threading if we are running verify */
+	if(option_debug_verify)
+	{
+		session.threads = 0;
+		if(session.verbose)
+			printf("%s: turned of threading due to --debug-verify\n", session.name);
+
 	}
 	
 	if(option_lua_execute)

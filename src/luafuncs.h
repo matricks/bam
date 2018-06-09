@@ -12,6 +12,7 @@ void build_stringlist(lua_State *L, struct HEAP *heap, struct STRINGLIST **first
 /* jobs and deps */
 int lf_add_job(struct lua_State *L);
 int lf_add_output(struct lua_State *L);
+int lf_add_sideeffect(struct lua_State *L);
 int lf_add_clean(struct lua_State *L);
 int lf_add_pseudo(struct lua_State *L);
 int lf_add_dependency(struct lua_State *L);

@@ -7,6 +7,7 @@ Exist = bam_fileexist
 NodeExist = bam_nodeexist
 SetFilter = bam_set_filter
 AddOutput = bam_add_output
+AddSideEffect = bam_add_sideeffect
 AddClean = bam_add_clean
 SetPriority = bam_set_priority
 ModifyPriority = bam_modify_priority

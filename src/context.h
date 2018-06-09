@@ -43,6 +43,10 @@ struct CONTEXT
 	time_t globaltimestamp;		/* timestamp of the script files */
 	time_t buildtime;			/* timestamp when the build started */
 
+	/* debugging */
+	struct VERIFY_STATE *verifystate;
+
+	/* exit related */
 	int forced;
 	int exit_on_error;
 	int errorcode;

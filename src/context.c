@@ -12,6 +12,7 @@
 #include "cache.h"
 #include "support.h"
 #include "session.h"
+#include "verify.h"
 
 #ifndef BAM_MAX_THREADS
         #define BAM_MAX_THREADS 1024
@@ -226,6 +227,39 @@ static void verify_outputs(struct CONTEXT *context, struct JOB *job)
 	}
 }
 
+/*
+	Checks so that a new file or updated file is actually a output or side effect of the job that ran
+*/
+static int verify_callback(const char *fullpath, hash_t hashid, time_t oldstamp, time_t newstamp, void *user) {
+	struct JOB *job = user;
+
+	if(oldstamp == 0 || oldstamp != newstamp)
+	{
+		struct NODELINK *link;
+		for(link = job->firstoutput; link; link = link->next)
+			if(link->node->hashid == hashid)
+				break;
+
+		if(link == NULL)
+		{
+			for(link = job->firstsideeffect; link; link = link->next)
+				if(link->node->hashid == hashid)
+					break;
+		}
+
+		if(link == NULL)
+		{
+			if(oldstamp == 0)
+				printf("%s: verification error: %s was created and not specified as an output\n", session.name, fullpath);
+			else
+				printf("%s: verification error: %s was updated and not specified as an output\n", session.name, fullpath);
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 static int run_job(struct CONTEXT *context, struct JOB *job, int thread_id)
 {
 	struct NODELINK *link;
@@ -297,6 +331,15 @@ static int run_job(struct CONTEXT *context, struct JOB *job, int thread_id)
 			
 		fflush(stdout);
 	}
+
+	/* run verify if requested */
+	if(errorcode == 0 && context->verifystate != NULL)
+	{
+		event_begin(thread_id, "verify", job->label);
+		errorcode = verify_update(context->verifystate, verify_callback, job);
+		event_end(thread_id, "verify", NULL);
+	}
+
 	return errorcode;
 }
 
