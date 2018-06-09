@@ -7,7 +7,11 @@
 struct VERIFY_FILE {
 	hash_t hashid;
 	time_t timestamp;
-	struct VERIFY_FILE *next;
+
+	unsigned lastseen; /* which run we last saw this node */
+
+	struct VERIFY_FILE *hashnext; /* next file in the hash chain */
+	struct VERIFY_FILE *next; /* next file in the global list */
 	char path[];
 };
 
@@ -15,7 +19,10 @@ struct VERIFY_STATE {
 	struct HEAP * heap;
 
 	/* file database */
+	struct VERIFY_FILE *firstfile;
 	struct VERIFY_FILE *files[0x100000];
+
+	unsigned updatecount; /* number of updates done */
 
 	int errors;
 
@@ -50,13 +57,13 @@ static void list_callback(const char *fullpath, const char *filename, int dir, v
 			if(node->hashid == hashid)
 			{
 				/* file found */
-				if(state->callback(fullpath, hashid, node->timestamp, timestamp, state->user))
-					state->errors++;
+				state->errors += state->callback(fullpath, hashid, node->timestamp, timestamp, state->user);
 				node->timestamp = timestamp;
+				node->lastseen = state->updatecount;
 				break;
 			}
 
-			node = node->next;
+			node = node->hashnext;
 		}
 
 		/* no node found? then add it */
@@ -65,12 +72,14 @@ static void list_callback(const char *fullpath, const char *filename, int dir, v
 			node = mem_allocate(state->heap, sizeof(struct VERIFY_FILE) + path_len + 1);
 			node->hashid = hashid;
 			node->timestamp = timestamp;
-			node->next = state->files[hashid&0xfffff];
+			node->next = state->firstfile;
+			node->hashnext = state->files[hashid&0xfffff];
+			node->lastseen = state->updatecount;
+			state->firstfile = node;
 			state->files[hashid&0xfffff] = node;
 			memcpy(node->path, fullpath, path_len + 1);
 
-			if(state->callback(fullpath, hashid, 0, timestamp, state->user))
-				state->errors++;
+			state->errors += state->callback(fullpath, hashid, 0, timestamp, state->user);
 		}
 	}
 }
@@ -90,10 +99,27 @@ void verify_destroy(struct VERIFY_STATE *state)
 
 int verify_update(struct VERIFY_STATE *state, int (*callback)(const char *fullpath, hash_t hashid, time_t oldstamp, time_t newstamp, void *user), void *user)
 {
+	struct VERIFY_FILE *node;
+
+	/* setup for run */
 	state->callback = callback;
 	state->user = user;
 	state->errors = 0;
+	state->updatecount++;
+
+	/* scan the filesystem for changes */
 	file_listdirectory("", list_callback, state);
+
+	/* check for deleted files */
+	for(node = state->firstfile; node != NULL; node = node->next)
+	{
+		if(node->lastseen < state->updatecount && node->timestamp != 0)
+		{
+			state->errors += callback(node->path, node->hashid, node->timestamp, 0, state->user);
+			node->timestamp = 0;
+		}
+	}
+
 	return state->errors;
 }
 

@@ -251,6 +251,8 @@ static int verify_callback(const char *fullpath, hash_t hashid, time_t oldstamp,
 		{
 			if(oldstamp == 0)
 				printf("%s: verification error: %s was created and not specified as an output\n", session.name, fullpath);
+			else if(newstamp == 0)
+				printf("%s: verification error: %s was deleted\n", session.name, fullpath);
 			else
 				printf("%s: verification error: %s was updated and not specified as an output\n", session.name, fullpath);
 			return 1;
