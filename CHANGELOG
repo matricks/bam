@@ -1,3 +1,6 @@
+Release Next
+	- Fixed issues with -a not aborting on error
+
 Release 0.5.1
 	- Fixed issues with CC environment variables
 	- Out of bounds fixed to debug output and output cache ( RyanLucchese )

@@ -243,7 +243,6 @@ static int run_job(struct CONTEXT *context, struct JOB *job, int thread_id)
 	if(runjob_create_outputpaths(job) != 0)
 	{
 		job->status = JOBSTATUS_BROKEN;
-		context->errorcode = 1;
 		return 1;
 	}
 
@@ -277,7 +276,6 @@ static int run_job(struct CONTEXT *context, struct JOB *job, int thread_id)
 	{
 		/* set global error code */
 		job->status = JOBSTATUS_BROKEN;
-		context->errorcode = errorcode;
 
 		/* report the error */
 		if(session.report_color)
@@ -400,7 +398,8 @@ static void threads_run(void *u)
 		if(job)
 		{
 			backofftime = 1;
-			run_job(context, job, info->id + 1);
+			if(run_job(context, job, info->id + 1))
+				context->errorcode = 1;
 		}
 		else
 		{
