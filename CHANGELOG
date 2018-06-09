@@ -2,6 +2,7 @@ Release Next
 	- Fixed issues with -a not aborting on error
 	- Various cleanups related to the file_listdirectory
 	- Added --debug-verify to help catch jobs that is missing outputs
+	- Fixed order of lua files the Makefile. Fixes compilation on openSUSE and others ( super7ramp )
 
 Release 0.5.1
 	- Fixed issues with CC environment variables
