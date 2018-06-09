@@ -27,7 +27,7 @@
 
 	#include <Aclapi.h> /* for protect_process */
 	
-	void file_listdirectory(const char *path, void (*callback)(const char *filename, int dir, void *user), void *user)
+	void file_listdirectory(const char *path, void (*callback)(const char *fullpath, const char *filename, int dir, void *user), void *user)
 	{
 		WIN32_FIND_DATA finddata;
 		HANDLE handle;
@@ -56,9 +56,9 @@
 		{
 			strcpy(startpoint, finddata.cFileName);
 			if(finddata.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)
-				callback(buffer, 1, user);
+				callback(buffer, finddata.cFileName, 1, user);
 			else
-				callback(buffer, 0, user);
+				callback(buffer, finddata.cFileName, 0, user);
 		} while (FindNextFileA(handle, &finddata));
 
 		FindClose(handle);
@@ -302,7 +302,7 @@
 	#undef D_TYPE_HACK
 #endif
 
-	void file_listdirectory(const char *path, void (*callback)(const char *filename, int dir, void *user), void *user)
+	void file_listdirectory(const char *path, void (*callback)(const char *fullpath, const char *filename, int dir, void *user), void *user)
 	{
 		DIR *dir;
 		struct dirent *entry;
@@ -340,21 +340,21 @@
 				/* do stat to obtain if it's a directory or not */
 				stat(buffer, &info);
 				if(S_ISDIR(info.st_mode))
-					callback(buffer, 1, user);
+					callback(buffer, entry->d_name, 1, user);
 				else
-					callback(buffer, 0, user);
+					callback(buffer, entry->d_name, 0, user);
 			}
 			else if(entry->d_type == DT_DIR)
-				callback(buffer, 1, user);
+				callback(buffer, entry->d_name, 1, user);
 			else
-				callback(buffer, 0, user);
+				callback(buffer, entry->d_name, 0, user);
 #else
 			/* do stat to obtain if it's a directory or not */
 			stat(buffer, &info);
 			if(S_ISDIR(info.st_mode))
-				callback(buffer, 1, user);
+				callback(buffer, entry->d_name, 1, user);
 			else
-				callback(buffer, 0, user);
+				callback(buffer, entry->d_name, 0, user);
 #endif
 		}
 		

@@ -1,5 +1,6 @@
 Release Next
 	- Fixed issues with -a not aborting on error
+	- Various cleanups related to the file_listdirectory
 
 Release 0.5.1
 	- Fixed issues with CC environment variables

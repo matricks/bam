@@ -834,10 +834,10 @@ typedef struct
 	int i;
 } LISTDIR_CALLBACK_INFO;
 
-static void listdir_callback(const char *filename, int dir, void *user)
+static void listdir_callback(const char *fullpath, const char *filename, int dir, void *user)
 {
 	LISTDIR_CALLBACK_INFO *info = (LISTDIR_CALLBACK_INFO *)user;
-	lua_pushstring(info->lua, filename);
+	lua_pushstring(info->lua, fullpath);
 	lua_rawseti(info->lua, -2, info->i++);
 }
 
@@ -888,11 +888,10 @@ typedef struct
 
 static void run_collect(COLLECT_CALLBACK_INFO *info, const char *input);
 
-static void collect_callback(const char *filename, int dir, void *user)
+static void collect_callback(const char *fullpath, const char *filename, int dir, void *user)
 {
 	COLLECT_CALLBACK_INFO *info = (COLLECT_CALLBACK_INFO *)user;
-	const char *no_pathed = filename + info->path_len;
-	int no_pathed_len = strlen(no_pathed);
+	int filename_len = strlen(filename);
 
 	/* don't process . and .. paths */
 	if(filename[0] == '.')
@@ -904,17 +903,17 @@ static void collect_callback(const char *filename, int dir, void *user)
 	}
 	
 	/* don't process hidden stuff if not wanted */
-	if(no_pathed[0] == '.' && !(info->flags&COLLECTFLAG_HIDDEN))
+	if(filename[0] == '.' && !(info->flags&COLLECTFLAG_HIDDEN))
 		return;
 
 	do
 	{
 		/* check end */
-		if(info->end_len > no_pathed_len || strcmp(no_pathed+no_pathed_len-info->end_len, info->end_str))
+		if(info->end_len > filename_len || strcmp(filename+filename_len-info->end_len, info->end_str))
 			break;
 
 		/* check start */
-		if(info->start_len && strncmp(no_pathed, info->start_str, info->start_len))
+		if(info->start_len && strncmp(filename, info->start_str, info->start_len))
 			break;
 		
 		/* check dir vs search param */
@@ -925,7 +924,7 @@ static void collect_callback(const char *filename, int dir, void *user)
 			break;
 			
 		/* all criterias met, push the result */
-		lua_pushstring(info->lua, filename);
+		lua_pushstring(info->lua, fullpath);
 		lua_rawseti(info->lua, -2, info->i++);
 	} while(0);
 	
@@ -934,7 +933,7 @@ static void collect_callback(const char *filename, int dir, void *user)
 	{
 		char recursepath[1024];
 		COLLECT_CALLBACK_INFO recurseinfo = *info;
-		strcpy(recursepath, filename);
+		strcpy(recursepath, fullpath);
 		strcat(recursepath, "/");
 		strcat(recursepath, info->start_str);
 		run_collect(&recurseinfo, recursepath);
