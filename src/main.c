@@ -614,7 +614,8 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 	if(lua_pcall(context->lua, 0, LUA_MULTRET, -2) != 0)
 	{
 		node_graph_end_statthread(context->graph);
-		printf("%s: script error (-t for more detail)\n", session.name);
+		if(!session.lua_backtrace)
+			printf("%s: script error (-t for more detail)\n", session.name);
 		return -1;
 	}
 	event_end(0, "script run", NULL);
