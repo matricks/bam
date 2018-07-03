@@ -1,11 +1,12 @@
 Release Next
-	- Fixed issues with -a not aborting on error
-	- Various cleanups related to the file_listdirectory
-	- Added --debug-verify to help catch jobs that is missing outputs
+	- Fixed issues with -a not aborting on error ( matricks )
+	- Various cleanups related to the file_listdirectory ( matricks+bmwiedemann )
+	- Added --debug-verify to help catch jobs that is missing outputs ( matricks )
 	- Fixed order of lua files the Makefile. Fixes compilation on openSUSE and others ( super7ramp )
+	- Nodes with zero length strings is now considered invalid ( matricks )
 
 Release 0.5.1
-	- Fixed issues with CC environment variables
+	- Fixed issues with CC environment variables ( matricks )
 	- Out of bounds fixed to debug output and output cache ( RyanLucchese )
 	- Solaris compiler support ( RyanLucchese )
 	- XLC compiler support ( RyanLucchese )
