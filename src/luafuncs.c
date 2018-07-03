@@ -1056,7 +1056,7 @@ int lf_path_join(lua_State *L)
 int lf_path_isnice(lua_State *L)
 {
 	luaL_checknumarg_eq(L, 1);
-	lua_pushnumber(L, path_isnice(luaL_checklstring(L, 1, NULL)));
+	lua_pushboolean(L, path_isnice(luaL_checklstring(L, 1, NULL)));
 	return 1;
 }
 

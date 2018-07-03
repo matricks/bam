@@ -13,6 +13,12 @@ SetPriority = bam_set_priority
 ModifyPriority = bam_modify_priority
 
 --[[@UNITTESTS
+	err=0 : if bam_path_isnice("") then error("") end
+	err=0 : if bam_path_isnice("test/../test") then error("") end
+	err=0 : if not bam_path_isnice("test/test") then error("") end
+@END]]--
+
+--[[@UNITTESTS
 	err=1 : bam_add_dependency_cpp("missing node")
 	err=0 : PseudoTarget("fakenode"); bam_add_dependency_cpp("fakenode")
 @END]]--
