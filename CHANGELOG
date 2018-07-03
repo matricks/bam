@@ -4,6 +4,7 @@ Release Next
 	- Added --debug-verify to help catch jobs that is missing outputs ( matricks )
 	- Fixed order of lua files the Makefile. Fixes compilation on openSUSE and others ( super7ramp )
 	- Nodes with zero length strings is now considered invalid ( matricks )
+	- Potential crash fixed with build_stringlist used by dependency checkers ( RyanLucchese )
 
 Release 0.5.1
 	- Fixed issues with CC environment variables ( matricks )
