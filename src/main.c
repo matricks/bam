@@ -362,6 +362,7 @@ int register_lua_globals(struct lua_State *lua, const char* script_directory, co
 	/* add specific functions */
 	lua_register(lua, L_FUNCTION_PREFIX"add_job", lf_add_job);
 	lua_register(lua, L_FUNCTION_PREFIX"add_output", lf_add_output);
+	lua_register(lua, L_FUNCTION_PREFIX"add_sideeffect", lf_add_sideeffect);
 	lua_register(lua, L_FUNCTION_PREFIX"add_clean", lf_add_clean);
 	lua_register(lua, L_FUNCTION_PREFIX"add_pseudo", lf_add_pseudo);
 	lua_register(lua, L_FUNCTION_PREFIX"add_dependency", lf_add_dependency);
