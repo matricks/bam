@@ -133,12 +133,13 @@ static struct OPTION options[] = {
 		Setting this will cause bam to abort the build process when an error has occured.
 		Normally it would continue as far as it can.
 	@END*/
-	{OF_PRINT, 0,&option_abort_on_error	, "-a", "abort build on first error"},
+	{OF_PRINT, 0, &option_abort_on_error	, "-a", "abort build on first error"},
 
 	/*@OPTION Lua execute ( -e )
 		Executes a lua file without running the build system.
 	@END*/
-	{OF_PRINT, &option_lua_execute, 0	, "-e", "executes specified lua file and exits"},
+	{OF_PRINT, &option_lua_execute, 0	, "-e filename", "executes specified lua file and exits"},
+	{0, &option_lua_execute, 0	, "-e", NULL},
 
 	/*@OPTION Clean ( -c )
 		Cleans the specified targets or the default target.
@@ -166,14 +167,16 @@ static struct OPTION options[] = {
 		Sets the number of threads used when building. A good value for N is
 		the same number as logical cores on the machine. Set to 0 to disable.
 	@END*/
-	{OF_PRINT, &option_threads_str,0		, "-j", "sets the number of threads to use (default: auto, -v will show it)"},
+	{OF_PRINT, &option_threads_str,0		, "-j num", "sets the number of threads to use (default: auto, -v will show it)"},
+	{0, &option_threads_str, 0		, "-j", NULL},
 
 	/*@OPTION Script File ( -s FILENAME )
 		Bam file to use. In normal operation, Bam executes
 		^bam.lua^. This option allows you to specify another bam
 		file.
 	@END*/
-	{OF_PRINT, &option_script,0			, "-s", "script file to use (default: bam.lua)"},
+	{OF_PRINT, &option_script,0			, "-s filename", "script file to use (default: bam.lua)"},
+	{0, &option_script, 0			, "-s", NULL},
 
 	{OF_PRINT, 0, 0						, "\n Lua:", ""},
 
@@ -197,10 +200,11 @@ static struct OPTION options[] = {
 			<li>c</li> - Use ANSI colors.
 		</ul>
 	@END*/
-	{OF_PRINT, &option_report_str,0		, "-r", "build progress report format (default: " DEFAULT_REPORT_STYLE ")\n"
+	{OF_PRINT, &option_report_str,0		, "-r flags", "build progress report format (default: " DEFAULT_REPORT_STYLE ")\n"
 		"                            " "    b = progress bar\n"
 		"                            " "    c = use ansi colors\n"
 		"                            " "    s = build steps"},
+	{0, &option_report_str,0		, "-r", NULL},
 	
 	/*@OPTION Verbose ( -v )
 		Prints all commands that are runned when building.
@@ -242,7 +246,8 @@ static struct OPTION options[] = {
 		unknown side effects happened. This is done by recursivly checking every file in the current working
 		directory. Can be very slow and threading will be turned off.
 	@END*/
-	{OF_DEBUG, &option_debug_verify, 0,		"--debug-verify", "(EXPRIMENTAL) verify job outputs and look for unknown side effects"},
+	{OF_DEBUG, &option_debug_verify, 0,		"--debug-verify basepath", "(EXPRIMENTAL) verify job outputs and look for unknown side effects"},
+	{0, &option_debug_verify, 0,		"--debug-verify", 0},
 
 	/*@OPTION Debug: Dump Nodes ( --debug-nodes )
 		Dumps all nodes in the dependency graph, their state and their
@@ -255,7 +260,7 @@ static struct OPTION options[] = {
 		Same as --debug-detail put outputs a HTML document with clickable links
 		for easier browsing.
 	@END*/
-	{OF_DEBUG, 0, &option_debug_nodes_html	, "--debug-nodes-html", "as --debug-detail but in html format"},
+	{OF_DEBUG, 0, &option_debug_nodes_html	, "--debug-nodes-html", "as --debug-nodes but in html format"},
 
 	/*@OPTION Debug: Dump Jobs ( --debug-jobs )
 	@END*/
