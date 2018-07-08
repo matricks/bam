@@ -166,8 +166,6 @@ static struct NODE *luaL_checkjobnode(lua_State *L, struct CONTEXT *context, int
 	return node;
 }
 
-
-
 /* add_pseudo(string node) */
 int lf_add_pseudo(lua_State *L)
 {
@@ -208,41 +206,39 @@ int lf_add_output(lua_State *L)
 	return 0;
 }
 
-/* add_sideeffect(string output, string sideeffect) */
-int lf_add_sideeffect(lua_State *L)
+struct NODEATTRIBSTRING_CBINFO
 {
-	struct NODE *output;
-	struct NODE *sideeffect;
-	struct CONTEXT *context = context_get_pointer(L);
-	int i;
-	const char *filename;
+	struct NODE *node;
+	int (*callback)(struct NODE*, const char * filename);
+};
+
+static void callback_node_attrib_string(lua_State *L, void *user)
+{
+	struct NODEATTRIBSTRING_CBINFO *info = (struct NODEATTRIBSTRING_CBINFO *)user;
+	const char *othername = lua_tostring(L, -1);
+	if(info->callback(info->node, othername))
+		luaL_error(L, "%s: could not add '%s' to '%s'", curfuncname(L), othername, lua_tostring(L, 1));
+}
+
+/* add_dependency(string node, string dependency) */
+static int add_node_attribute_string(lua_State *L, const char *funcname, int (*callback)(struct NODE*, const char * filename))
+{
+	struct NODE *node;
+	struct CONTEXT *context;
+	struct NODEATTRIBSTRING_CBINFO cbinfo;
 	
-	luaL_checknumarg_eq(L, 2);
-
-	output = luaL_checkjobnode(L, context, 1);
-	filename = luaL_checklstring(L, 2, NULL);
-
-	i = node_create(&sideeffect, context->graph, filename, output->job, TIMESTAMP_NONE);
-	handle_node_errors(L, i, 2);
-
+	context = context_get_pointer(L);
+	node = luaL_checkjobnode(L, context, 1);
+	
+	/* seek deps */
+	cbinfo.node = node;
+	cbinfo.callback = callback;
+	deep_walk(L, 2, lua_gettop(L), callback_node_attrib_string, &cbinfo);
 	return 0;
 }
 
-/* add_clean(string output, string other_output) */
-int lf_add_clean(lua_State *L)
-{
-	struct NODE *output;
-	struct CONTEXT *context = context_get_pointer(L);
-	const char *filename;
-
-	luaL_checknumarg_eq(L, 2);
-	output = luaL_checkjobnode(L, context, 1);
-	filename = luaL_checklstring(L, 2, NULL);
-
-	if(node_add_clean(output, filename) != 0) /* this should never fail as we already check that output has a job */
-		luaL_argerror(L, 2, lua_pushfstring(L, "could not add '%s' to '%s'", filename, output->filename));
-	return 0;
-}
+int lf_add_sideeffect(lua_State *L) { return add_node_attribute_string(L, "add_sideeffect", node_add_sideeffect ); }
+int lf_add_clean(lua_State *L) { return add_node_attribute_string(L, "add_clean", node_add_clean ); }
 
 struct NODEATTRIB_CBINFO
 {

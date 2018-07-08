@@ -236,18 +236,19 @@ static int verify_callback(const char *fullpath, hash_t hashid, time_t oldstamp,
 	if(oldstamp == 0 || oldstamp != newstamp)
 	{
 		struct NODELINK *link;
+		struct STRINGLINK *slink;
 		for(link = job->firstoutput; link; link = link->next)
 			if(link->node->hashid == hashid)
 				break;
 
 		if(link == NULL)
 		{
-			for(link = job->firstsideeffect; link; link = link->next)
-				if(link->node->hashid == hashid)
+			for(slink = job->firstsideeffect; slink; slink = slink->next)
+				if(strcmp(slink->str, fullpath) == 0)
 					break;
 		}
 
-		if(link == NULL)
+		if(link == NULL && slink == NULL)
 		{
 			if(oldstamp == 0)
 				printf("%s: verification error: %s was created and not specified as an output\n", session.name, fullpath);

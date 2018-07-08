@@ -354,6 +354,19 @@ int node_add_clean(struct NODE *node, const char * filename)
 	return 0;
 }
 
+int node_add_sideeffect(struct NODE *node, const char * filename)
+{
+	struct STRINGLINK * link;
+	if(!node->job->cmdline)
+		return -1;
+
+	/* create and add sideffect link */
+	link = (struct STRINGLINK *)mem_allocate(node->graph->heap, sizeof(struct STRINGLINK));
+	link->str = duplicate_string(node->graph, filename, strlen(filename));
+	link->next = node->job->firstsideeffect;
+	node->job->firstsideeffect = link;
+	return 0;
+}
 
 /* adds a dependency to a node */
 static struct NODE *node_add_constraint (struct NODELINK **first, struct NODE *node, struct NODE *contraint)

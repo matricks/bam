@@ -43,7 +43,7 @@ struct JOB
 	struct JOB *next; /* next job in the global joblist. head is stored in the graph */
 
 	struct NODELINK *firstoutput; /* list of all outputs */
-	struct NODELINK *firstsideeffect; /* list of all side effects (used for verification) */
+	struct STRINGLINK *firstsideeffect; /* list of all side effects (used for verification) */
 	struct STRINGLINK *firstclean; /* list of extra files to remove when cleaning */
 
 	struct NODELINK *firstjobdep; /* list of job dependencies */
@@ -215,10 +215,12 @@ int node_create(struct NODE **node, struct GRAPH *graph, const char *filename, s
 struct NODE *node_find(struct GRAPH *graph, const char *filename);
 struct NODE *node_find_byhash(struct GRAPH *graph, hash_t hashid);
 struct NODE *node_get(struct GRAPH *graph, const char *filename);
-/*struct NODE *node_add_dependency(struct NODE *node, const char *filename);*/
 struct NODE *node_add_dependency(struct NODE *node, struct NODE *depnode);
-int node_add_clean(struct NODE *node, const char * filename);
 void node_cached(struct NODE *node);
+
+/* */
+int node_add_sideeffect(struct NODE *node, const char * filename);
+int node_add_clean(struct NODE *node, const char * filename);
 
 /* */
 struct NODE *node_add_constraint_shared(struct NODE *node, struct NODE *contraint);
