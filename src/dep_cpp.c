@@ -2,10 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define LUA_CORE /* make sure that we don't try to import these functions */
-#include <lua.h>
-#include <lauxlib.h>
-
 #include "path.h"
 #include "node.h"
 #include "cache.h"
@@ -13,7 +9,6 @@
 #include "mem.h"
 #include "support.h"
 #include "session.h"
-#include "luafuncs.h"
 
 static int processline(char *line, char **start, char **end, int *systemheader)
 {
@@ -338,57 +333,12 @@ static int dependency_cpp_callback(struct NODE *node, void *user, const char *fi
 	return 0;
 }
 
-static struct STRINGLIST *current_includepaths = NULL;
-
-static int dependency_cpp_do_run(struct CONTEXT *context, struct DEFERRED *info)
+int dep_cpp(struct CONTEXT *context, struct DEFERRED *info)
 {
 	struct CPPDEPINFO depinfo;
 	depinfo.context = context;
 	depinfo.paths = (struct STRINGLIST *)info->user;
 	if(dependency_cpp_run(context, info->node, dependency_cpp_callback, &depinfo) != 0)
 		return -1;
-	return 0;
-}
-
-/* */
-int lf_add_dependency_cpp_set_paths(lua_State *L)
-{
-	struct CONTEXT *context;
-	int n = lua_gettop(L);
-	
-	if(n != 1)
-		luaL_error(L, "add_dependency_cpp_set_paths: incorrect number of arguments");
-	luaL_checktype(L, 1, LUA_TTABLE);
-	
-	context = context_get_pointer(L);
-	current_includepaths = NULL;
-	build_stringlist(L, context->deferredheap, &current_includepaths, 1);
-	return 0;
-}
-
-/* */
-int lf_add_dependency_cpp(lua_State *L)
-{
-	struct CONTEXT *context;
-	struct DEFERRED *deferred;
-	struct NODE * node;
-	int n = lua_gettop(L);
-	
-	if(n != 1)
-		luaL_error(L, "add_dependency_cpp: incorrect number of arguments");
-	luaL_checkstring(L,1);
-	
-	context = context_get_pointer(L);
-	node = node_find(context->graph, lua_tostring(L,1));
-
-	if(!node)
-		luaL_error(L, "add_dependency_cpp: couldn't find node with name '%s'", lua_tostring(L,1));
-
-	deferred = (struct DEFERRED *)mem_allocate(context->deferredheap, sizeof(struct DEFERRED));
-	deferred->node = node;
-	deferred->user = current_includepaths;
-	deferred->run = dependency_cpp_do_run;
-	deferred->next = context->firstdeferred_cpp;
-	context->firstdeferred_cpp = deferred;
 	return 0;
 }

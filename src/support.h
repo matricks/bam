@@ -28,8 +28,18 @@
 #else
 	#error missing atomic implementation for this compiler
 #endif
+
 struct lua_State;
 
+/* common list if strings structure */
+struct STRINGLIST
+{
+	struct STRINGLIST *next;
+	const char *str;
+	size_t len;
+};
+
+/* */
 void install_signals(void (*abortsignal)(int));
 int run_command(const char *cmd, const char *filter);
 

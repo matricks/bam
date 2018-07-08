@@ -1,13 +1,9 @@
 
-/* support functions */
-struct STRINGLIST
-{
-	struct STRINGLIST *next;
-	const char *str;
-	size_t len;
-};
-
-void build_stringlist(lua_State *L, struct HEAP *heap, struct STRINGLIST **first, int table_index);
+/* special tables and places where we store certain variables in lua */
+extern const char *CONTEXT_LUA_SCRIPTARGS_TABLE;
+extern const char *CONTEXT_LUA_TARGETS_TABLE;
+extern const char *CONTEXT_LUA_PATH;
+extern const char *CONTEXT_LUA_WORKPATH;
 
 /* jobs and deps */
 int lf_add_job(struct lua_State *L);

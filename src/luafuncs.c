@@ -16,6 +16,35 @@
 #include "path.h"
 #include "mem.h"
 #include "session.h"
+#include "dep.h"
+
+/* constants */
+const char *CONTEXT_LUA_SCRIPTARGS_TABLE = "_bam_scriptargs";
+const char *CONTEXT_LUA_TARGETS_TABLE = "_bam_targets";
+const char *CONTEXT_LUA_PATH = "_bam_path";
+const char *CONTEXT_LUA_WORKPATH = "_bam_workpath";
+
+/* context helper functions */
+static struct CONTEXT *context_get_pointer(lua_State *L)
+{
+	/* HACK: we store the context pointer as the user data to
+		to the allocator for fast access to it */
+	void *context;
+	lua_getallocf(L, &context);
+	return (struct CONTEXT*)context;
+}
+
+/*  */
+static const char *context_get_path(lua_State *L)
+{
+	const char *path;
+	lua_pushstring(L, CONTEXT_LUA_PATH);
+	lua_gettable(L, LUA_REGISTRYINDEX);
+	path = lua_tostring(L, -1);
+	lua_pop(L, 1);
+	return path;
+}
+
 
 static const char *curfuncname(lua_State *L)
 {
@@ -50,7 +79,7 @@ static struct NODE *node_get_or_fail(lua_State *L, struct GRAPH *graph, const ch
 	return node;
 }
 
-void build_stringlist(lua_State *L, struct HEAP *heap, struct STRINGLIST **first, int table_index)
+static void build_stringlist(lua_State *L, struct HEAP *heap, struct STRINGLIST **first, int table_index)
 {
 	struct STRINGLIST *listitem;
 	const char *orgstr;
@@ -1165,4 +1194,93 @@ int lf_path_filename(lua_State *L)
 	luaL_checknumarg_eq(L, 1);
 	lua_pushstring(L, path_filename(luaL_checklstring(L, 1, NULL)));
 	return 1;
+}
+
+/* dependency functions */
+static struct STRINGLIST *current_includepaths = NULL;
+
+/* */
+int lf_add_dependency_cpp_set_paths(lua_State *L)
+{
+	struct CONTEXT *context;
+	int n = lua_gettop(L);
+	
+	if(n != 1)
+		luaL_error(L, "add_dependency_cpp_set_paths: incorrect number of arguments");
+	luaL_checktype(L, 1, LUA_TTABLE);
+	
+	context = context_get_pointer(L);
+	current_includepaths = NULL;
+	build_stringlist(L, context->deferredheap, &current_includepaths, 1);
+	return 0;
+}
+
+/* */
+int lf_add_dependency_cpp(lua_State *L)
+{
+	struct CONTEXT *context;
+	struct DEFERRED *deferred;
+	struct NODE * node;
+	int n = lua_gettop(L);
+	
+	if(n != 1)
+		luaL_error(L, "add_dependency_cpp: incorrect number of arguments");
+	luaL_checkstring(L,1);
+	
+	context = context_get_pointer(L);
+	node = node_find(context->graph, lua_tostring(L,1));
+
+	if(!node)
+		luaL_error(L, "add_dependency_cpp: couldn't find node with name '%s'", lua_tostring(L,1));
+
+	deferred = (struct DEFERRED *)mem_allocate(context->deferredheap, sizeof(struct DEFERRED));
+	deferred->node = node;
+	deferred->user = current_includepaths;
+	deferred->run = dep_cpp;
+	deferred->next = context->firstdeferred_cpp;
+	context->firstdeferred_cpp = deferred;
+	return 0;
+}
+
+/* add_dependency_search(string node, table paths, table deps) */
+int lf_add_dependency_search(lua_State *L)
+{
+	struct NODE *node;
+	struct CONTEXT *context;
+	struct DEFERRED *deferred;
+	struct DEPPLAIN *plain;
+	
+	if(lua_gettop(L) != 3)
+		luaL_error(L, "add_dep_search: expected 3 arguments");
+	luaL_checktype(L, 1, LUA_TSTRING);
+
+	context = context_get_pointer(L);
+
+	/* check all parameters */
+	node = node_find(context->graph, lua_tostring(L,1));
+	if(!node)
+		luaL_error(L, "add_dep_search: couldn't find node with name '%s'", lua_tostring(L,1));
+	if(lua_type(L,2) != LUA_TTABLE)
+		luaL_error(L, "add_dep_search: expected table as second argument");
+	if(lua_type(L,3) != LUA_TTABLE)
+		luaL_error(L, "add_dep_search: expected table as third argument");
+		
+	deferred = (struct DEFERRED *)mem_allocate(context->deferredheap, sizeof(struct DEFERRED));
+	plain = (struct DEPPLAIN *)mem_allocate(context->deferredheap, sizeof(struct DEPPLAIN));
+	
+	deferred->node = node;
+	deferred->user = plain;
+	deferred->run = dep_plain;
+	deferred->next = context->firstdeferred_search;
+	context->firstdeferred_search = deferred;
+		
+	/* allocate the lookup */
+	plain->firstpath = NULL;
+	plain->firstdep = NULL;
+	
+	/* build the string lists */
+	build_stringlist(L, context->deferredheap, &plain->firstpath, 2);
+	build_stringlist(L, context->deferredheap, &plain->firstdep, 3);
+	
+	return 0;
 }

@@ -52,8 +52,6 @@ struct CONTEXT
 	int errorcode;
 };
 
-const char *context_get_path(struct lua_State *L);
-struct CONTEXT *context_get_pointer(struct lua_State *L);
 int context_default_target(struct CONTEXT *context, struct NODE *node);
 
 int context_build_prepare(struct CONTEXT *context);
@@ -62,8 +60,3 @@ int context_build_clean(struct CONTEXT *context);
 int context_build_make(struct CONTEXT *context);
 
 void context_dump_joblist(struct CONTEXT *context);
-
-extern const char *CONTEXT_LUA_SCRIPTARGS_TABLE;
-extern const char *CONTEXT_LUA_TARGETS_TABLE;
-extern const char *CONTEXT_LUA_PATH;
-extern const char *CONTEXT_LUA_WORKPATH;
