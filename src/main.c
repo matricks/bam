@@ -76,7 +76,7 @@ static int option_debug_jobs_dot = 0;
 static int option_debug_dumpinternal = 0;
 static int option_debug_nointernal = 0;
 static int option_debug_trace_vm = 0;
-static int option_debug_verify = 0;
+static const char *option_debug_verify = NULL;
 
 static int option_print_help = 0;
 static int option_print_debughelp = 0;
@@ -242,7 +242,7 @@ static struct OPTION options[] = {
 		unknown side effects happened. This is done by recursivly checking every file in the current working
 		directory. Can be very slow and threading will be turned off.
 	@END*/
-	{OF_DEBUG, 0, &option_debug_verify		, "--debug-verify", "(EXPRIMENTAL) verify job outputs and look for unknown side effects"},
+	{OF_DEBUG, &option_debug_verify, 0,		"--debug-verify", "(EXPRIMENTAL) verify job outputs and look for unknown side effects"},
 
 	/*@OPTION Debug: Dump Nodes ( --debug-nodes )
 		Dumps all nodes in the dependency graph, their state and their
@@ -813,7 +813,11 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 		/* start verification */
 		if(option_debug_verify)
 		{
-			context.verifystate = verify_create();
+			/* special handle of . */
+			if(strcmp(option_debug_verify, ".") == 0)
+				context.verifystate = verify_create("");
+			else
+				context.verifystate = verify_create(option_debug_verify);
 			verify_update(context.verifystate, verify_callback_null, NULL);
 		}
 

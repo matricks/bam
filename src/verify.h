@@ -1,5 +1,5 @@
 /* Creates a verification state */
-struct VERIFY_STATE *verify_create();
+struct VERIFY_STATE *verify_create(const char *basepath);
 
 /* Destroys a verification state */
 void verify_destroy(struct VERIFY_STATE *state);

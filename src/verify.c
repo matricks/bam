@@ -17,6 +17,7 @@ struct VERIFY_FILE {
 
 struct VERIFY_STATE {
 	struct HEAP * heap;
+	const char *basepath;
 
 	/* file database */
 	struct VERIFY_FILE *firstfile;
@@ -84,11 +85,12 @@ static void list_callback(const char *fullpath, const char *filename, int dir, v
 	}
 }
 
-struct VERIFY_STATE *verify_create()
+struct VERIFY_STATE *verify_create(const char *basepath)
 {
 	struct HEAP *heap = mem_create();
 	struct VERIFY_STATE *state = mem_allocate(heap, sizeof(struct VERIFY_STATE));
 	state->heap = heap;
+	state->basepath = basepath;
 	return state;
 }
 
@@ -108,7 +110,7 @@ int verify_update(struct VERIFY_STATE *state, int (*callback)(const char *fullpa
 	state->updatecount++;
 
 	/* scan the filesystem for changes */
-	file_listdirectory("", list_callback, state);
+	file_listdirectory(state->basepath, list_callback, state);
 
 	/* check for deleted files */
 	for(node = state->firstfile; node != NULL; node = node->next)
