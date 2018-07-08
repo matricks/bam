@@ -68,7 +68,7 @@ static int option_dry = 0;
 static int option_dependent = 0;
 static int option_abort_on_error = 0;
 static int option_debug_nodes = 0;
-static int option_debug_nodes_detailed = 0;
+static int option_debug_nodes_html = 0;
 static int option_debug_jobs = 0;
 static int option_debug_joblist = 0;
 static int option_debug_dot = 0;
@@ -245,16 +245,17 @@ static struct OPTION options[] = {
 	{OF_DEBUG, 0, &option_debug_verify		, "--debug-verify", "(EXPRIMENTAL) verify job outputs and look for unknown side effects"},
 
 	/*@OPTION Debug: Dump Nodes ( --debug-nodes )
-		Dumps all nodes in the dependency graph.
-	@END*/
-	{OF_DEBUG, 0, &option_debug_nodes		, "--debug-nodes", "prints all the nodes with dependencies"},
-
-	/*@OPTION Debug: Dump Nodes Detailed ( --debug-detail )
 		Dumps all nodes in the dependency graph, their state and their
 		dependent nodes. This is useful if you are writing your own
 		actions to verify that dependencies are correctly added.
 	@END*/
-	{OF_DEBUG, 0, &option_debug_nodes_detailed		, "--debug-detail", "prints all the nodes with dependencies and details"},
+	{OF_DEBUG, 0, &option_debug_nodes		, "--debug-nodes", "prints all the nodes with dependencies and details"},
+
+	/*@OPTION Debug: Dump Nodes Detailed in HMTL ( --debug-nodes-html )
+		Same as --debug-detail put outputs a HTML document with clickable links
+		for easier browsing.
+	@END*/
+	{OF_DEBUG, 0, &option_debug_nodes_html	, "--debug-nodes-html", "as --debug-detail but in html format"},
 
 	/*@OPTION Debug: Dump Jobs ( --debug-jobs )
 	@END*/
@@ -818,10 +819,10 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 
 		if(!build_error)
 		{
-			if(option_debug_nodes) /* debug dump all nodes */
-				node_debug_dump(context.graph);
-			else if(option_debug_nodes_detailed) /* debug dump all nodes detailed */
-				node_debug_dump_detailed(context.graph);
+			if(option_debug_nodes) /* debug dump all nodes detailed */
+				node_debug_dump(context.graph, 0);
+			else if(option_debug_nodes_html) /* debug dump all nodes detailed as html*/
+				node_debug_dump(context.graph, 1);
 			else if(option_debug_jobs) /* debug dump all jobs */
 				node_debug_dump_jobs(context.graph);
 			else if(option_debug_joblist) /* debug dumps the joblist */

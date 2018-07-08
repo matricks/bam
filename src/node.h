@@ -199,6 +199,7 @@ struct CONTEXT;
 #define NODEDIRTY_DEPNEWER		8	/* one of the dependencies is newer */
 #define NODEDIRTY_GLOBALSTAMP	16	/* the globaltimestamp is newer */
 #define NODEDIRTY_FORCED		32	/* forced dirty */
+#define NODEDIRTY_NUMFLAGS		6	/* last flag */
 
 /* you destroy graphs by destroying the heap */
 struct GRAPH *node_graph_create(struct HEAP *heap);
@@ -271,8 +272,7 @@ int node_walk(
 void node_walk_revisit(struct NODEWALK *walk, struct NODE *node);
 
 /* node debug dump functions */
-void node_debug_dump(struct GRAPH *graph);
-void node_debug_dump_detailed(struct GRAPH *graph);
+void node_debug_dump(struct GRAPH *graph, int html);
 void node_debug_dump_jobs(struct GRAPH *graph);
 void node_debug_dump_dot(struct GRAPH *graph, struct NODE *top);
 void node_debug_dump_jobs_dot(struct GRAPH *graph, struct NODE *top);

@@ -6,6 +6,8 @@ Release Next
 	- Nodes with zero length strings is now considered invalid ( matricks )
 	- Potential crash fixed with build_stringlist used by dependency checkers ( RyanLucchese )
 	- Do not suggest -t for more detail if it's already used ( matricks )
+	- Renamed --debug-detail to --debug-nodes and removed the old --debug-nodes as it's almost useless ( matricks )
+	- Added --debug-nodes-html that outputs a nice html page with clickable links ( matricks )
 
 Release 0.5.1
 	- Fixed issues with CC environment variables ( matricks )
