@@ -162,11 +162,12 @@ static int runjob_create_outputpaths(struct JOB *job)
 	Makes sure that the job has updated the output timestamps correctly.
 	If not, we touch the output ourself.
 */
-static void verify_outputs(struct CONTEXT *context, struct JOB *job)
+static int verify_outputs(struct CONTEXT *context, struct JOB *job)
 {
 	struct NODELINK *link;
 	time_t output_stamp;
 	const char *reason = NULL;
+	int errors = 0;
 
 	/* make sure that the tool updated the output timestamps */
 	for(link = job->firstoutput; link; link = link->next)
@@ -175,7 +176,12 @@ static void verify_outputs(struct CONTEXT *context, struct JOB *job)
 
 		/* did the job update the timestamp correctly */
 		reason = NULL;
-		if(output_stamp == link->node->timestamp_raw)
+		if(output_stamp == 0)
+		{
+			printf("%s: job '%s' did not produce expected output '%s'\n", session.name, job->label, link->node->filename);
+			errors++;
+		}
+		else if(output_stamp == link->node->timestamp_raw)
 			reason = "job did not update timestamp";
 		else if(output_stamp < context->buildtime)
 			reason = "timestamp was less then the build start timestamp";
@@ -197,6 +203,8 @@ static void verify_outputs(struct CONTEXT *context, struct JOB *job)
 		/* set new timestamp */
 		link->node->timestamp_raw = output_stamp;
 	}
+
+	return errors;
 }
 
 /*
@@ -265,8 +273,8 @@ static int run_job(struct CONTEXT *context, struct JOB *job, int thread_id)
 	errorcode = run_command(job->cmdline, job->filter);
 	if(errorcode == 0)
 	{
-		/* make sure that the tool updated the timestamp */
-		verify_outputs(context, job);
+		/* make sure that the tool updated the timestamp and produced all outputs */
+		errorcode = verify_outputs(context, job);
 	}
 	criticalsection_enter();
 
