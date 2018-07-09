@@ -126,7 +126,7 @@ static void cachehit_callback(struct NODE *node, struct CACHEINFO_DEPS *cacheinf
 		}
 		else
 		{
-			node->dirty = NODEDIRTY_MISSING;
+			node->dirty |= NODEDIRTY_MISSING;
 		}
 	}
 }

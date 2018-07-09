@@ -41,7 +41,7 @@ static void node_stat(struct NODE *node)
 	node->timestamp_raw = file_timestamp(node->filename);
 	node->timestamp = node->timestamp_raw;
 	if(node->timestamp_raw == 0)
-		node->dirty = NODEDIRTY_MISSING;
+		node->dirty |= NODEDIRTY_MISSING;
 }
 
 static void stat_thread(void *user)

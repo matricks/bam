@@ -556,10 +556,10 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 		{
 			node->job->cachehash = outputcacheinfo->cmdhash;
 			if(node->job->cachehash != node->job->cmdhash)
-				node->dirty = NODEDIRTY_CMDHASH;
+				node->dirty |= NODEDIRTY_CMDHASH;
 		}
 		else if(node->timestamp < context->globaltimestamp)
-			node->dirty = NODEDIRTY_GLOBALSTAMP;
+			node->dirty |= NODEDIRTY_GLOBALSTAMP;
 	}
 	else if(node->timestamp_raw == 0)
 	{
@@ -596,19 +596,16 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 		}
 
 		/* update dirty */		
-		if(!node->dirty)
+		if(context->forced != 0)
+			node->dirty |= NODEDIRTY_FORCED;
+		if(dep->node->dirty)
+			node->dirty |= NODEDIRTY_DEPDIRTY;
+		if(node->timestamp < dep->node->timestamp)
 		{
-			if(context->forced != 0)
-				node->dirty = NODEDIRTY_FORCED;
-			else if(dep->node->dirty)
-				node->dirty = NODEDIRTY_DEPDIRTY;
-			else if(node->timestamp < dep->node->timestamp)
-			{
-				if(node->job->cmdline)
-					node->dirty = NODEDIRTY_DEPNEWER;
-				else /* no cmdline, just propagate the timestamp */
-					node->timestamp = dep->node->timestamp;
-			}
+			if(node->job->cmdline)
+				node->dirty |= NODEDIRTY_DEPNEWER;
+			else /* no cmdline, just propagate the timestamp */
+				node->timestamp = dep->node->timestamp;
 		}
 	}
 
@@ -627,7 +624,7 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 		{
 			if(!dep->node->dirty)
 			{
-				dep->node->dirty = node->dirty;
+				dep->node->dirty |= node->dirty;
 				for(parent = dep->node->firstparent; parent; parent = parent->next)
 					node_walk_revisit(walkinfo, parent->node);				
 			}
