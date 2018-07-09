@@ -859,22 +859,22 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 					event_end(0, "build", NULL);
 					report_done = 1;
 				}
+
+				/* save cache (thread?) */
+				if(option_no_cache == 0)
+				{
+					event_begin(0, "depcache save", depcache_filename);
+					depcache_save(depcache_filename, context.graph);
+					event_end(0, "depcache save", NULL);
+
+					event_begin(0, "outputcache save", outputcache_filename);
+					outputcache_save(outputcache_filename, context.outputcache, context.graph, outputcache_timestamp);
+					event_end(0, "outputcache save", NULL);
+				}
 			}
 		}
 	}		
 
-	/* save cache (thread?) */
-	if(option_no_cache == 0 && setup_error == 0)
-	{
-		event_begin(0, "depcache save", depcache_filename);
-		depcache_save(depcache_filename, context.graph);
-		event_end(0, "depcache save", NULL);
-
-		event_begin(0, "outputcache save", outputcache_filename);
-		outputcache_save(outputcache_filename, context.outputcache, context.graph, outputcache_timestamp);
-		event_end(0, "outputcache save", NULL);
-	}
-	
 	/* clean up */
 	mem_destroy(context.graphheap);
 	free(context.joblist);
