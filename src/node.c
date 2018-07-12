@@ -685,32 +685,4 @@ void node_debug_dump(struct GRAPH *graph, int html)
 		printf("</pre></body></html>\n");
 	else
 		printf("%s", dirtyflags_help);
-
-}
-
-void node_debug_dump_jobs(struct GRAPH *graph)
-{
-	struct NODELINK *link;
-	struct STRINGLINK *strlink;
-	struct JOB *job = graph->firstjob;
-
-	printf("Dirty Prio %-30s Command\n", "Label");
-	for(;job;job = job->next)
-	{
-		printf(" %s   %4d %-30s %s\n", dirtyflags_str_empty, job->priority, job->label, job->cmdline);
-		
-		for(link = job->firstoutput; link; link = link->next)
-			printf(" %s          OUTPUT %-30s\n", dirtyflags_str(link->node->dirty), link->node->filename);
-
-		for(link = job->firstjobdep; link; link = link->next)
-			printf(" %s          DEPEND %-30s\n", dirtyflags_str(link->node->dirty), link->node->filename);
-
-		for(strlink = job->firstclean; strlink; strlink = strlink->next)
-			printf(" %s          CLEAN  %-30s\n", dirtyflags_str_empty, strlink->str);
-
-		for(strlink = job->firstsideeffect; strlink; strlink = strlink->next)
-			printf(" %s          SIDE  %-30s\n", dirtyflags_str_empty, strlink->str);
-	}
-
-	printf("%s", dirtyflags_help);
 }

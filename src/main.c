@@ -69,7 +69,6 @@ static int option_dependent = 0;
 static int option_abort_on_error = 0;
 static int option_debug_nodes = 0;
 static int option_debug_nodes_html = 0;
-static int option_debug_jobs = 0;
 static int option_debug_joblist = 0;
 static int option_debug_dumpinternal = 0;
 static int option_debug_nointernal = 0;
@@ -259,10 +258,6 @@ static struct OPTION options[] = {
 		for easier browsing.
 	@END*/
 	{OF_DEBUG, 0, &option_debug_nodes_html	, "--debug-nodes-html", "as --debug-nodes but in html format"},
-
-	/*@OPTION Debug: Dump Jobs ( --debug-jobs )
-	@END*/
-	{OF_DEBUG, 0, &option_debug_jobs		, "--debug-jobs", "prints all the jobs that exist"},
 
 	/*@OPTION Debug: Dump Joblist ( --debug-joblist )
 	@END*/
