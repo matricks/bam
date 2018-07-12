@@ -59,6 +59,8 @@ struct JOB
 	char *label;
 	char *filter;
 
+	unsigned id; /* unique id */
+	
 	hash_t cmdhash; /* hash of the command line for detecting changes */
 	hash_t cachehash; /* hash that should be written to the cache */
 
@@ -274,7 +276,5 @@ void node_walk_revisit(struct NODEWALK *walk, struct NODE *node);
 /* node debug dump functions */
 void node_debug_dump(struct GRAPH *graph, int html);
 void node_debug_dump_jobs(struct GRAPH *graph);
-void node_debug_dump_dot(struct GRAPH *graph, struct NODE *top);
-void node_debug_dump_jobs_dot(struct GRAPH *graph, struct NODE *top);
 
 #endif /* FILE_NODE_H */

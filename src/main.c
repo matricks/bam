@@ -71,8 +71,6 @@ static int option_debug_nodes = 0;
 static int option_debug_nodes_html = 0;
 static int option_debug_jobs = 0;
 static int option_debug_joblist = 0;
-static int option_debug_dot = 0;
-static int option_debug_jobs_dot = 0;
 static int option_debug_dumpinternal = 0;
 static int option_debug_nointernal = 0;
 static int option_debug_trace_vm = 0;
@@ -269,18 +267,6 @@ static struct OPTION options[] = {
 	/*@OPTION Debug: Dump Joblist ( --debug-joblist )
 	@END*/
 	{OF_DEBUG, 0, &option_debug_joblist		, "--debug-joblist", "prints all the job in the order that they will be attempted"},
-
-	/*@OPTION Debug: Dump Dot ( --debug-dot )
-		Dumps all nodes in the dependency graph into a dot file that can
-		be rendered with graphviz.
-	@END*/
-	{OF_DEBUG, 0, &option_debug_dot		, "--debug-dot", "prints all nodes as a graphviz dot file"},
-
-	/*@OPTION Debug: Dump Jobs Dot ( --debug-jobs-dot )
-		Dumps all jobs and their dependent jobs into a dot file that can
-		be rendered with graphviz.
-	@END*/
-	{OF_DEBUG, 0, &option_debug_jobs_dot	, "--debug-jobs-dot", "prints all jobs as a graphviz dot file"},
 
 	/*@OPTION Debug: Trace VM ( --debug-trace-vm )
 		Prints a the function and source line for every instruction that the vm makes.
@@ -836,10 +822,6 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 				node_debug_dump_jobs(context.graph);
 			else if(option_debug_joblist) /* debug dumps the joblist */
 				context_dump_joblist(&context);
-			else if(option_debug_dot) /* debug dump all nodes as dot */
-				node_debug_dump_dot(context.graph, context.target);
-			else if(option_debug_jobs_dot) /* debug dump all jobs as dot */
-				node_debug_dump_jobs_dot(context.graph, context.target);
 			else if(option_dry)
 			{
 			}

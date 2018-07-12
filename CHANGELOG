@@ -8,6 +8,7 @@ Release Next
 	- Do not suggest -t for more detail if it's already used ( matricks )
 	- Renamed --debug-detail to --debug-nodes and removed the old --debug-nodes as it's almost useless ( matricks )
 	- Added --debug-nodes-html that outputs a nice html page with clickable links ( matricks )
+	- Removed --debug-dot and --debug-jobs-dot as they are virtually useless due to size ( matricks )
 
 Release 0.5.1
 	- Fixed issues with CC environment variables ( matricks )

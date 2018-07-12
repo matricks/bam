@@ -113,6 +113,7 @@ struct JOB *node_job_create(struct GRAPH *graph, const char *label, const char *
 	graph->num_jobs++;
 
 	/* set label and command */
+	job->id = graph->num_jobs;
 	job->label = duplicate_string(graph, label, strlen(label));
 	job->cmdline = duplicate_string(graph, cmdline, strlen(cmdline));
 	job->cmdhash = string_hash(cmdline);
@@ -604,29 +605,29 @@ static const char *dirtyflags_help =
 	"m = missing file, c = command line changed, d = a dependecy is dirty\n"
 	"n = a dependecy is newer, g = global timestamp is newer, f = forced\n";
 
-static const char *decorate_link(struct NODE * node, int html) {
+static const char *decorate_link(unsigned id, const char *name, const char *linktype, int html) {
 	static char buffer[4*1024];
 	if(!html)
-		return node->filename;
-	snprintf(buffer, sizeof(buffer), "<a href=\"#n%u\">%s</a>", node->id, node->filename);
+		return name;
+	snprintf(buffer, sizeof(buffer), "<a href=\"#%s%u\">%s</a>", linktype, id, name);
 	return buffer;
 }
 
-static const char *decorate_header(struct NODE * node, int html) {
+static const char *decorate_header(unsigned id, const char *name, const char *linktype, int html) {
 	static char buffer[4*1024];
 	if(!html)
-		return node->filename;
-	snprintf(buffer, sizeof(buffer), "<a id=\"n%u\" href=\"#n%u\">%s</a>", node->id, node->id, node->filename);
+		return name;
+	snprintf(buffer, sizeof(buffer), "<a id=\"%s%u\" href=\"#%s%u\">%s</a>", linktype, id, linktype, id, name);
 	return buffer;
 }
 
 /* dumps all nodes to the stdout */
 void node_debug_dump(struct GRAPH *graph, int html)
 {
+	struct JOB *job = graph->firstjob;
 	struct NODE *node = graph->first;
 	struct NODELINK *link;
-	struct STRINGLINK *slink;
-	const char *tool;
+	struct STRINGLINK *strlink;
 
 	if(html)
 	{
@@ -634,26 +635,48 @@ void node_debug_dump(struct GRAPH *graph, int html)
 		printf("%s", dirtyflags_help);
 	}
 
+
+	printf("Dirty Prio %-30s Command\n", "Label");
+	for(;job;job = job->next)
+	{
+		printf("%8s %s JOB %-30s %s\n", "", dirtyflags_str_empty, decorate_header(job->id, job->label, "j", html), job->cmdline);
+		
+		for(link = job->firstoutput; link; link = link->next)
+			printf("%08x %s    OUTPUT %-30s\n", (unsigned)link->node->timestamp, dirtyflags_str(link->node->dirty), decorate_link(link->node->id, link->node->filename, "n", html));
+
+		for(link = job->firstjobdep; link; link = link->next)
+			printf("%8s %s    JOBDEP %-30s\n", "", dirtyflags_str(link->node->dirty), decorate_link(link->node->id, link->node->filename, "n", html));
+
+		for(strlink = job->firstclean; strlink; strlink = strlink->next)
+			printf("%8s %s    CLEAN  %-30s\n", "", dirtyflags_str_empty, strlink->str);
+
+		for(strlink = job->firstsideeffect; strlink; strlink = strlink->next)
+			printf("%8s %s    SIDE  %-30s\n", "", dirtyflags_str_empty, strlink->str);
+		printf("\n");
+	}
+
+
 	for(;node;node = node->next)
 	{
-		tool = "***";
-		if(node->job)
-			tool = node->job->cmdline;
-		printf("%08x %s   %s | %s\n", (unsigned)node->timestamp, dirtyflags_str(node->dirty), decorate_header(node, html), tool);
+		printf("%08x %s NODE %s\n", (unsigned)node->timestamp, dirtyflags_str(node->dirty), decorate_header(node->id, node->filename, "n", html));
+		if(node->job->cmdline)
+			printf( "%8s %s    JOB    %s\n", "", dirtyflags_str_empty, decorate_link(node->job->id, node->job->label, "j", html));
 		for(link = node->firstdep; link; link = link->next)
-			printf("%08x %s       DEPEND %s\n", (unsigned)link->node->timestamp, dirtyflags_str(link->node->dirty), decorate_link(link->node, html));
+			printf("%08x %s    DEPEND %s\n", (unsigned)link->node->timestamp, dirtyflags_str(link->node->dirty), decorate_link(link->node->id, link->node->filename, "n", html));
 		for(link = node->firstparent; link; link = link->next)
-			printf("%08x %s       PARENT %s\n", (unsigned)link->node->timestamp, dirtyflags_str(link->node->dirty), decorate_link(link->node, html));
+			printf("%08x %s    PARENT %s\n", (unsigned)link->node->timestamp, dirtyflags_str(link->node->dirty), decorate_link(link->node->id, link->node->filename, "n", html));
 		for(link = node->constraint_shared; link; link = link->next)
-			printf("%08x %s       SHARED %s\n", (unsigned)link->node->timestamp, dirtyflags_str(link->node->dirty), decorate_link(link->node, html));
+			printf("%08x %s    SHARED %s\n", (unsigned)link->node->timestamp, dirtyflags_str(link->node->dirty), decorate_link(link->node->id, link->node->filename, "n", html));
 		for(link = node->constraint_exclusive; link; link = link->next)
-			printf("%08x %s       EXCLUS %s\n", (unsigned)link->node->timestamp, dirtyflags_str(link->node->dirty), decorate_link(link->node, html));
+			printf("%08x %s    EXCLUS %s\n", (unsigned)link->node->timestamp, dirtyflags_str(link->node->dirty), decorate_link(link->node->id, link->node->filename, "n", html));
+		/*
 		for(link = node->job->firstjobdep; link; link = link->next)
-			printf("%08x %s       JOBDEP %s\n", (unsigned)link->node->timestamp, dirtyflags_str(link->node->dirty), decorate_link(link->node, html));
+			printf("%08x %s       JOBDEP %s\n", (unsigned)link->node->timestamp, dirtyflags_str(link->node->dirty), decorate_link(link->node->id, link->node->filename, "n", html));
 		for(slink = node->job->firstclean; slink; slink = slink->next)
 			printf("%8s %s       CLEAN  %s\n", "", dirtyflags_str_empty, slink->str);
 		for(slink = node->job->firstsideeffect; slink; slink = slink->next)
 			printf("%8s %s       SIDE   %s\n", "", dirtyflags_str_empty, slink->str);
+			*/
 		printf("\n");
 	}
 
@@ -662,57 +685,6 @@ void node_debug_dump(struct GRAPH *graph, int html)
 	else
 		printf("%s", dirtyflags_help);
 
-}
-
-
-
-static int node_debug_dump_dot_callback(struct NODEWALK *walkinfo)
-{
-	struct NODE *node = walkinfo->node;
-	struct NODELINK *link;
-
-	/* skip top node, always the build target */
-	if(node == walkinfo->user)
-		return 0;
-
-	printf("node%d [label=\"%s\"];\n", node->id, node->filename);
-	for(link = node->firstdep; link; link = link->next)
-		printf("node%d -> node%d;\n", link->node->id, node->id);
-	return 0;
-}
-
-/* dumps all nodes to the stdout */
-void node_debug_dump_dot(struct GRAPH *graph, struct NODE *top)
-{
-	printf("digraph {\n");
-	printf("graph [rankdir=\"LR\"];\n");
-	printf("node [shape=box, height=0.25, color=gray, fontsize=8];\n");
-	node_walk(top, NODEWALK_FORCE|NODEWALK_TOPDOWN|NODEWALK_QUICK, node_debug_dump_dot_callback, top);
-	printf("}\n");
-}
-
-static int node_debug_dump_jobs_dot_callback(struct NODEWALK *walkinfo)
-{
-	struct NODE *node = walkinfo->node;
-	struct NODELINK *link;
-
-	/* skip top node, always the build target */
-	if(node == walkinfo->user)
-		return 0;
-
-	printf("node%d [shape=box, label=\"%s\"];\n", node->id, node->filename);
-	for(link = node->job->firstjobdep; link; link = link->next)
-		printf("node%d -> node%d;\n", link->node->id, node->id);
-	return 0;
-}
-
-void node_debug_dump_jobs_dot(struct GRAPH *graph, struct NODE *top)
-{
-	printf("digraph {\n");
-	printf("graph [rankdir=\"LR\"];\n");
-	printf("node [shape=box, height=0.25, color=gray, fontsize=8];\n");
-	node_walk(top, NODEWALK_FORCE|NODEWALK_TOPDOWN|NODEWALK_JOBS|NODEWALK_QUICK, node_debug_dump_jobs_dot_callback, top);
-	printf("}\n");
 }
 
 void node_debug_dump_jobs(struct GRAPH *graph)
