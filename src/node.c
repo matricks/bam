@@ -622,6 +622,20 @@ static const char *decorate_header(unsigned id, const char *name, const char *li
 }
 
 /* dumps all nodes to the stdout */
+static void print_node(struct NODE *node, const char *label, int html)
+{
+	struct NODELINK *link;
+	printf("%08x %s %s %s\n", (unsigned)node->timestamp, dirtyflags_str(node->dirty), label, decorate_header(node->id, node->filename, "n", html));
+	for(link = node->firstdep; link; link = link->next)
+		printf("%08x %s    DEPEND %s\n", (unsigned)link->node->timestamp, dirtyflags_str(link->node->dirty), decorate_link(link->node->id, link->node->filename, "n", html));
+	for(link = node->firstparent; link; link = link->next)
+		printf("%08x %s    PARENT %s\n", (unsigned)link->node->timestamp, dirtyflags_str(link->node->dirty), decorate_link(link->node->id, link->node->filename, "n", html));
+	for(link = node->constraint_shared; link; link = link->next)
+		printf("%08x %s    SHARED %s\n", (unsigned)link->node->timestamp, dirtyflags_str(link->node->dirty), decorate_link(link->node->id, link->node->filename, "n", html));
+	for(link = node->constraint_exclusive; link; link = link->next)
+		printf("%08x %s    EXCLUS %s\n", (unsigned)link->node->timestamp, dirtyflags_str(link->node->dirty), decorate_link(link->node->id, link->node->filename, "n", html));
+}
+
 void node_debug_dump(struct GRAPH *graph, int html)
 {
 	struct JOB *job = graph->firstjob;
@@ -633,50 +647,37 @@ void node_debug_dump(struct GRAPH *graph, int html)
 	{
 		printf("<html><body><pre>\n");
 		printf("%s", dirtyflags_help);
+		printf("\n");
 	}
 
-
-	printf("Dirty Prio %-30s Command\n", "Label");
 	for(;job;job = job->next)
 	{
-		printf("%8s %s JOB %-30s %s\n", "", dirtyflags_str_empty, decorate_header(job->id, job->label, "j", html), job->cmdline);
+		printf("JOB %s\n", decorate_header(job->id, job->label, "j", html));
+		printf("CMD %s\n", job->cmdline);
 		
 		for(link = job->firstoutput; link; link = link->next)
-			printf("%08x %s    OUTPUT %-30s\n", (unsigned)link->node->timestamp, dirtyflags_str(link->node->dirty), decorate_link(link->node->id, link->node->filename, "n", html));
+			print_node(link->node, "OUTPUT", html);
 
 		for(link = job->firstjobdep; link; link = link->next)
-			printf("%8s %s    JOBDEP %-30s\n", "", dirtyflags_str(link->node->dirty), decorate_link(link->node->id, link->node->filename, "n", html));
+			printf("%08x %s JOBDEP %-30s\n", (unsigned)link->node->timestamp, dirtyflags_str(link->node->dirty), decorate_link(link->node->id, link->node->filename, "n", html));
 
 		for(strlink = job->firstclean; strlink; strlink = strlink->next)
-			printf("%8s %s    CLEAN  %-30s\n", "", dirtyflags_str_empty, strlink->str);
+			printf("%8s %s CLEAN  %-30s\n", "", dirtyflags_str_empty, strlink->str);
 
 		for(strlink = job->firstsideeffect; strlink; strlink = strlink->next)
-			printf("%8s %s    SIDE  %-30s\n", "", dirtyflags_str_empty, strlink->str);
+			printf("%8s %s SIDE  %-30s\n", "", dirtyflags_str_empty, strlink->str);
+
 		printf("\n");
 	}
 
 
 	for(;node;node = node->next)
 	{
-		printf("%08x %s NODE %s\n", (unsigned)node->timestamp, dirtyflags_str(node->dirty), decorate_header(node->id, node->filename, "n", html));
+		/* if we have a command line, we have already been printed out */
 		if(node->job->cmdline)
-			printf( "%8s %s    JOB    %s\n", "", dirtyflags_str_empty, decorate_link(node->job->id, node->job->label, "j", html));
-		for(link = node->firstdep; link; link = link->next)
-			printf("%08x %s    DEPEND %s\n", (unsigned)link->node->timestamp, dirtyflags_str(link->node->dirty), decorate_link(link->node->id, link->node->filename, "n", html));
-		for(link = node->firstparent; link; link = link->next)
-			printf("%08x %s    PARENT %s\n", (unsigned)link->node->timestamp, dirtyflags_str(link->node->dirty), decorate_link(link->node->id, link->node->filename, "n", html));
-		for(link = node->constraint_shared; link; link = link->next)
-			printf("%08x %s    SHARED %s\n", (unsigned)link->node->timestamp, dirtyflags_str(link->node->dirty), decorate_link(link->node->id, link->node->filename, "n", html));
-		for(link = node->constraint_exclusive; link; link = link->next)
-			printf("%08x %s    EXCLUS %s\n", (unsigned)link->node->timestamp, dirtyflags_str(link->node->dirty), decorate_link(link->node->id, link->node->filename, "n", html));
-		/*
-		for(link = node->job->firstjobdep; link; link = link->next)
-			printf("%08x %s       JOBDEP %s\n", (unsigned)link->node->timestamp, dirtyflags_str(link->node->dirty), decorate_link(link->node->id, link->node->filename, "n", html));
-		for(slink = node->job->firstclean; slink; slink = slink->next)
-			printf("%8s %s       CLEAN  %s\n", "", dirtyflags_str_empty, slink->str);
-		for(slink = node->job->firstsideeffect; slink; slink = slink->next)
-			printf("%8s %s       SIDE   %s\n", "", dirtyflags_str_empty, slink->str);
-			*/
+			continue;
+
+		print_node(node, "NODE", html);
 		printf("\n");
 	}
 
