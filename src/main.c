@@ -813,8 +813,6 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 				node_debug_dump(context.graph, 0);
 			else if(option_debug_nodes_html) /* debug dump all nodes detailed as html*/
 				node_debug_dump(context.graph, 1);
-			else if(option_debug_jobs) /* debug dump all jobs */
-				node_debug_dump_jobs(context.graph);
 			else if(option_debug_joblist) /* debug dumps the joblist */
 				context_dump_joblist(&context);
 			else if(option_dry)
