@@ -17,12 +17,12 @@ function SetDefaultDrivers(settings)
 				SetDriversDefault = SetDriversXLC
 			end
 		else
-			if ExecuteSilent("cl") == 0 then
-				SetDriversDefault = SetDriversCL
+			if ExecuteSilent("clang -v") == 0 then
+				SetDriversDefault = SetDriversClang
 			elseif ExecuteSilent("gcc -v") == 0 then
 				SetDriversDefault = SetDriversGCC
-			elseif ExecuteSilent("clang -v") == 0 then
-				SetDriversDefault = SetDriversClang
+			elseif ExecuteSilent("cl") == 0 then
+				SetDriversDefault = SetDriversCL
 			elseif ExecuteSilent("suncc -flags") == 0 then
 				SetDriversDefault = SetDriversSolarisStudio
 			elseif ExecuteSilent("xlc_r -qversion") == 0 then
