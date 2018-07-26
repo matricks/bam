@@ -11,3 +11,4 @@ compiler:
 
 script:
   - ./make_unix.sh
+  - python scripts/tests.py
