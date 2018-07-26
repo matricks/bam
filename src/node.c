@@ -11,6 +11,9 @@
 
 #include "nodelinktree.inl"
 
+#if _MSC_VER <= 1800
+#  define snprintf _snprintf
+#endif
 
 static char *duplicate_string(struct GRAPH *graph, const char *src, size_t len)
 {
