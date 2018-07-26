@@ -13,5 +13,6 @@ environment:
 
 install:
   - call make_%PLATFORM%_msvc.bat
-
+  - @IF %errorlevel% NEQ 0 exit /B 1
+  - C:\Python34 scripts\test.py
 build: OFF
