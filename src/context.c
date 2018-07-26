@@ -1,6 +1,4 @@
-#define LUA_CORE /* make sure that we don't try to import these functions */
-#include <lua.h>
-#include <lauxlib.h>
+#include <stdio.h>
 #include <stdlib.h> /* system() */
 #include <string.h> /* strerror() */
 #include <errno.h> /* errno */
@@ -12,36 +10,11 @@
 #include "cache.h"
 #include "support.h"
 #include "session.h"
+#include "verify.h"
 
 #ifndef BAM_MAX_THREADS
         #define BAM_MAX_THREADS 1024
 #endif
-
-const char *CONTEXT_LUA_SCRIPTARGS_TABLE = "_bam_scriptargs";
-const char *CONTEXT_LUA_TARGETS_TABLE = "_bam_targets";
-const char *CONTEXT_LUA_PATH = "_bam_path";
-const char *CONTEXT_LUA_WORKPATH = "_bam_workpath";
-
-/* */
-struct CONTEXT *context_get_pointer(lua_State *L)
-{
-	/* HACK: we store the context pointer as the user data to
-		to the allocator for fast access to it */
-	void *context;
-	lua_getallocf(L, &context);
-	return (struct CONTEXT*)context;
-}
-
-/*  */
-const char *context_get_path(lua_State *L)
-{
-	const char *path;
-	lua_pushstring(L, CONTEXT_LUA_PATH);
-	lua_gettable(L, LUA_GLOBALSINDEX);
-	path = lua_tostring(L, -1);
-	lua_pop(L, 1);
-	return path;
-}
 
 int context_default_target(struct CONTEXT *context, struct NODE *node)
 {
@@ -189,11 +162,12 @@ static int runjob_create_outputpaths(struct JOB *job)
 	Makes sure that the job has updated the output timestamps correctly.
 	If not, we touch the output ourself.
 */
-static void verify_outputs(struct CONTEXT *context, struct JOB *job)
+static int verify_outputs(struct CONTEXT *context, struct JOB *job)
 {
 	struct NODELINK *link;
 	time_t output_stamp;
 	const char *reason = NULL;
+	int errors = 0;
 
 	/* make sure that the tool updated the output timestamps */
 	for(link = job->firstoutput; link; link = link->next)
@@ -202,7 +176,12 @@ static void verify_outputs(struct CONTEXT *context, struct JOB *job)
 
 		/* did the job update the timestamp correctly */
 		reason = NULL;
-		if(output_stamp == link->node->timestamp_raw)
+		if(output_stamp == 0)
+		{
+			printf("%s: job '%s' did not produce expected output '%s'\n", session.name, job->label, link->node->filename);
+			errors++;
+		}
+		else if(output_stamp == link->node->timestamp_raw)
 			reason = "job did not update timestamp";
 		else if(output_stamp < context->buildtime)
 			reason = "timestamp was less then the build start timestamp";
@@ -224,6 +203,44 @@ static void verify_outputs(struct CONTEXT *context, struct JOB *job)
 		/* set new timestamp */
 		link->node->timestamp_raw = output_stamp;
 	}
+
+	return errors;
+}
+
+/*
+	Checks so that a new file or updated file is actually a output or side effect of the job that ran
+*/
+static int verify_callback(const char *fullpath, hash_t hashid, time_t oldstamp, time_t newstamp, void *user) {
+	struct JOB *job = user;
+
+	if(oldstamp == 0 || oldstamp != newstamp)
+	{
+		struct NODELINK *link;
+		struct STRINGLINK *slink;
+		for(link = job->firstoutput; link; link = link->next)
+			if(link->node->hashid == hashid)
+				break;
+
+		if(link == NULL)
+		{
+			for(slink = job->firstsideeffect; slink; slink = slink->next)
+				if(strcmp(slink->str, fullpath) == 0)
+					break;
+		}
+
+		if(link == NULL && slink == NULL)
+		{
+			if(oldstamp == 0)
+				printf("%s: verification error: %s was created and not specified as an output\n", session.name, fullpath);
+			else if(newstamp == 0)
+				printf("%s: verification error: %s was deleted\n", session.name, fullpath);
+			else
+				printf("%s: verification error: %s was updated and not specified as an output\n", session.name, fullpath);
+			return 1;
+		}
+	}
+
+	return 0;
 }
 
 static int run_job(struct CONTEXT *context, struct JOB *job, int thread_id)
@@ -243,7 +260,6 @@ static int run_job(struct CONTEXT *context, struct JOB *job, int thread_id)
 	if(runjob_create_outputpaths(job) != 0)
 	{
 		job->status = JOBSTATUS_BROKEN;
-		context->errorcode = 1;
 		return 1;
 	}
 
@@ -257,8 +273,8 @@ static int run_job(struct CONTEXT *context, struct JOB *job, int thread_id)
 	errorcode = run_command(job->cmdline, job->filter);
 	if(errorcode == 0)
 	{
-		/* make sure that the tool updated the timestamp */
-		verify_outputs(context, job);
+		/* make sure that the tool updated the timestamp and produced all outputs */
+		errorcode = verify_outputs(context, job);
 	}
 	criticalsection_enter();
 
@@ -277,7 +293,6 @@ static int run_job(struct CONTEXT *context, struct JOB *job, int thread_id)
 	{
 		/* set global error code */
 		job->status = JOBSTATUS_BROKEN;
-		context->errorcode = errorcode;
 
 		/* report the error */
 		if(session.report_color)
@@ -299,6 +314,15 @@ static int run_job(struct CONTEXT *context, struct JOB *job, int thread_id)
 			
 		fflush(stdout);
 	}
+
+	/* run verify if requested */
+	if(errorcode == 0 && context->verifystate != NULL)
+	{
+		event_begin(thread_id, "verify", job->label);
+		errorcode = verify_update(context->verifystate, verify_callback, job);
+		event_end(thread_id, "verify", NULL);
+	}
+
 	return errorcode;
 }
 
@@ -377,6 +401,7 @@ static void threads_run(void *u)
 	struct THREADINFO *info = (struct THREADINFO *)u;
 	struct CONTEXT *context = info->context;
 	struct JOB *job;
+	int backofftime = 1;
 	
 	/* lock the dependency graph */
 	criticalsection_enter();
@@ -398,14 +423,20 @@ static void threads_run(void *u)
 		job = find_job(context);
 		if(job)
 		{
-			run_job(context, job, info->id + 1);
+			backofftime = 1;
+			if(run_job(context, job, info->id + 1))
+				context->errorcode = 1;
 		}
 		else
 		{
 			/* if we didn't find a job todo, be a bit nice to the processor */
-			/* TODO: we should wait for an event here */
 			criticalsection_leave();
-			threads_yield();
+			/* TODO: we should wait for an event here */
+			/* back off more and more up to 200ms */
+			backofftime *= 2;
+			if(backofftime > 200)
+				backofftime = 200;
+			threads_sleep(backofftime);
 			criticalsection_enter();
 		}
 	}
@@ -509,7 +540,7 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 {
 	struct NODE *node = walkinfo->node;
 	struct CONTEXT *context = (struct CONTEXT *)walkinfo->user;
-	struct CACHENODE *cachenode;
+	struct CACHEINFO_OUTPUT *outputcacheinfo = NULL;
 	struct NODELINK *dep;
 	struct NODELINK *parent;
 	struct NODELINK *jobdep;
@@ -521,20 +552,22 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 
 	/* time sanity check */
 	if(node->timestamp > context->buildtime)
-		printf("%s: WARNING:'%s' comes from the future\n", session.name, node->filename);
+		printf("%s: warning:'%s' comes from the future\n", session.name, node->filename);
 	
 	if(node->job->cmdline)
 	{
 		/* dirty checking, check against cmdhash and global timestamp first */
-		cachenode = cache_find_byhash(context->cache, node->hashid);
-		if(cachenode)
+		if(context->outputcache)
+			outputcacheinfo = outputcache_find_byhash(context->outputcache, node->hashid);
+
+		if(outputcacheinfo)
 		{
-			node->job->cachehash = cachenode->cmdhash;
+			node->job->cachehash = outputcacheinfo->cmdhash;
 			if(node->job->cachehash != node->job->cmdhash)
-				node->dirty = NODEDIRTY_CMDHASH;
+				node->dirty |= NODEDIRTY_CMDHASH;
 		}
 		else if(node->timestamp < context->globaltimestamp)
-			node->dirty = NODEDIRTY_GLOBALSTAMP;
+			node->dirty |= NODEDIRTY_GLOBALSTAMP;
 	}
 	else if(node->timestamp_raw == 0)
 	{
@@ -571,19 +604,16 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 		}
 
 		/* update dirty */		
-		if(!node->dirty)
+		if(context->forced != 0)
+			node->dirty |= NODEDIRTY_FORCED;
+		if(dep->node->dirty)
+			node->dirty |= NODEDIRTY_DEPDIRTY;
+		if(node->timestamp < dep->node->timestamp)
 		{
-			if(context->forced != 0)
-				node->dirty = NODEDIRTY_FORCED;
-			else if(dep->node->dirty)
-				node->dirty = NODEDIRTY_DEPDIRTY;
-			else if(node->timestamp < dep->node->timestamp)
-			{
-				if(node->job->cmdline)
-					node->dirty = NODEDIRTY_DEPNEWER;
-				else /* no cmdline, just propagate the timestamp */
-					node->timestamp = dep->node->timestamp;
-			}
+			if(node->job->cmdline)
+				node->dirty |= NODEDIRTY_DEPNEWER;
+			else /* no cmdline, just propagate the timestamp */
+				node->timestamp = dep->node->timestamp;
 		}
 	}
 
@@ -602,7 +632,7 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 		{
 			if(!dep->node->dirty)
 			{
-				dep->node->dirty = node->dirty;
+				dep->node->dirty |= node->dirty;
 				for(parent = dep->node->firstparent; parent; parent = parent->next)
 					node_walk_revisit(walkinfo, parent->node);				
 			}

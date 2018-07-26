@@ -24,6 +24,7 @@
 #include "platform.h"
 #include "session.h"
 #include "version.h"
+#include "verify.h"
 
 /* internal base.bam file */
 #include "internal_base.h"
@@ -67,14 +68,12 @@ static int option_dry = 0;
 static int option_dependent = 0;
 static int option_abort_on_error = 0;
 static int option_debug_nodes = 0;
-static int option_debug_nodes_detailed = 0;
-static int option_debug_jobs = 0;
+static int option_debug_nodes_html = 0;
 static int option_debug_joblist = 0;
-static int option_debug_dot = 0;
-static int option_debug_jobs_dot = 0;
 static int option_debug_dumpinternal = 0;
 static int option_debug_nointernal = 0;
 static int option_debug_trace_vm = 0;
+static const char *option_debug_verify = NULL;
 
 static int option_print_help = 0;
 static int option_print_debughelp = 0;
@@ -90,11 +89,13 @@ static const char* option_lua_execute = NULL;
 static int option_num_targets = 0;
 static const char *option_scriptargs[128] = {0};
 static int option_num_scriptargs = 0;
-
 static int option_win_msvcmode = 0;
 
-/* filename of the cache, will be filled in at start up, ".bam/xxxxxxxxyyyyyyyyy" = 22 top */
-static char cache_filename[32] = {0};
+/* filename of the dependency cache, will be filled in at start up, ".bam/xxxxxxxxyyyyyyyyy" = 22 top */
+static char depcache_filename[32] = {0};
+
+/* filename of the command cache */
+static char outputcache_filename[] = ".bam/outputcache";
 
 /* session object */
 struct SESSION session = {
@@ -129,12 +130,13 @@ static struct OPTION options[] = {
 		Setting this will cause bam to abort the build process when an error has occured.
 		Normally it would continue as far as it can.
 	@END*/
-	{OF_PRINT, 0,&option_abort_on_error	, "-a", "abort build on first error"},
+	{OF_PRINT, 0, &option_abort_on_error	, "-a", "abort build on first error"},
 
 	/*@OPTION Lua execute ( -e )
 		Executes a lua file without running the build system.
 	@END*/
-	{OF_PRINT, &option_lua_execute, 0	, "-e", "executes specified lua file and exits"},
+	{OF_PRINT, &option_lua_execute, 0	, "-e filename", "executes specified lua file and exits"},
+	{0, &option_lua_execute, 0	, "-e", NULL},
 
 	/*@OPTION Clean ( -c )
 		Cleans the specified targets or the default target.
@@ -162,14 +164,16 @@ static struct OPTION options[] = {
 		Sets the number of threads used when building. A good value for N is
 		the same number as logical cores on the machine. Set to 0 to disable.
 	@END*/
-	{OF_PRINT, &option_threads_str,0		, "-j", "sets the number of threads to use (default: auto, -v will show it)"},
+	{OF_PRINT, &option_threads_str,0		, "-j num", "sets the number of threads to use (default: auto, -v will show it)"},
+	{0, &option_threads_str, 0		, "-j", NULL},
 
 	/*@OPTION Script File ( -s FILENAME )
 		Bam file to use. In normal operation, Bam executes
 		^bam.lua^. This option allows you to specify another bam
 		file.
 	@END*/
-	{OF_PRINT, &option_script,0			, "-s", "script file to use (default: bam.lua)"},
+	{OF_PRINT, &option_script,0			, "-s filename", "script file to use (default: bam.lua)"},
+	{0, &option_script, 0			, "-s", NULL},
 
 	{OF_PRINT, 0, 0						, "\n Lua:", ""},
 
@@ -193,10 +197,11 @@ static struct OPTION options[] = {
 			<li>c</li> - Use ANSI colors.
 		</ul>
 	@END*/
-	{OF_PRINT, &option_report_str,0		, "-r", "build progress report format (default: " DEFAULT_REPORT_STYLE ")\n"
+	{OF_PRINT, &option_report_str,0		, "-r flags", "build progress report format (default: " DEFAULT_REPORT_STYLE ")\n"
 		"                            " "    b = progress bar\n"
 		"                            " "    c = use ansi colors\n"
 		"                            " "    s = build steps"},
+	{0, &option_report_str,0		, "-r", NULL},
 	
 	/*@OPTION Verbose ( -v )
 		Prints all commands that are runned when building.
@@ -233,37 +238,30 @@ static struct OPTION options[] = {
 
 	{OF_DEBUG, 0, 0						, "\n Debug:", ""},
 
-	/*@OPTION Debug: Dump Nodes ( --debug-nodes )
-		Dumps all nodes in the dependency graph.
+	/*@OPTION Debug: Verify ( --debug-verify )
+		Check changes to files after every job is runned to make sure the correct outputs are updated and no
+		unknown side effects happened. This is done by recursivly checking every file in the current working
+		directory. Can be very slow and threading will be turned off.
 	@END*/
-	{OF_DEBUG, 0, &option_debug_nodes		, "--debug-nodes", "prints all the nodes with dependencies"},
+	{OF_DEBUG, &option_debug_verify, 0,		"--debug-verify basepath", "(EXPRIMENTAL) verify job outputs and look for unknown side effects"},
+	{0, &option_debug_verify, 0,		"--debug-verify", 0},
 
-	/*@OPTION Debug: Dump Nodes Detailed ( --debug-detail )
+	/*@OPTION Debug: Dump Nodes ( --debug-nodes )
 		Dumps all nodes in the dependency graph, their state and their
 		dependent nodes. This is useful if you are writing your own
 		actions to verify that dependencies are correctly added.
 	@END*/
-	{OF_DEBUG, 0, &option_debug_nodes_detailed		, "--debug-detail", "prints all the nodes with dependencies and details"},
+	{OF_DEBUG, 0, &option_debug_nodes		, "--debug-nodes", "prints all the nodes with dependencies and details"},
 
-	/*@OPTION Debug: Dump Jobs ( --debug-jobs )
+	/*@OPTION Debug: Dump Nodes Detailed in HMTL ( --debug-nodes-html )
+		Same as --debug-detail put outputs a HTML document with clickable links
+		for easier browsing.
 	@END*/
-	{OF_DEBUG, 0, &option_debug_jobs		, "--debug-jobs", "prints all the jobs that exist"},
+	{OF_DEBUG, 0, &option_debug_nodes_html	, "--debug-nodes-html", "as --debug-nodes but in html format"},
 
 	/*@OPTION Debug: Dump Joblist ( --debug-joblist )
 	@END*/
 	{OF_DEBUG, 0, &option_debug_joblist		, "--debug-joblist", "prints all the job in the order that they will be attempted"},
-
-	/*@OPTION Debug: Dump Dot ( --debug-dot )
-		Dumps all nodes in the dependency graph into a dot file that can
-		be rendered with graphviz.
-	@END*/
-	{OF_DEBUG, 0, &option_debug_dot		, "--debug-dot", "prints all nodes as a graphviz dot file"},
-
-	/*@OPTION Debug: Dump Jobs Dot ( --debug-jobs-dot )
-		Dumps all jobs and their dependent jobs into a dot file that can
-		be rendered with graphviz.
-	@END*/
-	{OF_DEBUG, 0, &option_debug_jobs_dot	, "--debug-jobs-dot", "prints all jobs as a graphviz dot file"},
 
 	/*@OPTION Debug: Trace VM ( --debug-trace-vm )
 		Prints a the function and source line for every instruction that the vm makes.
@@ -351,6 +349,7 @@ int register_lua_globals(struct lua_State *lua, const char* script_directory, co
 	/* add specific functions */
 	lua_register(lua, L_FUNCTION_PREFIX"add_job", lf_add_job);
 	lua_register(lua, L_FUNCTION_PREFIX"add_output", lf_add_output);
+	lua_register(lua, L_FUNCTION_PREFIX"add_sideeffect", lf_add_sideeffect);
 	lua_register(lua, L_FUNCTION_PREFIX"add_clean", lf_add_clean);
 	lua_register(lua, L_FUNCTION_PREFIX"add_pseudo", lf_add_pseudo);
 	lua_register(lua, L_FUNCTION_PREFIX"add_dependency", lf_add_dependency);
@@ -406,6 +405,7 @@ int register_lua_globals(struct lua_State *lua, const char* script_directory, co
 	lua_register(lua, "errorfunc", lf_errorfunc);
 
 	/* create arguments table */
+	lua_pushglobaltable(lua);
 	lua_pushstring(lua, CONTEXT_LUA_SCRIPTARGS_TABLE);
 	lua_newtable(lua);
 	for(i = 0; i < option_num_scriptargs; i++)
@@ -425,9 +425,11 @@ int register_lua_globals(struct lua_State *lua, const char* script_directory, co
 		}
 		lua_settable(lua, -3);
 	}
-	lua_settable(lua, LUA_GLOBALSINDEX);
+	lua_settable(lua, -3);
+	lua_pop(lua, 1);
 
 	/* create targets table */
+	lua_pushglobaltable(lua);
 	lua_pushstring(lua, CONTEXT_LUA_TARGETS_TABLE);
 	lua_newtable(lua);
 	for(i = 0; i < option_num_targets; i++)
@@ -435,7 +437,8 @@ int register_lua_globals(struct lua_State *lua, const char* script_directory, co
 		lua_pushstring(lua, option_targets[i]);
 		lua_rawseti(lua, -2, i);
 	}
-	lua_settable(lua, LUA_GLOBALSINDEX);
+	lua_settable(lua, -3);
+	lua_pop(lua, 1);
 	
 	/* set paths */
 	{
@@ -481,7 +484,7 @@ int register_lua_globals(struct lua_State *lua, const char* script_directory, co
 			lua_getglobal(lua, "errorfunc");
 			
 			/* push error function to stack */
-			ret = lua_load(lua, internal_base_reader, (void *)&p, internal_files[f].filename);
+			ret = lua_load(lua, internal_base_reader, (void *)&p, internal_files[f].filename, NULL);
 			if(ret != 0)
 			{
 				lf_errorfunc(lua);
@@ -588,6 +591,9 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 	}
 	event_end(0, "script load", NULL);
 
+	/* create the cache and tmp directory */
+	file_createdir(".bam");
+
 	/* start the background stat thread */
 	node_graph_start_statthread(context->graph);
 
@@ -596,7 +602,8 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 	if(lua_pcall(context->lua, 0, LUA_MULTRET, -2) != 0)
 	{
 		node_graph_end_statthread(context->graph);
-		printf("%s: script error (-t for more detail)\n", session.name);
+		if(!session.lua_backtrace)
+			printf("%s: script error (-t for more detail)\n", session.name);
 		return -1;
 	}
 	event_end(0, "script run", NULL);
@@ -712,6 +719,9 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 	return 0;
 }
 
+/* null verify callback, used to seed the initial state */
+static int verify_callback_null(const char *fullpath, hash_t hashid, time_t oldstamp, time_t newstamp, void *user) { return 0; }
+
 /* *** */
 static int bam(const char *scriptfile, const char **targets, int num_targets)
 {
@@ -719,12 +729,10 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	int build_error = 0;
 	int setup_error = 0;
 	int report_done = 0;
+	time_t outputcache_timestamp = 0;
 
 	/* build time */
 	time_t starttime  = time(0x0);
-
-	/* create the cache and tmp directory */
-	file_createdir(".bam");
 	
 	/* zero out and create memory heap, graph */
 	memset(&context, 0, sizeof(struct CONTEXT));
@@ -754,11 +762,15 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 			cache_hash = string_hash_add(cache_hash, option_scriptargs[i]);
 
 		string_hash_tostr(cache_hash, hashstr);
-		sprintf(cache_filename, ".bam/%s", hashstr);
+		sprintf(depcache_filename, ".bam/%s", hashstr);
 
-		event_begin(0, "cache load", cache_filename);
-		context.cache = cache_load(cache_filename);
-		event_end(0, "cache load", NULL);
+		event_begin(0, "depcache load", depcache_filename);
+		context.depcache = depcache_load(depcache_filename);
+		event_end(0, "depcache load", NULL);
+
+		event_begin(0, "outputcache load", outputcache_filename);
+		context.outputcache = outputcache_load(outputcache_filename, &outputcache_timestamp);
+		event_end(0, "outputcache load", NULL);
 	}
 
 	/* do the setup */
@@ -784,20 +796,25 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 			event_end(0, "prioritize", NULL);
 		}
 
+		/* start verification */
+		if(option_debug_verify)
+		{
+			/* special handle of . */
+			if(strcmp(option_debug_verify, ".") == 0)
+				context.verifystate = verify_create("");
+			else
+				context.verifystate = verify_create(option_debug_verify);
+			verify_update(context.verifystate, verify_callback_null, NULL);
+		}
+
 		if(!build_error)
 		{
-			if(option_debug_nodes) /* debug dump all nodes */
-				node_debug_dump(context.graph);
-			else if(option_debug_nodes_detailed) /* debug dump all nodes detailed */
-				node_debug_dump_detailed(context.graph);
-			else if(option_debug_jobs) /* debug dump all jobs */
-				node_debug_dump_jobs(context.graph);
+			if(option_debug_nodes) /* debug dump all nodes detailed */
+				node_debug_dump(context.graph, 0);
+			else if(option_debug_nodes_html) /* debug dump all nodes detailed as html*/
+				node_debug_dump(context.graph, 1);
 			else if(option_debug_joblist) /* debug dumps the joblist */
 				context_dump_joblist(&context);
-			else if(option_debug_dot) /* debug dump all nodes as dot */
-				node_debug_dump_dot(context.graph, context.target);
-			else if(option_debug_jobs_dot) /* debug dump all jobs as dot */
-				node_debug_dump_jobs_dot(context.graph, context.target);
 			else if(option_dry)
 			{
 			}
@@ -817,22 +834,31 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 					event_end(0, "build", NULL);
 					report_done = 1;
 				}
+
+				/* save cache (thread?) */
+				if(option_no_cache == 0)
+				{
+					event_begin(0, "depcache save", depcache_filename);
+					depcache_save(depcache_filename, context.graph);
+					event_end(0, "depcache save", NULL);
+
+					event_begin(0, "outputcache save", outputcache_filename);
+					outputcache_save(outputcache_filename, context.outputcache, context.graph, outputcache_timestamp);
+					event_end(0, "outputcache save", NULL);
+				}
 			}
 		}
 	}		
 
-	/* save cache (thread?) */
-	if(option_no_cache == 0 && setup_error == 0)
-	{
-		event_begin(0, "cache save", cache_filename);
-		cache_save(cache_filename, context.graph);
-		event_end(0, "cache save", NULL);
-	}
-	
 	/* clean up */
 	mem_destroy(context.graphheap);
 	free(context.joblist);
-	cache_free(context.cache);
+	depcache_free(context.depcache);
+
+	if(context.verifystate)
+	{
+		verify_destroy(context.verifystate);
+	}
 
 	/* print final report and return */
 	if(setup_error)
@@ -888,8 +914,7 @@ static void print_help(int mask)
 			printf("  %-25s %s\n", options[j].sw, options[j].desc);
 	}
 	printf("\n");
-	printf("bam version " BAM_VERSION_STRING_COMPLETE ". built "__DATE__" "__TIME__" using " LUA_VERSION "\n");
-	printf("by Magnus Auvinen (magnus.auvinen@gmail.com)\n");
+	printf("bam version " BAM_VERSION_STRING_COMPLETE " using " LUA_RELEASE "\n");
 	printf("\n");
 
 }
@@ -1051,6 +1076,7 @@ int main(int argc, char **argv)
 	/* set eventlog */
 	if(option_debug_eventlog)
 	{
+		file_createpath(option_debug_eventlog);
 		session.eventlog = fopen(option_debug_eventlog, "w");
 		session.eventlogflush = option_debug_eventlogflush;
 		if(!session.eventlog)
@@ -1111,6 +1137,15 @@ int main(int argc, char **argv)
 		}
 				
 		return 0;
+	}
+
+	/* turn off threading if we are running verify */
+	if(option_debug_verify)
+	{
+		session.threads = 0;
+		if(session.verbose)
+			printf("%s: turned of threading due to --debug-verify\n", session.name);
+
 	}
 	
 	if(option_lua_execute)

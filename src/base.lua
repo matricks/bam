@@ -7,13 +7,20 @@ Exist = bam_fileexist
 NodeExist = bam_nodeexist
 SetFilter = bam_set_filter
 AddOutput = bam_add_output
+AddSideEffect = bam_add_sideeffect
 AddClean = bam_add_clean
 SetPriority = bam_set_priority
 ModifyPriority = bam_modify_priority
 
 --[[@UNITTESTS
+	err=0 : if bam_path_isnice("") then error("") end
+	err=0 : if bam_path_isnice("test/../test") then error("") end
+	err=0 : if not bam_path_isnice("test/test") then error("") end
+@END]]--
+
+--[[@UNITTESTS
 	err=1 : bam_add_dependency_cpp("missing node")
-	err=0: PseudoTarget("fakenode"); bam_add_dependency_cpp("fakenode")
+	err=0 : PseudoTarget("fakenode"); bam_add_dependency_cpp("fakenode")
 @END]]--
 
 --[[@UNITTESTS
@@ -42,16 +49,22 @@ end
 --[[@FUNCTION Execute(command)
 	Executes the ^command^ in the shell and returns the error code.
 @END]]--
-Execute = os.execute
+--[[@UNITTESTS
+	err=0 : Execute("echo")
+@END]]--
+function Execute(command)
+	local res,str,code = os.execute(command)
+	return code
+end
 
 --[[@FUNCTION ExecuteSilent(command)
 	Does the same as ^Execute(command)^ but supresses stdout and stderr of
 	that command.
 @END]]--
 if family == "windows" then
-	ExecuteSilent = function(command) return os.execute(command .. " >nul 2>&1") end
+	ExecuteSilent = function(command) return Execute(command .. " >nul 2>&1") end
 else
-	ExecuteSilent = function(command) return os.execute(command .. " >/dev/null 2>/dev/null") end
+	ExecuteSilent = function(command) return Execute(command .. " >/dev/null 2>/dev/null") end
 end
 
 --[[@GROUP Path Manipulation @END]]--
@@ -88,6 +101,7 @@ Path = bam_path_normalize
 --[[@UNITTESTS
 	err=1: PathBase(nil)
 	err=1: PathBase({})
+	err=1: PathBase("", "")
 	catch="": PathBase("")
 	catch="/": PathBase("/")
 	catch="test/path/file.name": PathBase("test/path/file.name.ext")
@@ -107,6 +121,7 @@ PathBase = bam_path_base
 --[[@UNITTESTS
 	err=1 : PathFileExt(nil)
 	err=1 : PathFileExt({})
+	err=1 : PathFileExt("", "")
 	catch="" : PathFileExt("")
 	catch="" : PathFileExt("/")
 	catch="ext" : PathFileExt("/a/../b.c/./file.ext")
@@ -123,6 +138,7 @@ PathFileExt = bam_path_ext
 --[[@UNITTESTS
 	err=1 : PathFilename(nil)
 	err=1 : PathFilename({})
+	err=1 : PathFilename("", "")
 	catch="" : PathFilename("")
 	catch="" : PathFilename("/")
 	catch="file.ext" : PathFilename("/a/../b.c/./file.ext")
@@ -164,6 +180,7 @@ PathJoin = bam_path_join
 --[[@UNITTESTS
 	err=1 : PathDir(nil)
 	err=1 : PathDir({})
+	err=1 : PathDir("", "")
 	catch="" : PathDir("")
 	catch="" : PathDir("/")
 	catch="/b.c" : PathDir("/a/../b.c/./file.ext")
@@ -239,7 +256,7 @@ TableToString = bam_table_tostring
 
 --[[@UNITTESTS
 	err=0 : for s in TableWalk({"", {"", {""}, ""}, "", {}, {""}}) do end
-	err=1 : for s in TableWalk({"", {"", {""}, ""}, 1, {""}}) do end
+	err=1 : for s in TableWalk({"", {"", {"", 1}, ""}, {""}}) do end
 @END]]--
 --[[@FUNCTION TableWalk(tbl)
 	Returns an iterator that does a deep walk of a table looking for strings.

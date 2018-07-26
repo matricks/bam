@@ -1,17 +1,14 @@
 
-/* support functions */
-struct STRINGLIST
-{
-	struct STRINGLIST *next;
-	const char *str;
-	size_t len;
-};
-
-void build_stringlist(lua_State *L, struct HEAP *heap, struct STRINGLIST **first, int table_index);
+/* special tables and places where we store certain variables in lua */
+extern const char *CONTEXT_LUA_SCRIPTARGS_TABLE;
+extern const char *CONTEXT_LUA_TARGETS_TABLE;
+extern const char *CONTEXT_LUA_PATH;
+extern const char *CONTEXT_LUA_WORKPATH;
 
 /* jobs and deps */
 int lf_add_job(struct lua_State *L);
 int lf_add_output(struct lua_State *L);
+int lf_add_sideeffect(struct lua_State *L);
 int lf_add_clean(struct lua_State *L);
 int lf_add_pseudo(struct lua_State *L);
 int lf_add_dependency(struct lua_State *L);
@@ -41,7 +38,6 @@ int lf_listdir(struct lua_State *L);
 
 /* path functions  */
 int lf_path_isnice(struct lua_State *L);
-int lf_path_isabs(struct lua_State *L);
 int lf_path_join(struct lua_State *L);
 int lf_path_normalize(struct lua_State *L);
 

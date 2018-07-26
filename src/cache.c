@@ -9,26 +9,41 @@
 #include "session.h"
 #include "support.h"
 
+#include "version.h"
+
 /* buffer sizes */
 #define WRITE_BUFFERSIZE (32*1024)
-#define WRITE_BUFFERNODES (WRITE_BUFFERSIZE/sizeof(struct CACHENODE))
+#define WRITE_BUFFERNODES (WRITE_BUFFERSIZE/sizeof(struct CACHEINFO_DEPS))
 #define WRITE_BUFFERDEPS (WRITE_BUFFERSIZE/sizeof(unsigned))
 
+/* increase this by one if changes to the cache format have been done */
+#define CACHE_VERSION	1
 
 /* header info */
-static char bamheader[8] = {
-	'B','A','M',0, /* signature */
-	sizeof(void*), /* pointer size */
-	0,0,0           /* version hash */
+static char bamheader[24] = {
+	'B','A','M',0,					/* signature */
+
+	0,0,0,0,						/* cache type */
+
+	0,0,0,0,0,0,0,0,				/* bam version string goes here */
+
+	CACHE_VERSION,					/* cache version */
+	sizeof(void*),					/* pointer size */
+	sizeof(struct CACHEINFO_DEPS),	/* deps cache info */
+	sizeof(struct CACHEINFO_OUTPUT),/* output cache info */
+
+	0,0,0,0 						/* byte order mark */
 };
 
-static void cache_setup_header()
+static void cache_setup_header(const char type[4])
 {
-	/* save a hashed version of the date and time in the header */
-	hash_t hash = string_hash(__DATE__ __TIME__);
-	bamheader[5] = (char)(hash&0xff);
-	bamheader[6] = (char)((hash>>8)&0xff);
-	bamheader[7] = (char)((hash>>16)&0xff);
+	unsigned byteordermark = 0x12345678;
+	memcpy(&bamheader[4], type, 3);
+	memcpy(&bamheader[8], BAM_VERSION_STRING_COMPLETE, sizeof(BAM_VERSION_STRING_COMPLETE));
+	bamheader[20] = ((char*)&byteordermark)[0];
+	bamheader[21] = ((char*)&byteordermark)[1];
+	bamheader[22] = ((char*)&byteordermark)[2];
+	bamheader[23] = ((char*)&byteordermark)[3];
 }
 
 /* 	detect if we can use unix styled io. we do this because fwrite
@@ -89,32 +104,64 @@ static void cache_setup_header()
 	}
 #endif
 
-static int cachenode_cmp(struct CACHENODE *a, struct CACHENODE *b)
+static int io_read_cachefile(const char *filename, const char *type, void **buffer, unsigned long *buffersize)
+{
+	unsigned long filesize;
+	IO_HANDLE fp;
+	
+	/* open file */
+	fp = io_open_read(filename);
+	if(!io_valid(fp))
+		return 0;
+		
+	/* read the whole file */
+	filesize = io_size(fp);
+	*buffer = malloc(filesize);
+	*buffersize = io_read(fp, *buffer, filesize);
+	io_close(fp);
+
+	/* verify read and header */
+	cache_setup_header(type);
+	if(	*buffersize != filesize ||
+		filesize < sizeof(bamheader) ||
+		memcmp(*buffer, bamheader, sizeof(bamheader)) != 0)
+	{
+		printf("%s: warning: cache file '%s' is invalid, generating new one\n", session.name, filename);
+		free(*buffer);
+		*buffer = NULL;
+		return 0;
+	}
+
+	return 1;
+}
+
+
+static int cacheinfo_deps_cmp(struct CACHEINFO_DEPS *a, struct CACHEINFO_DEPS *b)
 {
 	if(a->hashid > b->hashid) return 1;
 	if(a->hashid < b->hashid) return -1;
 	return 0;
 }
 
-RB_HEAD(CACHENODERB, CACHENODE);
-RB_GENERATE_INTERNAL(CACHENODERB, CACHENODE, rbentry, cachenode_cmp, static)
+RB_HEAD(CACHEINFO_DEPS_RB, CACHEINFO_DEPS);
+RB_GENERATE_INTERNAL(CACHEINFO_DEPS_RB, CACHEINFO_DEPS, rbentry, cacheinfo_deps_cmp, static)
 
-void CACHENODE_FUNCTIONREMOVER() /* this is just to get it not to complain about unused static functions */
+void CACHEINFO_DEPS_FUNCTIONREMOVER() /* this is just to get it not to complain about unused static functions */
 {
-	(void)CACHENODERB_RB_REMOVE; (void)CACHENODERB_RB_NFIND; (void)CACHENODERB_RB_MINMAX;
-	(void)CACHENODERB_RB_NEXT; (void)CACHENODERB_RB_PREV;
+	(void)CACHEINFO_DEPS_RB_RB_REMOVE; (void)CACHEINFO_DEPS_RB_RB_NFIND; (void)CACHEINFO_DEPS_RB_RB_MINMAX;
+	(void)CACHEINFO_DEPS_RB_RB_NEXT; (void)CACHEINFO_DEPS_RB_RB_PREV;
 }
 
-struct CACHE
+struct DEPCACHE
 {
 	char header[sizeof(bamheader)];
 	
 	unsigned num_nodes;
 	unsigned num_deps;
 	
-	struct CACHENODERB nodetree;
+	struct CACHEINFO_DEPS_RB nodetree;
 	
-	struct CACHENODE *nodes;
+	struct CACHEINFO_DEPS *nodes;
 	unsigned *deps;
 	char *strings;
 };
@@ -126,7 +173,7 @@ struct WRITEINFO
 	
 	union
 	{
-		struct CACHENODE nodes[WRITE_BUFFERNODES];
+		struct CACHEINFO_DEPS nodes[WRITE_BUFFERNODES];
 		unsigned deps[WRITE_BUFFERDEPS];
 		char strings[WRITE_BUFFERSIZE];
 	} buffers;
@@ -138,12 +185,12 @@ struct WRITEINFO
 static int write_header(struct WRITEINFO *info)
 {
 	/* setup the cache */
-	struct CACHE cache;
-	memset(&cache, 0, sizeof(struct CACHE));
-	memcpy(cache.header, bamheader, sizeof(cache.header));
-	cache.num_nodes = info->graph->num_nodes;
-	cache.num_deps = info->graph->num_deps;
-	if(io_write(info->fp, &cache, sizeof(cache)) != sizeof(cache))
+	struct DEPCACHE depcache;
+	memset(&depcache, 0, sizeof(struct DEPCACHE));
+	memcpy(depcache.header, bamheader, sizeof(depcache.header));
+	depcache.num_nodes = info->graph->num_nodes;
+	depcache.num_deps = info->graph->num_deps;
+	if(io_write(info->fp, &depcache, sizeof(depcache)) != sizeof(depcache))
 		return -1;
 	return 0;
 }
@@ -171,34 +218,32 @@ static int write_nodes(struct WRITEINFO *info)
 	for(node = graph->first; node; node = node->next)
 	{
 		/* fetch cache node */
-		struct CACHENODE *cachenode = &info->buffers.nodes[info->index++];
+		struct CACHEINFO_DEPS *cacheinfo = &info->buffers.nodes[info->index++];
 
 		/* count dependencies */
 		struct NODELINK *dep;
 		
-		memset(cachenode, 0, sizeof(struct CACHENODE));
+		memset(cacheinfo, 0, sizeof(struct CACHEINFO_DEPS));
 		
-		cachenode->deps_num = 0;
+		cacheinfo->deps_num = 0;
 		for(dep = node->firstdep; dep; dep = dep->next)
-			cachenode->deps_num++;
+			cacheinfo->deps_num++;
 		
-		cachenode->hashid = node->hashid;
-		if(node->job)
-			cachenode->cmdhash = node->job->cachehash;
-		cachenode->cached = node->cached;
-		cachenode->timestamp_raw = node->timestamp_raw;
-		cachenode->deps = (unsigned*)((long)dep_index);
-		cachenode->filename = (char*)((long)string_index);
+		cacheinfo->hashid = node->hashid;
+		cacheinfo->cached = node->cached;
+		cacheinfo->timestamp_raw = node->timestamp_raw;
+		cacheinfo->deps = (unsigned*)((long)dep_index);
+		cacheinfo->filename = (char*)((long)string_index);
 		
 		string_index += node->filename_len;
-		dep_index += cachenode->deps_num;
+		dep_index += cacheinfo->deps_num;
 		
-		if(info->index == WRITE_BUFFERNODES && write_flush(info, sizeof(struct CACHENODE)))
+		if(info->index == WRITE_BUFFERNODES && write_flush(info, sizeof(struct CACHEINFO_DEPS)))
 			return -1;
 	}
 
 	/* flush the remainder */
-	if(info->index && write_flush(info, sizeof(struct CACHENODE)))
+	if(info->index && write_flush(info, sizeof(struct CACHEINFO_DEPS)))
 		return -1;
 
 	/* write the cache nodes deps */
@@ -236,7 +281,7 @@ static int write_nodes(struct WRITEINFO *info)
 	return 0;
 }
 
-int cache_save(const char *filename, struct GRAPH *graph)
+int depcache_save(const char *filename, struct GRAPH *graph)
 {
 	struct WRITEINFO info;
 	info.index = 0;
@@ -246,11 +291,12 @@ int cache_save(const char *filename, struct GRAPH *graph)
 	if(!io_valid(info.fp))
 		return -1;
 	
-	cache_setup_header();
+	cache_setup_header("DEP");
 	
 	if(write_header(&info) || write_nodes(&info))
 	{
 		/* error occured, trunc the cache file so we don't leave a corrupted file */
+		printf("%s: warning: error saving cache file '%s', truncating it\n", session.name, filename);
 		io_close(info.fp);
 		io_close(io_open_write(filename));
 		return -1;
@@ -261,93 +307,75 @@ int cache_save(const char *filename, struct GRAPH *graph)
 	return 0;
 }
 
-struct CACHE *cache_load(const char *filename)
+struct DEPCACHE *depcache_load(const char *filename)
 {
 	unsigned long filesize;
 	void *buffer;
-	struct CACHE *cache;
+	struct DEPCACHE *depcache;
 	unsigned i;
-	size_t bytesread;
-	
-	IO_HANDLE fp;
-	
-	/* open file */
-	fp = io_open_read(filename);
-	if(!io_valid(fp))
-		return 0;
-		
-	/* read the whole file */
-	filesize = io_size(fp);
 
-	buffer = malloc(filesize);
-	
-	bytesread = io_read(fp, buffer, filesize);
-	io_close(fp);
-
-	cache_setup_header();
+	if(!io_read_cachefile(filename, "DEP", &buffer, &filesize))
+		return NULL;
 	
 	/* verify read and headers */
-	cache = (struct CACHE *)buffer;
+	depcache = (struct DEPCACHE *)buffer;
 	
-	if(	bytesread != filesize ||
-		filesize < sizeof(struct CACHE) ||
-		memcmp(cache->header, bamheader, sizeof(bamheader)) != 0 ||
-		filesize < sizeof(struct CACHE)+cache->num_nodes*sizeof(struct CACHENODE))
+	if(	filesize < sizeof(struct DEPCACHE) ||
+		filesize < sizeof(struct DEPCACHE)+depcache->num_nodes*sizeof(struct CACHEINFO_DEPS))
 	{
-		printf("%s: warning: cache file is invalid, generating new one\n", session.name);
 		free(buffer);
-		return 0;
+		return NULL;
 	}
 	
 	/* setup pointers */
-	cache->nodes = (struct CACHENODE *)(cache+1);
-	cache->deps = (unsigned *)(cache->nodes+cache->num_nodes);
-	cache->strings = (char *)(cache->deps+cache->num_deps);
+	depcache->nodes = (struct CACHEINFO_DEPS *)(depcache+1);
+	depcache->deps = (unsigned *)(depcache->nodes+depcache->num_nodes);
+	depcache->strings = (char *)(depcache->deps+depcache->num_deps);
 	
 	/* build node tree and patch pointers */
-	for(i = 0; i < cache->num_nodes; i++)
+	for(i = 0; i < depcache->num_nodes; i++)
 	{
-		cache->nodes[i].filename = cache->strings + (long)cache->nodes[i].filename;
-		cache->nodes[i].deps = cache->deps + (long)cache->nodes[i].deps;
-		RB_INSERT(CACHENODERB, &cache->nodetree, &cache->nodes[i]);
+		depcache->nodes[i].filename = depcache->strings + (long)depcache->nodes[i].filename;
+		depcache->nodes[i].deps = depcache->deps + (long)depcache->nodes[i].deps;
+		RB_INSERT(CACHEINFO_DEPS_RB, &depcache->nodetree, &depcache->nodes[i]);
 	}
 	
 	/* done */
-	return cache;
+	return depcache;
 }
 
-void cache_free(struct CACHE *cache)
+void depcache_free(struct DEPCACHE *depcache)
 {
-	free(cache);
+	free(depcache);
 }
 
-struct CACHENODE *cache_find_byindex(struct CACHE *cache, unsigned index)
+struct CACHEINFO_DEPS *depcache_find_byindex(struct DEPCACHE *depcache, unsigned index)
 {
-	return &cache->nodes[index];
+	return &depcache->nodes[index];
 }
 
-struct CACHENODE *cache_find_byhash(struct CACHE *cache, hash_t hashid)
+struct CACHEINFO_DEPS *depcache_find_byhash(struct DEPCACHE *depcache, hash_t hashid)
 {
-	struct CACHENODE tempnode;
-	if(!cache)
+	struct CACHEINFO_DEPS tempinfo;
+	if(!depcache)
 		return NULL;
-	tempnode.hashid = hashid;
-	return RB_FIND(CACHENODERB, &cache->nodetree, &tempnode);
+	tempinfo.hashid = hashid;
+	return RB_FIND(CACHEINFO_DEPS_RB, &depcache->nodetree, &tempinfo);
 }
 
-int cache_do_dependency(
+int depcache_do_dependency(
 	struct CONTEXT *context,
 	struct NODE *node,
-	void (*callback)(struct NODE *node, struct CACHENODE *cachenode, void *user),
+	void (*callback)(struct NODE *node, struct CACHEINFO_DEPS *cacheinfo, void *user),
 	void *user)
 {
-	struct CACHENODE *cachenode;
-	struct CACHENODE *depcachenode;
+	struct CACHEINFO_DEPS *cacheinfo;
+	struct CACHEINFO_DEPS *depcacheinfo;
 	int i;
 	
 	/* search the cache */
-	cachenode = cache_find_byhash(context->cache, node->hashid);
-	if(cachenode && cachenode->cached && cachenode->timestamp_raw == node->timestamp_raw)
+	cacheinfo = depcache_find_byhash(context->depcache, node->hashid);
+	if(cacheinfo && cacheinfo->cached && cacheinfo->timestamp_raw == node->timestamp_raw)
 	{
 		if(node->depchecked)
 			return 1;
@@ -355,11 +383,11 @@ int cache_do_dependency(
 		node->depchecked = 1;
 		
 		/* use cached version */
-		for(i = cachenode->deps_num-1; i >= 0; i--)
+		for(i = cacheinfo->deps_num-1; i >= 0; i--)
 		{
-			depcachenode = cache_find_byindex(context->cache, cachenode->deps[i]);
-			if(depcachenode->cached)
-				callback(node, depcachenode, user);
+			depcacheinfo = depcache_find_byindex(context->depcache, cacheinfo->deps[i]);
+			if(depcacheinfo->cached)
+				callback(node, depcacheinfo, user);
 		}
 		
 		return 1;
@@ -367,3 +395,238 @@ int cache_do_dependency(
 	
 	return 0;
 }
+
+struct OUTPUTCACHE
+{
+	struct CACHEINFO_OUTPUT *info;
+	unsigned count;
+};
+
+static int output_hash_compare(const void * a, const void * b)
+{
+	hash_t hash_a = ((const struct CACHEINFO_OUTPUT *)a)->hashid;
+	hash_t hash_b = ((const struct CACHEINFO_OUTPUT *)b)->hashid;
+	if(hash_a > hash_b) return 1;
+	if(hash_a < hash_b) return -1;
+	return 0;
+}
+
+/* returns the number of errors in the cache */
+static unsigned validate_outputcache(struct CACHEINFO_OUTPUT *infos, unsigned count)
+{
+	unsigned errorcount = 0;
+	hash_t lasthash = 0;
+	unsigned i;
+	if(count > 0)
+	{
+		for( i = 0; i < count; i++ )
+		{
+			/* hashid has to be in increasing order */
+			if(infos[i].hashid <= lasthash)
+				errorcount++;
+
+			/* must have a valid timestamp */
+			if(infos[i].timestamp == 0)
+				errorcount++;
+
+			lasthash = infos[i].hashid;
+		}
+	}
+
+	return errorcount;
+}
+
+static unsigned outputcache_merge(
+	struct CACHEINFO_OUTPUT *old, unsigned oldcount,
+	struct CACHEINFO_OUTPUT *new, unsigned newcount,
+	struct CACHEINFO_OUTPUT *output)
+{
+	unsigned curold = 0;
+	unsigned curnew = 0;
+	unsigned curout = 0;
+
+	/* merge the two lists into a new one */
+	while(curold < oldcount && curnew < newcount)
+	{
+		if(new[curnew].hashid == old[curold].hashid)
+		{
+			output[curout] = new[curnew];
+			curnew++;
+			curold++;
+			curout++;
+		}
+		else if(new[curnew].hashid < old[curold].hashid)
+			output[curout++] = new[curnew++];
+		else
+			output[curout++] = old[curold++];
+	}
+
+	/* add the remaining ones */
+	while(curold < oldcount)
+		output[curout++] = old[curold++];
+
+	while(curnew < newcount)
+		output[curout++] = new[curnew++];
+
+	return curout;
+}
+
+int outputcache_save(const char *filename, struct OUTPUTCACHE *oldcache, struct GRAPH *graph, time_t cache_timestamp)
+{
+	IO_HANDLE fp;
+
+	unsigned num_outputs;
+	unsigned index;
+	size_t output_size;
+	struct JOB * job;
+	struct NODELINK * link;
+	struct CACHEINFO_OUTPUT * output;
+
+	struct CACHEINFO_OUTPUT * final;
+	unsigned finalcount;
+
+	time_t current_stamp = file_timestamp(filename);
+	if(cache_timestamp != current_stamp)
+		printf("%s: warning: cache file '%s' has been changed since cache load, will be overwritten (%08x,%08x), is bam called from bam?\n", session.name, filename, (unsigned)cache_timestamp, (unsigned)current_stamp);
+	
+	fp = io_open_write(filename);
+	if(!io_valid(fp))
+		return -1;
+
+	cache_setup_header("OUT");
+
+	if(io_write(fp, bamheader, sizeof(bamheader)) != sizeof(bamheader))
+		return -1;
+
+	/* count outputs */
+	num_outputs = 0;
+	for(job = graph->firstjob; job; job = job->next)
+		for(link = job->firstoutput; link; link = link->next)
+			if(link->node->timestamp_raw)
+				num_outputs++;
+
+	output_size = sizeof(struct CACHEINFO_OUTPUT) * num_outputs;
+	output = malloc(output_size);
+	memset(output, 0, output_size);
+
+	index = 0;
+	for(job = graph->firstjob; job; job = job->next)
+	{
+		for(link = job->firstoutput; link; link = link->next)
+		{
+			if(link->node->timestamp_raw)
+			{
+				output[index].hashid = link->node->hashid;
+				output[index].cmdhash = link->node->job->cachehash;
+				output[index].timestamp = link->node->timestamp_raw;
+
+				index++;
+			}
+		}
+	}
+
+	/* sort the nodes */
+	qsort(output, num_outputs, sizeof(struct CACHEINFO_OUTPUT), output_hash_compare);
+
+	if(oldcache)
+	{
+		/* merge with old one */
+		final = malloc(sizeof(struct CACHEINFO_OUTPUT) * (num_outputs + oldcache->count));
+		finalcount = outputcache_merge(oldcache->info, oldcache->count, output, num_outputs, final);
+
+		/* replace the output */
+		free(output);
+		output = final;
+		num_outputs = finalcount;
+		output_size = finalcount * sizeof(struct CACHEINFO_OUTPUT);
+	}
+
+	/* write down to disk */
+	if(validate_outputcache(output, num_outputs) || io_write(fp, output, output_size) != output_size)
+	{
+		/* error occured, trunc the cache file so we don't leave a corrupted file */
+		printf("%s: warning: error saving cache file '%s', truncating it\n", session.name, filename);
+		io_close(fp);
+		io_close(io_open_write(filename));
+		free(output);
+		return -1;
+	}
+
+	/* close up and return */
+	free(output);
+	io_close(fp);
+	return 0;
+}
+
+struct OUTPUTCACHE *outputcache_load(const char *filename, time_t *cache_timestamp)
+{
+	unsigned long filesize;
+	unsigned long payloadsize;
+	void *buffer;
+	struct OUTPUTCACHE *cache;
+
+	if(cache_timestamp)
+		*cache_timestamp = file_timestamp(filename);
+	
+	if(!io_read_cachefile(filename, "OUT", &buffer, &filesize))
+		return NULL;
+
+	payloadsize = filesize - sizeof(bamheader);
+
+	/* check so that everything lines up */
+	if(payloadsize % sizeof(struct CACHEINFO_OUTPUT) != 0)
+	{
+		printf("%s: warning: cache file '%s' is invalid, generating new one\n", session.name, filename);
+		free(buffer);
+		return NULL;
+	}
+
+	/* setup the cache structure */
+	cache = (struct OUTPUTCACHE*)malloc(sizeof(struct OUTPUTCACHE));
+	cache->info = (struct CACHEINFO_OUTPUT *)((char*)buffer + sizeof(bamheader));
+	cache->count = payloadsize /  sizeof(struct CACHEINFO_OUTPUT);
+
+	if(validate_outputcache(cache->info, cache->count))
+	{
+		printf("%s: warning: cache file '%s' is invalid, generating new one\n", session.name, filename);
+		free(buffer);
+		return NULL;
+	}
+
+	/* done */
+	return cache;
+}
+
+
+struct CACHEINFO_OUTPUT *outputcache_find_byhash(struct OUTPUTCACHE *outputcache, hash_t hashid)
+{
+	/* do a binary search for the hashid */
+	unsigned low = 0;
+	unsigned high = outputcache->count;
+	unsigned index;
+
+	if(!outputcache || outputcache->count == 0)
+		return NULL;
+
+	while(low < high)
+	{
+		index = low + (high - low) / 2;
+		if(hashid < outputcache->info[index].hashid)
+		{
+			if(index == 0)
+				break;
+			else
+				high = index - 1;
+		}
+		else if(hashid > outputcache->info[index].hashid)
+			low = index + 1;
+		else
+			return &outputcache->info[index];
+	}
+
+	if(low < outputcache->count && hashid == outputcache->info[low].hashid)
+		return &outputcache->info[low];
+
+	return NULL;
+}
+

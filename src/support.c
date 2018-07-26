@@ -1,6 +1,4 @@
 #include <string.h>
-#include <lua.h>
-#include <lauxlib.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
@@ -29,7 +27,7 @@
 
 	#include <Aclapi.h> /* for protect_process */
 	
-	void file_listdirectory(const char *path, void (*callback)(const char *filename, int dir, void *user), void *user)
+	void file_listdirectory(const char *path, void (*callback)(const char *fullpath, const char *filename, int dir, void *user), void *user)
 	{
 		WIN32_FIND_DATA finddata;
 		HANDLE handle;
@@ -58,9 +56,9 @@
 		{
 			strcpy(startpoint, finddata.cFileName);
 			if(finddata.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)
-				callback(buffer, 1, user);
+				callback(buffer, finddata.cFileName, 1, user);
 			else
-				callback(buffer, 0, user);
+				callback(buffer, finddata.cFileName, 0, user);
 		} while (FindNextFileA(handle, &finddata));
 
 		FindClose(handle);
@@ -239,6 +237,12 @@
 	{
 		Sleep(1);
 	}
+
+
+	void threads_sleep(int milliseconds)
+	{
+		Sleep(milliseconds);
+	}
 	
 	int threads_corecount()
 	{
@@ -294,13 +298,14 @@
 #endif
 
 /* disable D_TYPE_HACK if we don't have support for it */
-#if !defined(DT_DIR) || !defined(DT_UNKNOWN)
+#if !defined(_DIRENT_HAVE_D_TYPE) || !defined(DT_DIR) || !defined(DT_UNKNOWN)
 	#undef D_TYPE_HACK
 #endif
 
-	void file_listdirectory(const char *path, void (*callback)(const char *filename, int dir, void *user), void *user)
+	void file_listdirectory(const char *path, void (*callback)(const char *fullpath, const char *filename, int dir, void *user), void *user)
 	{
-		DIR *dir;
+		struct dirent **namelist;
+		int n;
 		struct dirent *entry;
 		struct stat info;
 		char buffer[1024];
@@ -308,53 +313,47 @@
 		
 		if(*path == 0) /* special case for current directory */
 		{
-			dir = opendir(".");
 			startpoint = buffer;
+			strcpy(buffer, ".");
 		}
 		else
 		{
-			dir = opendir(path);
-
 			/* get starting point and append a slash */
 			strcpy(buffer, path);
 			startpoint = buffer + strlen(buffer);
-			*startpoint = '/';
-			startpoint++;		
+			*(startpoint++) = '/';
+			*startpoint = 0;
 		}
 		
-		if(!dir)
+		n = scandir(buffer, &namelist, NULL, alphasort);
+		if(n == -1)
 			return;
 		
-		while((entry = readdir(dir)) != NULL)
+		while(n--)
 		{
+			int isdir;
+			int have_d_type = 0;
+			entry = namelist[n];
 			/* make the path absolute */
 			strcpy(startpoint, entry->d_name);
 #ifdef D_TYPE_HACK
-			/* call the callback */
-			if(entry->d_type == DT_UNKNOWN)
+			if(entry->d_type != DT_UNKNOWN)
 			{
+				have_d_type = 1;
+				isdir = (entry->d_type == DT_DIR);
+			}
+#endif
+			if(!have_d_type) {
 				/* do stat to obtain if it's a directory or not */
 				stat(buffer, &info);
-				if(S_ISDIR(info.st_mode))
-					callback(buffer, 1, user);
-				else
-					callback(buffer, 0, user);
+				isdir = S_ISDIR(info.st_mode);
 			}
-			else if(entry->d_type == DT_DIR)
-				callback(buffer, 1, user);
-			else
-				callback(buffer, 0, user);
-#else
-			/* do stat to obtain if it's a directory or not */
-			stat(buffer, &info);
-			if(S_ISDIR(info.st_mode))
-				callback(buffer, 1, user);
-			else
-				callback(buffer, 0, user);
-#endif
+			free(entry);
+			/* call the callback */
+			callback(buffer, entry->d_name, isdir, user);
 		}
 		
-		closedir(dir);
+		free(namelist);
 	}
 
 	/* signals. should be moved to platform.c or similar? */
@@ -387,6 +386,11 @@
 	void threads_yield()
 	{
 		sched_yield();
+	}
+
+	void threads_sleep(int milliseconds)
+	{
+		usleep(milliseconds*1000);
 	}
 
 	int threads_corecount()

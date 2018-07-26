@@ -4,12 +4,30 @@ function SetDefaultDrivers(settings)
 	-- check for compilers first time
 	if _checked_default_drivers == false then
 		_checked_default_drivers = true
-		if ExecuteSilent("cl") >= 0 then
-			SetDriversDefault = SetDriversCL
-		elseif ExecuteSilent("gcc -v") == 0 then
-			SetDriversDefault = SetDriversGCC
-		elseif ExecuteSilent("clang -v") == 0 then
-			SetDriversDefault = SetDriversClang
+		if os.getenv("CC") then
+			if string.match(os.getenv("CC"), ".*clang.*") then
+				SetDriversDefault = SetDriversClang
+			elseif string.match(os.getenv("CC"), ".*gcc.*") then
+				SetDriversDefault = SetDriversGCC
+			elseif string.match(os.getenv("CC"), ".*cl.*") then
+				SetDriversDefault = SetDriversCL
+			elseif string.match(os.getenv("CC"), ".*sunCC.*") then
+				SetDriversDefault = SetDriversSolarisStudio
+			elseif string.match(os.getenv("CC"), ".*xlC.*") then
+				SetDriversDefault = SetDriversXLC
+			end
+		else
+			if ExecuteSilent("clang -v") == 0 then
+				SetDriversDefault = SetDriversClang
+			elseif ExecuteSilent("gcc -v") == 0 then
+				SetDriversDefault = SetDriversGCC
+			elseif ExecuteSilent("cl") == 0 then
+				SetDriversDefault = SetDriversCL
+			elseif ExecuteSilent("suncc -flags") == 0 then
+				SetDriversDefault = SetDriversSolarisStudio
+			elseif ExecuteSilent("xlc_r -qversion") == 0 then
+				SetDriversDefault = SetDriversXLC
+			end
 		end
 	end
 
@@ -17,6 +35,34 @@ function SetDefaultDrivers(settings)
 	if SetDriversDefault then
 		SetDriversDefault(settings)
 	end
+
+	-- find out flags from the
+	if os.getenv("CC") then
+		settings.cc.exe_c = os.getenv("CC")
+	end
+
+	if os.getenv("CXX") then
+		settings.cc.exe_cxx = os.getenv("CXX")
+		settings.link.exe = os.getenv("CXX")
+		settings.dll.exe = os.getenv("CXX")
+	end
+
+	if os.getenv("AR") then
+		settings.lib.exe = os.getenv("AR")
+	end
+
+	if os.getenv("CFLAGS") then
+		settings.cc.flags_c:Add(os.getenv("CFLAGS"))
+	end
+
+	if os.getenv("CXXFLAGS") then
+		settings.cc.flags_cxx:Add(os.getenv("CXXFLAGS"))
+	end
+
+	if os.getenv("LDFLAGS") then
+		settings.link.flags:Add(os.getenv("LDFLAGS"))
+	end
+
 end
 
 --[[@GROUP Common Settings (settings) @END]]--

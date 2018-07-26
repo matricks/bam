@@ -1,8 +1,3 @@
-/* lua includes */
-#include <lua.h>
-#include <lualib.h>
-#include <lauxlib.h>
-
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -174,6 +169,10 @@ int path_isabs(const char *path)
 /* is it absolute and normalized? */
 int path_isnice(const char *path)
 {
+	/* zero path is not considered nice */
+	if(path[0] == 0)
+		return 0;
+
 	/* check for initial "../../" */
 	while(path[0] == '.')
 	{

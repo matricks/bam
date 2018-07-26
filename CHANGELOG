@@ -1,0 +1,28 @@
+Release Next
+	- Fixed issues with -a not aborting on error ( matricks )
+	- Various cleanups related to the file_listdirectory ( matricks+bmwiedemann )
+	- Added --debug-verify to help catch jobs that is missing outputs ( matricks )
+	- Fixed order of lua files the Makefile. Fixes compilation on openSUSE and others ( super7ramp )
+	- Nodes with zero length strings is now considered invalid ( matricks )
+	- Potential crash fixed with build_stringlist used by dependency checkers ( RyanLucchese )
+	- Do not suggest -t for more detail if it's already used ( matricks )
+	- Renamed --debug-detail to --debug-nodes and removed the old --debug-nodes as it's almost useless ( matricks )
+	- Added --debug-nodes-html that outputs a nice html page with clickable links ( matricks )
+	- Removed --debug-dot and --debug-jobs-dot as they are virtually useless due to size ( matricks )
+	- Removed --debug-jobs
+	- Vastly improved the --debug-nodes to be more versatile and clearer
+
+Release 0.5.1
+	- Fixed issues with CC environment variables ( matricks )
+	- Out of bounds fixed to debug output and output cache ( RyanLucchese )
+	- Solaris compiler support ( RyanLucchese )
+	- XLC compiler support ( RyanLucchese )
+	- Fixed parallel build with make ( hasufell )
+	- Syntax hilighting for the readme ( mailaender )
+
+Release 0.5.0
+	- Upgraded to Lua 5.3.3 from 5.1
+	- More accurate cache to reduce recompiles when switching parameters
+	- Make use of CC environment variables when available by default
+	- Build should now be reproducable and not add date or timestamps into the executable
+	- Many more changes that isn't listed here

@@ -1,48 +1,51 @@
 @echo off
 
+@REM Check for Visual Studio
+call set "VSPATH="
+if defined VS140COMNTOOLS ( if not defined VSPATH (
+	call set "VSPATH=%%VS140COMNTOOLS%%"
+) )
+if defined VS120COMNTOOLS ( if not defined VSPATH (
+	call set "VSPATH=%%VS120COMNTOOLS%%"
+) )
+if defined VS110COMNTOOLS ( if not defined VSPATH (
+	call set "VSPATH=%%VS110COMNTOOLS%%"
+) )
+if defined VS100COMNTOOLS ( if not defined VSPATH (
+	call set "VSPATH=%%VS100COMNTOOLS%%"
+) )
+if defined VS90COMNTOOLS ( if not defined VSPATH (
+	call set "VSPATH=%%VS90COMNTOOLS%%"
+) )
+if defined VS80COMNTOOLS ( if not defined VSPATH (
+	call set "VSPATH=%%VS80COMNTOOLS%%"
+) )
+
 @REM check if we already have the tools in the environment
 if exist "%VCINSTALLDIR%" (
 	goto compile
 )
 
-@REM Check for Visual Studio
-if exist "%VS140COMNTOOLS%" (
-	set VSPATH="%VS140COMNTOOLS%"
-	goto set_env
-)
-if exist "%VS120COMNTOOLS%" (
-	set VSPATH="%VS120COMNTOOLS%"
-	goto set_env
-)
-if exist "%VS110COMNTOOLS%" (
-	set VSPATH="%VS110COMNTOOLS%"
-	goto set_env
-)
-if exist "%VS100COMNTOOLS%" (
-	set VSPATH="%VS100COMNTOOLS%"
-	goto set_env
-)
-if exist "%VS90COMNTOOLS%" (
-	set VSPATH="%VS90COMNTOOLS%"
-	goto set_env
-)
-if exist "%VS80COMNTOOLS%" (
-	set VSPATH="%VS80COMNTOOLS%"
-	goto set_env
+if not defined VSPATH (
+	echo You need Microsoft Visual Studio 8, 9, 10, 11, 12, 13 or 15 installed
+	pause
+	exit
 )
 
-echo You need Microsoft Visual Studio 8, 9, 10, 11, 12 or 14 installed
+@REM set up the environment
+if exist "%VSPATH%vsvars32.bat" (
+	call "%VSPATH%vsvars32.bat"
+	goto compile
+)
+
+echo Unable to set up the environment
 pause
 exit
-
-@ setup the environment
-:set_env
-call %VSPATH%vsvars32.bat
 
 :compile
 @echo === building bam ===
 @cl /D_CRT_SECURE_NO_DEPRECATE /O2 /nologo src/tools/txt2c.c /Fesrc/tools/txt2c.exe
-@src\tools\txt2c src/base.lua src/tools.lua src/driver_gcc.lua src/driver_clang.lua src/driver_cl.lua > src\internal_base.h
+@src\tools\txt2c src/base.lua src/tools.lua src/driver_gcc.lua src/driver_clang.lua src/driver_cl.lua src/driver_solstudio.lua src/driver_xlc.lua > src\internal_base.h
 
 @REM /DLUA_BUILD_AS_DLL = export lua functions
 @REM /W3 = Warning level 3
@@ -57,4 +60,3 @@ call %VSPATH%vsvars32.bat
 @REM clean up
 @del bam.exp
 @del *.obj
-

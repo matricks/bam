@@ -17,8 +17,12 @@ import random
 import copy
 import math
 
-import Tkinter
-import tkMessageBox
+try:
+    # for Python2
+    import Tkinter as tkinter
+except ImportError:
+    # for Python3
+    import tkinter
 
 
 def TimeToStr( val ):
@@ -61,7 +65,7 @@ class Jobs:
 		name = line[ 3 ]
 		if name == "build:":
 			return
-		if not self.threads.has_key( thread ):
+		if not thread in self.threads:
 			self.threads[ thread ] = JobThread()
 		th = self.threads[ thread ]
 		if ( action == "begin" ):			
@@ -81,7 +85,7 @@ class Jobs:
 			if line.strip():
 				self.ParseLine( line )
 	def GetThreads( self ):
-		res = self.threads.keys()
+		res = list( self.threads.keys() )
 		res.sort()
 		return res
 
@@ -132,28 +136,32 @@ class TkGui:
 
 	
 	def CreateWindow( self, canvasSize ):
-		self.win = Tkinter.Tk( )
+		self.win = tkinter.Tk( )
 		
-		self.statusbar = Tkinter.Label( self.win, text="", bd=1, relief=Tkinter.SUNKEN, anchor=Tkinter.W )
-		self.statusbar.pack( side=Tkinter.BOTTOM, fill=Tkinter.X )
+		self.statusbar = tkinter.Label( self.win, text="", bd=1, relief=tkinter.SUNKEN, anchor=tkinter.W )
+		self.statusbar.pack( side=tkinter.BOTTOM, fill=tkinter.X )
 		
-		self.scrollbarx = Tkinter.Scrollbar( self.win, orient=Tkinter.HORIZONTAL, width=24 )
-		#self.scrollbarx.grid(column=0, row=1, sticky=(Tkinter.W,Tkinter.E))
-		self.scrollbarx.pack( side = Tkinter.BOTTOM, fill=Tkinter.X )
+		self.scrollbarx = tkinter.Scrollbar( self.win, orient=tkinter.HORIZONTAL, width=24 )
+		#self.scrollbarx.grid(column=0, row=1, sticky=(tkinter.W,tkinter.E))
+		self.scrollbarx.pack( side = tkinter.BOTTOM, fill=tkinter.X )
 		
-		self.canvas = Tkinter.Canvas( self.win, bg="lightgray",
+		self.scrollbary = tkinter.Scrollbar( self.win, orient=tkinter.VERTICAL, width=24 )
+		self.scrollbary.pack( side = tkinter.RIGHT, fill=tkinter.Y )
+		
+		self.canvas = tkinter.Canvas( self.win, bg="lightgray",
 			width = canvasSize[ 0 ], height = canvasSize[ 1 ], 
 			scrollregion=( 0, 0, canvasSize[ 0 ], canvasSize[ 1 ] ),
-			xscrollcommand=self.scrollbarx.set 
+			xscrollcommand=self.scrollbarx.set, yscrollcommand=self.scrollbary.set 
 			)
-		#self.canvas.grid( column=0, row=0, sticky=( Tkinter.N, Tkinter.W, Tkinter.E, Tkinter.S ) )
+		#self.canvas.grid( column=0, row=0, sticky=( tkinter.N, tkinter.W, tkinter.E, tkinter.S ) )
 		
 		
 		self.scrollbarx.config( command = self.canvas.xview )
+		self.scrollbary.config( command = self.canvas.yview )
 		
-		#self.canvas.config(scrollregion=canvas.bbox(Tkinter.ALL))
+		#self.canvas.config(scrollregion=canvas.bbox(tkinter.ALL))
 		
-		self.canvas.pack( side = Tkinter.TOP, fill=Tkinter.X )
+		self.canvas.pack( side = tkinter.TOP, fill=tkinter.BOTH )
 		
 		self.canvas.tag_bind( "jobrect", "<Enter>", self.Ev_RectEnter )	
 		self.canvas.tag_bind( "jobrect", "<Leave>", self.Ev_RectLeave )
@@ -169,7 +177,7 @@ class TkGui:
 		maxY = newSize[ 1 ] + self.yMargin
 		if not maxX == self.canvasSize[ 0 ] or not maxY == self.canvasSize[ 1 ]:
 			self.canvasSize = ( maxX, maxY )
-			self.canvas.config( scrollregion=( 0, 0, maxX, maxY ), )
+			self.canvas.config( scrollregion=( 0, 0, maxX, maxY ), height = maxY )
 			#self.canvas.config( width=maxX, height=maxY, scrollregion=( 0, 0, maxX, maxY ), )
 	
 	def UpdateAxis( self ):
@@ -233,7 +241,7 @@ class TkGui:
 			majorPos = tbStartX + m * secPerMajor * self.xScale
 			self.axisGraphics.append( self.canvas.create_line( majorPos, tTickY, majorPos, tTickY + tMajorY ) )
 			time = m*secPerMajor
-			self.axisGraphics.append( self.canvas.create_text( majorPos, tTickY, anchor=Tkinter.S, text=TimeToStr(time) ) )
+			self.axisGraphics.append( self.canvas.create_text( majorPos, tTickY, anchor=tkinter.S, text=TimeToStr(time) ) )
 			for minor in range(1, tMinorPerMajor ) :
 				minorPos = majorPos + minor * ( secPerMajor / tMinorPerMajor ) * self.xScale
 				if ( minorPos <= tbStopX ):
@@ -283,11 +291,14 @@ class TkGui:
 					#~ x1, y1,
 					#~ x1, y0,
 					#~ fill="lightgreen", outline="black", activefill="green", activeoutline="black", tag="jobrect" )
+				# https://stackoverflow.com/questions/4969543/colour-chart-for-tkinter-and-tix-using-python
 				col = ( "lightgreen", "green" )
 				if not "job:" in j.name and ( "cache load"  in j.name or "script parse" in j.name or "prepare" in j.name ):
 					col = ( "lightcyan", "cyan" )
 				elif not ("c " in j.name and "c++" in j.name ) and "link" in j.name:
 					col = ( "lightblue", "blue" )
+				elif "job:" in j.name and "/batchcpp/" in j.name :
+					col = ( "salmon", "lightsalmon" )
 				elif "job:" in j.name and "precomp" in j.name :
 					col = ( "lightyellow", "yellow" )
 				elif "job:" in j.name and ".dll" in j.name :
@@ -329,23 +340,23 @@ class TkGui:
 		
 		
 	def Ev_RectEnter( self, event ):
-		curId = self.canvas.find_withtag( Tkinter.CURRENT )
+		curId = self.canvas.find_withtag( tkinter.CURRENT )
 		jr = self.guiIdToJob[ curId[ 0 ] ]
 		text = "%s %s" % ( TimeToStr( jr.job.GetRunTime() ), jr.job.name )
 		self.statusbar.config( text=text )
 		
-		#print guiIdToJob[ Tkinter.CURRENT ]
+		#print guiIdToJob[ tkinter.CURRENT ]
 		#print event
 		#print dir( event )
 		#print event.num
-		#canvas.itemconfigure( Tkinter.CURRENT, fill="red" )
+		#canvas.itemconfigure( tkinter.CURRENT, fill="red" )
 		
 	def Ev_RectLeave( self, event ):
 		self.statusbar.config( text="" )
 		#print event
 		#print dir( event )
 		#print event.num
-		#canvas.itemconfigure( Tkinter.CURRENT, fill="lightgreen" )
+		#canvas.itemconfigure( tkinter.CURRENT, fill="lightgreen" )
 		
 	def Ev_Zoom( self, event, val ):
 		# zoom but keep the spot under the cursor under the cursor 
@@ -380,7 +391,7 @@ def callback(event):
 	canvas = event.widget
 	x = canvas.canvasx(event.x)
 	y = canvas.canvasy(event.y)	
-	print canvas.find_closest(x, y)
+	print( canvas.find_closest(x, y) )
 
 
 

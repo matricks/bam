@@ -120,12 +120,14 @@ function SetDriversCL(settings)
 	end
 	
 	if settings.lib then
+		settings.lib.prefix = ""
 		settings.lib.extension = ".lib"
 		settings.lib.exe = "lib"
 		settings.lib.Driver = DriverCL_Lib
 	end
 	
 	if settings.dll then
+		settings.dll.prefix = ""
 		settings.dll.extension = ".dll"
 		settings.dll.exe = "link"
 		settings.dll.Driver = DriverCL_DLL

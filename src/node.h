@@ -43,6 +43,7 @@ struct JOB
 	struct JOB *next; /* next job in the global joblist. head is stored in the graph */
 
 	struct NODELINK *firstoutput; /* list of all outputs */
+	struct STRINGLINK *firstsideeffect; /* list of all side effects (used for verification) */
 	struct STRINGLINK *firstclean; /* list of extra files to remove when cleaning */
 
 	struct NODELINK *firstjobdep; /* list of job dependencies */
@@ -58,6 +59,8 @@ struct JOB
 	char *label;
 	char *filter;
 
+	unsigned id; /* unique id */
+	
 	hash_t cmdhash; /* hash of the command line for detecting changes */
 	hash_t cachehash; /* hash that should be written to the cache */
 
@@ -111,20 +114,28 @@ struct NODE
 };
 
 /* cache node */
-struct CACHENODE
+struct CACHEINFO_DEPS
 {
-	RB_ENTRY(CACHENODE) rbentry;
+	RB_ENTRY(CACHEINFO_DEPS) rbentry;
 
 	hash_t hashid;
 	time_t timestamp_raw;
 	char *filename;
-	hash_t cmdhash;
 
 	unsigned cached:1;
 	
 	unsigned deps_num;
 	unsigned *deps; /* index id, not hashid */
 };
+
+/* */
+struct CACHEINFO_OUTPUT
+{
+	hash_t hashid;
+	hash_t cmdhash;
+	time_t timestamp;
+};
+
 
 /* */
 struct GRAPH
@@ -190,6 +201,7 @@ struct CONTEXT;
 #define NODEDIRTY_DEPNEWER		8	/* one of the dependencies is newer */
 #define NODEDIRTY_GLOBALSTAMP	16	/* the globaltimestamp is newer */
 #define NODEDIRTY_FORCED		32	/* forced dirty */
+#define NODEDIRTY_NUMFLAGS		6	/* last flag */
 
 /* you destroy graphs by destroying the heap */
 struct GRAPH *node_graph_create(struct HEAP *heap);
@@ -206,10 +218,12 @@ int node_create(struct NODE **node, struct GRAPH *graph, const char *filename, s
 struct NODE *node_find(struct GRAPH *graph, const char *filename);
 struct NODE *node_find_byhash(struct GRAPH *graph, hash_t hashid);
 struct NODE *node_get(struct GRAPH *graph, const char *filename);
-/*struct NODE *node_add_dependency(struct NODE *node, const char *filename);*/
 struct NODE *node_add_dependency(struct NODE *node, struct NODE *depnode);
-int node_add_clean(struct NODE *node, const char * filename);
 void node_cached(struct NODE *node);
+
+/* */
+int node_add_sideeffect(struct NODE *node, const char * filename);
+int node_add_clean(struct NODE *node, const char * filename);
 
 /* */
 struct NODE *node_add_constraint_shared(struct NODE *node, struct NODE *contraint);
@@ -260,10 +274,6 @@ int node_walk(
 void node_walk_revisit(struct NODEWALK *walk, struct NODE *node);
 
 /* node debug dump functions */
-void node_debug_dump(struct GRAPH *graph);
-void node_debug_dump_detailed(struct GRAPH *graph);
-void node_debug_dump_jobs(struct GRAPH *graph);
-void node_debug_dump_dot(struct GRAPH *graph, struct NODE *top);
-void node_debug_dump_jobs_dot(struct GRAPH *graph, struct NODE *top);
+void node_debug_dump(struct GRAPH *graph, int html);
 
 #endif /* FILE_NODE_H */

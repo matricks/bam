@@ -2,10 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define LUA_CORE /* make sure that we don't try to import these functions */
-#include <lua.h>
-#include <lauxlib.h>
-
 #include "path.h"
 #include "node.h"
 #include "cache.h"
@@ -13,7 +9,6 @@
 #include "mem.h"
 #include "support.h"
 #include "session.h"
-#include "luafuncs.h"
 
 static int processline(char *line, char **start, char **end, int *systemheader)
 {
@@ -105,12 +100,12 @@ struct CACHERUNINFO
 static int dependency_cpp_run(struct CONTEXT *context, struct NODE *node,
 		int (*callback)(struct NODE *, void *, const char *, int), void *userdata);
 
-static void cachehit_callback(struct NODE *node, struct CACHENODE *cachenode, void *user)
+static void cachehit_callback(struct NODE *node, struct CACHEINFO_DEPS *cacheinfo, void *user)
 {
 	struct CACHERUNINFO *info = (struct CACHERUNINFO *)user;
 	
 	/* check if the file has been removed */
-	struct NODE *existing_node = node_find_byhash(node->graph, cachenode->hashid);
+	struct NODE *existing_node = node_find_byhash(node->graph, cacheinfo->hashid);
 	if(existing_node)
 	{
 		struct NODE *newnode = node_add_dependency (node, existing_node);
@@ -118,12 +113,12 @@ static void cachehit_callback(struct NODE *node, struct CACHENODE *cachenode, vo
 	}
 	else
 	{
-		time_t timestamp = file_timestamp(cachenode->filename);
+		time_t timestamp = file_timestamp(cacheinfo->filename);
 		if(timestamp)
 		{
 			/* this shouldn't be able to fail */
 			struct NODE *newnode;
-			node_create(&newnode, info->context->graph, cachenode->filename, NULL, timestamp);
+			node_create(&newnode, info->context->graph, cacheinfo->filename, NULL, timestamp);
 			node_add_dependency (node, newnode);
 
 			/* recurse the dependency checking */
@@ -131,7 +126,7 @@ static void cachehit_callback(struct NODE *node, struct CACHENODE *cachenode, vo
 		}
 		else
 		{
-			node->dirty = NODEDIRTY_MISSING;
+			node->dirty |= NODEDIRTY_MISSING;
 		}
 	}
 }
@@ -167,7 +162,7 @@ static int dependency_cpp_run(struct CONTEXT *context, struct NODE *node,
 	cacheinfo.context = context;
 	cacheinfo.callback = callback;
 	cacheinfo.userdata = userdata;
-	if(cache_do_dependency(context, node, cachehit_callback, &cacheinfo))
+	if(depcache_do_dependency(context, node, cachehit_callback, &cacheinfo))
 		return 0;
 
 	/* mark the node as checked */
@@ -338,57 +333,12 @@ static int dependency_cpp_callback(struct NODE *node, void *user, const char *fi
 	return 0;
 }
 
-static struct STRINGLIST *current_includepaths = NULL;
-
-static int dependency_cpp_do_run(struct CONTEXT *context, struct DEFERRED *info)
+int dep_cpp(struct CONTEXT *context, struct DEFERRED *info)
 {
 	struct CPPDEPINFO depinfo;
 	depinfo.context = context;
 	depinfo.paths = (struct STRINGLIST *)info->user;
 	if(dependency_cpp_run(context, info->node, dependency_cpp_callback, &depinfo) != 0)
 		return -1;
-	return 0;
-}
-
-/* */
-int lf_add_dependency_cpp_set_paths(lua_State *L)
-{
-	struct CONTEXT *context;
-	int n = lua_gettop(L);
-	
-	if(n != 1)
-		luaL_error(L, "add_dependency_cpp_set_paths: incorrect number of arguments");
-	luaL_checktype(L, 1, LUA_TTABLE);
-	
-	context = context_get_pointer(L);
-	current_includepaths = NULL;
-	build_stringlist(L, context->deferredheap, &current_includepaths, 1);
-	return 0;
-}
-
-/* */
-int lf_add_dependency_cpp(lua_State *L)
-{
-	struct CONTEXT *context;
-	struct DEFERRED *deferred;
-	struct NODE * node;
-	int n = lua_gettop(L);
-	
-	if(n != 1)
-		luaL_error(L, "add_dependency_cpp: incorrect number of arguments");
-	luaL_checkstring(L,1);
-	
-	context = context_get_pointer(L);
-	node = node_find(context->graph, lua_tostring(L,1));
-
-	if(!node)
-		luaL_error(L, "add_dependency_cpp: couldn't find node with name '%s'", lua_tostring(L,1));
-
-	deferred = (struct DEFERRED *)mem_allocate(context->deferredheap, sizeof(struct DEFERRED));
-	deferred->node = node;
-	deferred->user = current_includepaths;
-	deferred->run = dependency_cpp_do_run;
-	deferred->next = context->firstdeferred_cpp;
-	context->firstdeferred_cpp = deferred;
 	return 0;
 }
