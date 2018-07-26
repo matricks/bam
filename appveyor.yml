@@ -1,0 +1,20 @@
+platform:
+  - x86
+
+environment:
+  matrix:
+    - MSVS: msvs2013
+      PLATFORM: win32
+    - MSVS: msvs2013
+      PLATFORM: win64
+    - MSVS: msvs2015
+      PLATFORM: win32
+    - MSVS: msvs2015
+      PLATFORM: win64
+
+install:
+  - if "MSVS"=="msvs2013" call c:\"Program Files (x86)"\"Microsoft Visual Studio 12.0"\VC\vcvarsall.bat
+  - if "MSVS"=="msvs2015" call c:\"Program Files (x86)"\"Microsoft Visual Studio 14.0"\VC\vcvarsall.bat
+  - call make_%PLATFORM_msvc.bat
+
+build: OFF
