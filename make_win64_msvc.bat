@@ -57,6 +57,8 @@ exit
 @REM /LTCG = link time code generation
 @cl /D_CRT_SECURE_NO_DEPRECATE /DLUA_BUILD_AS_DLL /W3 /O2 /TC /Zi /GS- /GL /nologo /I src/lua src/*.c src/lua/*.c /Febam.exe /link Advapi32.lib /LTCG
 
+@IF %errorlevel% NEQ 0 exit /B 1
+
 @REM clean up
 @del bam.exp
 @del *.obj
