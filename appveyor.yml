@@ -13,6 +13,5 @@ environment:
 
 install:
   - call make_%PLATFORM%_msvc.bat
-  - exit /B %errorlevel%
 
 build: OFF
