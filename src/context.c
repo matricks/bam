@@ -91,7 +91,7 @@ static void runjob_print_report(struct CONTEXT *context, struct JOB *job, int th
 
 	if(!format)
 	{
-		static char buf[64];
+		static char buf[128];
 		int jobdigits = 0;
 		int threaddigits = 0;
 		int c;
