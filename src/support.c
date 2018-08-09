@@ -112,6 +112,14 @@
 	}
 
 	static CRITICAL_SECTION criticalsection;
+
+
+/* #define BAM_USE_JOBOBJECT */
+
+#ifdef BAM_USE_JOBOBJECT
+	static HANDLE jobhandle;
+#endif
+
 	void platform_init()
 	{
 		char buffer[512] = {0};
@@ -206,6 +214,15 @@
 					printf("%s\n", GetCommandLine());
 					exit(1);
 				}
+			} else {
+#ifdef BAM_USE_JOBOBJECT
+				jobhandle = CreateJobObjectA( sec, NULL );
+				AssignProcessToJobObject(jobhandle, GetCurrentProcess());
+
+				JOBOBJECT_BASIC_LIMIT_INFORMATION limitinfo = { 0 };
+				limitinfo.limitflags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+				SetInformationJobObject(jobhandle, JobObjectBasicLimitInformation, &limitinfo, sizeof(limitinfo));
+#endif
 			}
 		}
 
@@ -214,6 +231,10 @@
 	
 	void platform_shutdown()
 	{
+#ifdef BAM_USE_JOBOBJECT
+		/* Should we really close the handle here? */
+		/* CloseHandle(jobhandle); */
+#endif
 		if(singleton_mutex)
 			ReleaseMutex(singleton_mutex);
 		CloseHandle(singleton_mutex);
