@@ -422,6 +422,16 @@ int lf_modify_priority(struct lua_State *L)
 	return 1;
 }
 
+/* lf_skip_output_verification(string nodename) */
+int lf_skip_output_verification(struct lua_State *L)
+{
+	struct CONTEXT *context = context_get_pointer(L);
+	luaL_checknumarg_eq(L, 1);
+	luaL_checknode(L, context, 1)->skipverifyoutput = 1;
+	return 1;
+}
+
+
 /* default_target(string filename) */
 int lf_default_target(lua_State *L)
 {

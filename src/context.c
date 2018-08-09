@@ -172,6 +172,9 @@ static int verify_outputs(struct CONTEXT *context, struct JOB *job)
 	/* make sure that the tool updated the output timestamps */
 	for(link = job->firstoutput; link; link = link->next)
 	{
+		if(link->node->skipverifyoutput)
+			continue;
+
 		output_stamp = file_timestamp(link->node->filename);
 
 		/* did the job update the timestamp correctly */

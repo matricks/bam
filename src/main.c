@@ -360,6 +360,8 @@ int register_lua_globals(struct lua_State *lua, const char* script_directory, co
 
 	lua_register(lua, L_FUNCTION_PREFIX"set_priority", lf_set_priority);
 	lua_register(lua, L_FUNCTION_PREFIX"modify_priority", lf_modify_priority);
+	lua_register(lua, L_FUNCTION_PREFIX"skip_output_verification", lf_skip_output_verification);
+
 
 	/* advanced dependency checkers */
 	lua_register(lua, L_FUNCTION_PREFIX"add_dependency_cpp_set_paths", lf_add_dependency_cpp_set_paths);

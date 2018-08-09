@@ -111,6 +111,8 @@ struct NODE
 	unsigned depchecked:1; /* set if a dependency checker have processed the file */
 	unsigned targeted:1; /* set if this node is targeted for a build */
 	unsigned cached:1; /* set if the node should be considered as cached */
+	unsigned skipverifyoutput:1; /* set if we don't want to skip the output verification for this output  */
+
 };
 
 /* cache node */

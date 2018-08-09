@@ -491,6 +491,11 @@ AddDependency = bam_add_dependency
 @END]]--
 AddDependencySearch = bam_add_dependency_search
 
+--[[@FUNCTION SkipOutputVerification(output)
+	Skips the output timestamp verification of this output
+@END]]--
+SkipOutputVerification = bam_skip_output_verification
+
 function Default_Intermediate_Output(settings, input)
 	return PathBase(input) .. settings.config_ext
 end
