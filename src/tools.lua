@@ -361,7 +361,7 @@ else
 	function CopyFile(dst, src)
 		AddJob(dst,
 			"copy " .. src .. " -> " .. dst,
-			"cp " .. src .. " " .. dst,
+			"cp \"" .. src .. "\" \"" .. dst .. "\"",
 			src)
 		return dst
 	end
