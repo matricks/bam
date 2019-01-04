@@ -113,7 +113,7 @@
 	#define BAM_ARCH_STRING "ia64"
 #endif
 
-#if defined(__amd64__) || defined(__x86_64__)
+#if defined(__amd64__) || defined(__x86_64__) || defined(_M_AMD64)
 	#define BAM_ARCH_AMD64
 	#define BAM_ARCH_STRING "amd64"
 #endif
