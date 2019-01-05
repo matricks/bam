@@ -29,6 +29,7 @@ function DriverGCC_CTest(code, options)
 	f:close()
 	local ret = ExecuteSilent("gcc _test.c -o _test " .. options)
 	os.remove("_test.c")
+	os.remove("_test.exe")
 	os.remove("_test")
 	return ret==0
 end
