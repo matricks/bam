@@ -108,7 +108,7 @@
 	#define BAM_ARCH_STRING "ia32"
 #endif
 
-#if defined(__ia64__)
+#if defined(__ia64__) || defined(_M_IA64)
 	#define BAM_ARCH_IA64
 	#define BAM_ARCH_STRING "ia64"
 #endif
