@@ -689,3 +689,81 @@ void node_debug_dump(struct GRAPH *graph, int html)
 	else
 		printf("%s", dirtyflags_help);
 }
+
+
+static void print_escaped(const char *s) {
+	for(;*s;s++)
+	{
+		switch(*s)
+		{
+			case '\\': printf("\\\\"); break;
+			case '"': printf("\\\""); break;
+			default: printf("%c", *s); break;
+		}
+	}
+}
+
+static const char *nextcomma(void*p) { if(p) return ","; return ""; }
+
+void node_debug_dump_json(struct GRAPH *graph)
+{
+	struct JOB *job = graph->firstjob;
+	struct NODE *node = graph->first;
+	struct NODELINK *link;
+	struct NODELINK *link2;
+	struct STRINGLINK *strlink;
+
+	printf("{\n");
+	printf("\t\"jobs\": [\n");
+
+	for(;job;job = job->next)
+	{
+		printf("\t\t{\n");
+		printf("\t\t\t\"label\": \""); print_escaped(job->label); printf("\",\n");
+		printf("\t\t\t\"cmdline\": \""); print_escaped(job->cmdline); printf("\",\n");
+
+		printf("\t\t\t\"outputs\": [\n");
+		for(link = job->firstoutput; link; link = link->next)
+			printf("\t\t\t\t\t\"%s\"%s\n", link->node->filename, nextcomma(link->next));
+		printf("\t\t\t],\n");
+
+		printf("\t\t\t\"inputs\": [\n");
+		for(link = job->firstoutput; link; link = link->next)
+			for(link2 = link->node->firstdep; link2; link2 = link2->next)
+				printf("\t\t\t\t\t\"%s\"%s\n", link2->node->filename, nextcomma(link2->next));
+		printf("\t\t\t]\n");
+		printf("\t\t}%s\n", nextcomma(job->next));
+
+		/*		
+		for(link = job->firstjobdep; link; link = link->next)
+			printf("%08x %s JOBDEP %-30s\n", (unsigned)link->node->timestamp, dirtyflags_str(link->node->dirty), decorate_link(link->node->id, link->node->filename, "n", html));
+
+		for(strlink = job->firstclean; strlink; strlink = strlink->next)
+			printf("%8s %s CLEAN  %-30s\n", "", dirtyflags_str_empty, strlink->str);
+
+		for(strlink = job->firstsideeffect; strlink; strlink = strlink->next)
+			printf("%8s %s SIDE  %-30s\n", "", dirtyflags_str_empty, strlink->str);
+		*/
+
+		printf("\n");
+	}
+
+	printf("\t]\n");
+	printf("}\n");
+#if 0
+	for(;node;node = node->next)
+	{
+		/* if we have a command line, we have already been printed out */
+		if(node->job->cmdline)
+			continue;
+
+		print_node(node, "NODE", html);
+		printf("\n");
+	}
+
+	if(html)
+		printf("</pre></body></html>\n");
+	else
+		printf("%s", dirtyflags_help);
+#endif
+}

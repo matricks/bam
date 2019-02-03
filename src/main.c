@@ -69,6 +69,7 @@ static int option_dependent = 0;
 static int option_abort_on_error = 0;
 static int option_debug_nodes = 0;
 static int option_debug_nodes_html = 0;
+static int option_debug_nodes_json = 0;
 static int option_debug_joblist = 0;
 static int option_debug_dumpinternal = 0;
 static int option_debug_nointernal = 0;
@@ -258,6 +259,11 @@ static struct OPTION options[] = {
 		for easier browsing.
 	@END*/
 	{OF_DEBUG, 0, &option_debug_nodes_html	, "--debug-nodes-html", "as --debug-nodes but in html format"},
+
+	/*@OPTION Debug: Dump Nodes in JSON format ( --debug-nodes-json )
+		Outputs all job and nodes in JSON format for easy processing.
+	@END*/
+	{OF_DEBUG, 0, &option_debug_nodes_json	, "--debug-nodes-json", "prints all nodes in json format"},
 
 	/*@OPTION Debug: Dump Joblist ( --debug-joblist )
 	@END*/
@@ -813,8 +819,10 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 		{
 			if(option_debug_nodes) /* debug dump all nodes detailed */
 				node_debug_dump(context.graph, 0);
-			else if(option_debug_nodes_html) /* debug dump all nodes detailed as html*/
+			else if(option_debug_nodes_html) /* debug dump all nodes detailed as html */
 				node_debug_dump(context.graph, 1);
+			else if(option_debug_nodes_json) /* debug dump all nodes in json format*/
+				node_debug_dump_json(context.graph);
 			else if(option_debug_joblist) /* debug dumps the joblist */
 				context_dump_joblist(&context);
 			else if(option_dry)
