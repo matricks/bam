@@ -1,4 +1,5 @@
 
+from __future__ import print_function
 import re, time
 
 class Node:
@@ -47,20 +48,20 @@ class Output:
 	
 	def render_node_index(self, cur):
 		if len(cur.index):
-			print >>self.file, self.index_node_begin(cur)
+			print(self.index_node_begin(cur), file=self.file)
 		for node in cur.nodes:
 			self.render_node_index(node)
 		if len(cur.index):
-			print >>self.file, self.index_node_end(cur)
+			print(self.index_node_end(cur), file=self.file)
 	def render_node(self, cur):
 		if len(cur.index):
-			print >>self.file, self.format_header(cur)
-			print >>self.file, self.format_body(cur)
+			print(self.format_header(cur), file=self.file)
+			print(self.format_body(cur), file=self.file)
 		for node in cur.nodes:
 			self.render_node(node)
 			
 	def index_nodes(self, cur, index=""):
-		for i in xrange(0, len(cur.nodes)):
+		for i in range(0, len(cur.nodes)):
 			if len(index):
 				cur.nodes[i].index = index + "." + str(i+1)
 			else:
@@ -73,14 +74,14 @@ class Output:
 		
 	def render(self, rootnode):
 		self.index_nodes(rootnode)
-		print >>self.file, self.render_begin()
+		print(self.render_begin(), file=self.file)
 		
-		print >>self.file, self.index_begin()
+		print(self.index_begin(), file=self.file)
 		self.render_node_index(rootnode)
-		print >>self.file, self.index_end()
+		print(self.index_end(), file=self.file)
 		
 		self.render_node(rootnode)
-		print >>self.file, self.render_end()
+		print(self.render_end(), file=self.file)
 
 class HTMLOutput(Output):
 	def render_begin(self):
@@ -225,7 +226,7 @@ class HTMLOutput(Output):
 
 def ParseTextFile(rootnode, filename, addbr=False):
 	group = rootnode
-	for line in file(filename):
+	for line in open(filename):
 		if group_tag in line:
 			group_name = line.split(group_tag)[-1].split(end_tag)[0].strip()
 			group = Node(group_name)
@@ -244,7 +245,7 @@ def ParseFile(rootnode, filename):
 	# 2 = outputting function decl
 	state = 0
 	group = rootnode
-	for line in file(filename):
+	for line in open(filename):
 		if state == 0:
 			if group_tag in line:
 				group_name = line.split(group_tag)[-1].split(end_tag)[0].strip()

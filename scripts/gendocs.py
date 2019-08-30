@@ -29,6 +29,6 @@ root.nodes += [ParseTextFile(Node("License"), "license.txt", True)]
 
 # render files
 for o in outputs:
-	o.file = file(o.output_name(), "w")
+	o.file = open(o.output_name(), "w")
 	o.render(root)
 	o.file.close()
