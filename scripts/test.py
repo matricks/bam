@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import os, sys, shutil, subprocess
 
 extra_bam_flags = ""
@@ -36,8 +37,8 @@ def copytree(src, dst):
 				copytree(srcname, dstname)
 			else:
 				shutil.copy2(srcname, dstname)
-		except (IOError, os.error), why:
-			print "Can't copy %s to %s: %s" % (`srcname`, `dstname`, str(why))
+		except (IOError, os.error) as why:
+			print("Can't copy '%s' to '%s': %s" % (srcname, dstname, str(why)))
 
 
 def run_bam(testname, flags):
@@ -45,7 +46,7 @@ def run_bam(testname, flags):
 	olddir = os.getcwd()
 	os.chdir(output_path+"/"+testname)
 	
-	p = subprocess.Popen(bam+" "+flags, stdout=subprocess.PIPE, shell=True, stderr=subprocess.STDOUT)
+	p = subprocess.Popen(bam+" "+flags, stdout=subprocess.PIPE, shell=True, stderr=subprocess.STDOUT, universal_newlines=True)
 	report = p.stdout.readlines()
 	p.wait()
 	ret = p.returncode
@@ -64,8 +65,8 @@ def test(name, moreflags="", should_fail=0):
 	os.chdir(output_path+"/"+name)
 	cmdline = bam+" -t -v "+extra_bam_flags+" " + moreflags
 	
-	print name + ":",
-	p = subprocess.Popen(cmdline, stdout=subprocess.PIPE, shell=True, stderr=subprocess.STDOUT)
+	print(name + ":", end=" ")
+	p = subprocess.Popen(cmdline, stdout=subprocess.PIPE, shell=True, stderr=subprocess.STDOUT, universal_newlines=True)
 	report = p.stdout.readlines()
 	p.wait()
 	ret = p.returncode
@@ -73,50 +74,50 @@ def test(name, moreflags="", should_fail=0):
 	os.chdir(olddir)
 	
 	if (should_fail and not ret) or (not should_fail and ret):
-		print " FAILED!"
+		print(" FAILED!")
 		for l in report:
-			print "\t", l,
+			print("\t", l, end=" ")
 		failed_tests += [name + "(returned %d)" % ret]
 	else:
-		print " ok"
+		print(" ok")
 
 def difftest(name, flags1, flags2):
 	global failed_tests
 	if len(tests) and not name in tests:
 		return
 	testname = "difftest: %s '%s' vs '%s': "%(name, flags1, flags2)
-	print testname,
+	print(testname, end=" ")
 	ret1, report1 = run_bam(name, flags1)
 	ret2, report2 = run_bam(name, flags2)
 	
 	if ret1:
-		print "FAILED! '%s' returned %d" %(flags1, ret1)
+		print("FAILED! '%s' returned %d" %(flags1, ret1))
 		failed_tests += [testname]
 		return
 	
 	if ret2:
-		print "FAILED! '%s' returned %d" %(flags2, ret2)
+		print("FAILED! '%s' returned %d" %(flags2, ret2))
 		failed_tests += [testname]
 		return
 	
 	if len(report1) != len(report2):
-		print "FAILED! %d lines vs %d lines" % (len(report1), len(report2))
+		print("FAILED! %d lines vs %d lines" % (len(report1), len(report2)))
 		failed_tests += [testname]
 		return
 	
 	failed = 0
-	for i in xrange(0, len(report1)):
+	for i in range(0, len(report1)):
 		if report1[i] != report2[i]:
 			if not failed:
-				print "FAILED!"
-			print "1:", report1[i].strip()
-			print "2:", report2[i].strip()
+				print("FAILED!")
+			print("1:", report1[i].strip())
+			print("2:", report2[i].strip())
 			failed += 1
 			
 	if failed:
 		failed_tests += [testname]
 	else:
-		print "ok"
+		print("ok")
 
 def unittests():
 	global failed_tests
@@ -129,7 +130,7 @@ def unittests():
 	
 	tests = []
 	state = 0
-	for line in file('src/base.lua'):
+	for line in open('src/base.lua'):
 		if state == 0:
 			if "@UNITTESTS" in line:
 				state = 1
@@ -157,16 +158,16 @@ def unittests():
 	os.chdir(output_path+"/unit")
 	
 	for test in tests:
-		f = file("bam.lua", "w")
+		f = open("bam.lua", "w")
 		if test.catch != None:
-			print >>f, "print(\"CATCH:\", %s)"%(test.line)
+			print("print(\"CATCH:\", %s)"%(test.line), file=f)
 		else:
-			print >>f, test.line
-		print >>f, 'DefaultTarget(PseudoTarget("Test"))'
+			print(test.line, file=f)
+		print('DefaultTarget(PseudoTarget("Test"))', file=f)
 		f.close()
 
-		print  "%s:"%(test.line),
-		p = subprocess.Popen(bam + " --dry", stdout=subprocess.PIPE, shell=True, stderr=subprocess.STDOUT)
+		print("%s:"%(test.line), end=" ")
+		p = subprocess.Popen(bam + " --dry", stdout=subprocess.PIPE, shell=True, stderr=subprocess.STDOUT, universal_newlines=True)
 		report = p.stdout.readlines()
 		p.wait()
 		ret = p.returncode
@@ -174,7 +175,7 @@ def unittests():
 		failed = False
 		if ret != test.err:
 			failed = True
-			print "FAILED! error %d != %d" % (test.err, ret)
+			print("FAILED! error %d != %d" % (test.err, ret))
 		
 		if test.catch != None:
 			found = False
@@ -185,7 +186,7 @@ def unittests():
 					if catched == test.catch:
 						found = True
 					else:
-						print "FAILED! catch '%s' != '%s'" % (test.catch, catched)
+						print("FAILED! catch '%s' != '%s'" % (test.catch, catched))
 						
 			if not found:
 				failed = True
@@ -198,16 +199,16 @@ def unittests():
 			
 			if not found:
 				failed = True
-				print "FAILED! could not find '%s' in output" % (test.find)
+				print("FAILED! could not find '%s' in output" % (test.find))
 		if failed or verbose:
 			if failed:
 				failed_tests += [test.line]
 			else:
-				print "",
+				print("", end=" ")
 			for l in report:
-				print "\t", l.rstrip()
+				print("\t", l.rstrip())
 		else:
-			print "ok"
+			print("ok")
 			
 
 	os.chdir(olddir)
@@ -246,11 +247,11 @@ test("multipleoutput")
 test("missingoutput", "", 1)
 
 if len(failed_tests):
-	print "FAILED TESTS:"
+	print("FAILED TESTS:")
 	for t in failed_tests:
-		print "\t"+t
+		print("\t"+t)
 	sys.exit(1)
 else:
-	print "ALL TESTS PASSED!"
+	print("ALL TESTS PASSED!")
 	sys.exit(0)
 
