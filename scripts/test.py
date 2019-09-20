@@ -243,6 +243,7 @@ test("deadlock")
 test("addorder")
 test("import")
 test("multipleoutput")
+test("multipleoutput_deps")
 test("missingoutput", "", 1)
 
 if len(failed_tests):
