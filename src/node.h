@@ -221,6 +221,7 @@ struct NODE *node_find(struct GRAPH *graph, const char *filename);
 struct NODE *node_find_byhash(struct GRAPH *graph, hash_t hashid);
 struct NODE *node_get(struct GRAPH *graph, const char *filename);
 struct NODE *node_add_dependency(struct NODE *node, struct NODE *depnode);
+struct NODE *node_inherit_dependencies(struct NODE *node, struct NODE *sourcenode);
 void node_cached(struct NODE *node);
 
 /* */

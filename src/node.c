@@ -259,7 +259,8 @@ struct NODE *node_get(struct GRAPH *graph, const char *filename)
 	return node;
 }
 
-struct NODE *node_add_dependency (struct NODE *node, struct NODE *depnode)
+/* implementation of adding dependency */
+static struct NODE *node_add_dependency_internal (struct NODE *node, struct NODE *depnode)
 {
 	struct NODELINK *dep;
 	struct NODELINK *parent;
@@ -310,6 +311,46 @@ struct NODE *node_add_dependency (struct NODE *node, struct NODE *depnode)
 	return depnode;
 }
 
+/* wrapper for adding dependency, to be able to duplicate them over all outputs */
+struct NODE *node_add_dependency(struct NODE *node, struct NODE *depnode)
+{
+	struct NODELINK *link;
+	struct NODE *retnode = depnode;
+
+	retnode = node_add_dependency_internal( node, depnode );
+
+	if (node->job && node->job->firstoutput)
+	{
+		for(link = node->job->firstoutput; link; link = link->next)
+		{
+			if(link->node != node)
+				node_add_dependency_internal(link->node, depnode);
+		}
+	} 
+	return retnode;
+}
+
+/* inherit dependencies from another node, not sure what I should return here */
+struct NODE *node_inherit_dependencies(struct NODE *node, struct NODE *sourcenode)
+{
+	struct NODELINK *dep;
+	/* if we are outputs from the same job, all the other outputs already have the same deps */
+	if(node->job && node->job == sourcenode->job)
+	{
+		for(dep = sourcenode->firstdep; dep; dep = dep->next)
+		{
+			node_add_dependency_internal(node, dep->node);
+		}
+	} 
+	else 
+	{
+		for(dep = sourcenode->firstdep; dep; dep = dep->next)
+		{
+			node_add_dependency(node, dep->node);
+		}
+	}
+	return node;
+}
 
 struct NODE *node_job_add_dependency (struct NODE *node, struct NODE *depnode)
 {

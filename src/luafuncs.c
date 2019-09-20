@@ -232,6 +232,8 @@ int lf_add_output(lua_State *L)
 	i = node_create(&other_output, context->graph, filename, output->job, TIMESTAMP_NONE);
 	handle_node_errors(L, i, 2);
 
+	node_inherit_dependencies(other_output, output);
+	
 	return 0;
 }
 
