@@ -3,6 +3,23 @@ ScriptArgs = _bam_scriptargs
 IsString = bam_isstring
 IsTable = bam_istable
 IsOutput = bam_isoutput
+
+--[[@UNITTESTS
+	err=0 : if bam_isdir("valid_file") then error("") end
+	err=0 : if not bam_isdir("valid_dir") then error("") end
+@END]]--
+IsDirectory = bam_isdir
+
+--[[@UNITTESTS
+	err=0 : if not bam_isfile("valid_file") then error("") end
+	err=0 : if bam_isfile("valid_dir") then error("") end
+@END]]--
+IsFile = bam_isfile
+
+--[[@UNITTESTS
+	err=0 : if not bam_fileexist("valid_file") then error("") end
+	err=0 : if bam_fileexist("invalid_file") then error("") end
+@END]]--
 Exist = bam_fileexist
 NodeExist = bam_nodeexist
 SetFilter = bam_set_filter

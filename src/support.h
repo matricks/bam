@@ -64,6 +64,7 @@ int64 time_freq();
 time_t timestamp();
 time_t file_timestamp(const char *filename);
 int file_isregular(const char *path);
+int file_isdir(const char *path);
 int file_createdir(const char *path);
 int file_createpath(const char *output_name);
 void file_touch(const char *filename);

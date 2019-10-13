@@ -500,6 +500,24 @@ int file_isregular(const char *filename)
 	return 0;
 }
 
+
+int file_isdir(const char *filename)
+{
+#ifdef BAM_FAMILY_WINDOWS
+	struct stat s;
+	if(stat(filename, &s) == 0)
+	{
+		if (s.st_mode&_S_IFDIR)
+			return 1;
+	}
+#else
+	struct stat s;
+	if(stat(filename, &s) == 0)
+		return S_ISDIR(s.st_mode);
+#endif
+	return 0;
+}
+
 int file_createdir(const char *path)
 {
 	int r;

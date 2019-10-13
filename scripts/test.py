@@ -156,7 +156,9 @@ def unittests():
 	
 	olddir = os.getcwd()
 	os.chdir(output_path+"/unit")
-	
+	os.mkdir("valid_dir")
+	open("valid_file","w").close()
+
 	for test in tests:
 		f = open("bam.lua", "w")
 		if test.catch != None:

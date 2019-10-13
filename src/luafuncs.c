@@ -599,6 +599,28 @@ int lf_fileexist(struct lua_State *L)
 	return 1;
 }
 
+
+int lf_isfile(struct lua_State *L)
+{
+	luaL_checknumarg_eq(L, 1);
+	if( file_isregular(luaL_checklstring(L,1,NULL)))
+		lua_pushboolean(L, 1);
+	else
+		lua_pushnil(L);
+	return 1;
+}
+
+int lf_isdir(struct lua_State *L)
+{
+	luaL_checknumarg_eq(L, 1);
+	if( file_isdir(luaL_checklstring(L,1,NULL)))
+		lua_pushboolean(L, 1);
+	else
+		lua_pushnil(L);
+	return 1;
+}
+
+
 int lf_istable(lua_State *L)
 {
 	if(lua_type(L,-1) == LUA_TTABLE)

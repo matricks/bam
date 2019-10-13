@@ -394,6 +394,9 @@ int register_lua_globals(struct lua_State *lua, const char* script_directory, co
 	lua_register(lua, L_FUNCTION_PREFIX"nodeexist", lf_nodeexist);
 	lua_register(lua, L_FUNCTION_PREFIX"hash", lf_hash);
 
+	lua_register(lua, L_FUNCTION_PREFIX"isfile", lf_isfile);
+	lua_register(lua, L_FUNCTION_PREFIX"isdir", lf_isdir);
+
 	lua_register(lua, L_FUNCTION_PREFIX"isstring", lf_isstring);
 	lua_register(lua, L_FUNCTION_PREFIX"istable", lf_istable);
 	lua_register(lua, L_FUNCTION_PREFIX"isoutput", lf_isoutput);
