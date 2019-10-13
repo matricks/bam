@@ -2,8 +2,8 @@
 Bam is a build system with the focus on being having fast build times and flexiable build scripts. Instead of having a custom language it uses Lua to describe the build steps. It's written in clean C and is distrubuted under the liberal zlib licence. Available on many platforms including but not limited to Linux, Mac OS X and Windows.
 
 # Build Status
-[![Build Status](https://travis-ci.org/matricks/bam.svg?branch=master)](https://travis-ci.org/wc-duck/bam)
-[![Build status](https://ci.appveyor.com/api/projects/status/7foj5473hsnrw8ma?svg=true)](https://ci.appveyor.com/project/wc-duck/bam-bk2ww)
+[![Build Status](https://travis-ci.org/matricks/bam.svg?branch=master)](https://travis-ci.org/matricks/bam)
+[![Build Status](https://ci.appveyor.com/api/projects/status/blntcaj0qw98re6j?svg=true)](https://ci.appveyor.com/project/matricks/bam)
 
 # Quick Taste
 
