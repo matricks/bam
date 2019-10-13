@@ -284,10 +284,13 @@ static int write_nodes(struct WRITEINFO *info)
 int depcache_save(const char *filename, struct GRAPH *graph)
 {
 	struct WRITEINFO info;
+	char tmpfilename[1024];
 	info.index = 0;
 	info.graph = graph;
 
-	info.fp = io_open_write(filename);
+	snprintf(tmpfilename, sizeof(tmpfilename), "%s_tmp", filename);
+
+	info.fp = io_open_write(tmpfilename);
 	if(!io_valid(info.fp))
 		return -1;
 	
@@ -295,8 +298,8 @@ int depcache_save(const char *filename, struct GRAPH *graph)
 	
 	if(write_header(&info) || write_nodes(&info))
 	{
-		/* error occured, trunc the cache file so we don't leave a corrupted file */
-		printf("%s: warning: error saving cache file '%s', truncating it\n", session.name, filename);
+		/* error occured */
+		printf("%s: warning: error saving cache file '%s'\n", session.name, filename);
 		io_close(info.fp);
 		io_close(io_open_write(filename));
 		return -1;
@@ -304,6 +307,9 @@ int depcache_save(const char *filename, struct GRAPH *graph)
 
 	/* close up and return */
 	io_close(info.fp);
+
+	/* place the file where it should be now that everything was written correctly */
+	rename(tmpfilename, filename);
 	return 0;
 }
 
@@ -484,12 +490,14 @@ int outputcache_save(const char *filename, struct OUTPUTCACHE *oldcache, struct 
 
 	struct CACHEINFO_OUTPUT * final;
 	unsigned finalcount;
+	char tmpfilename[1024];
+	snprintf(tmpfilename, sizeof(tmpfilename), "%s_tmp", filename);
 
 	time_t current_stamp = file_timestamp(filename);
 	if(cache_timestamp != current_stamp)
 		printf("%s: warning: cache file '%s' has been changed since cache load, will be overwritten (%08x,%08x), is bam called from bam?\n", session.name, filename, (unsigned)cache_timestamp, (unsigned)current_stamp);
 	
-	fp = io_open_write(filename);
+	fp = io_open_write(tmpfilename);
 	if(!io_valid(fp))
 		return -1;
 
@@ -545,9 +553,8 @@ int outputcache_save(const char *filename, struct OUTPUTCACHE *oldcache, struct 
 	if(validate_outputcache(output, num_outputs) || io_write(fp, output, output_size) != output_size)
 	{
 		/* error occured, trunc the cache file so we don't leave a corrupted file */
-		printf("%s: warning: error saving cache file '%s', truncating it\n", session.name, filename);
+		printf("%s: warning: error saving cache file '%s'\n", session.name, filename);
 		io_close(fp);
-		io_close(io_open_write(filename));
 		free(output);
 		return -1;
 	}
@@ -555,6 +562,9 @@ int outputcache_save(const char *filename, struct OUTPUTCACHE *oldcache, struct 
 	/* close up and return */
 	free(output);
 	io_close(fp);
+
+	/* put the new file into place */
+	rename(tmpfilename, filename);
 	return 0;
 }
 
