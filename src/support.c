@@ -727,7 +727,7 @@ int file_createpath(const char *output_name)
 	i = 0;
 	while(1)
 	{
-		if((buffer[i] == '/') || (buffer[i] == 0))
+		if(path_is_separator(buffer[i]) || (buffer[i] == 0))
 		{
 			/* insert null terminator */
 			t = buffer[i];
