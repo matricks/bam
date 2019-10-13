@@ -353,22 +353,25 @@
 		while(n--)
 		{
 			int isdir;
-			int have_d_type = 0;
 			entry = namelist[n];
 			/* make the path absolute */
 			strcpy(startpoint, entry->d_name);
 #ifdef D_TYPE_HACK
 			if(entry->d_type != DT_UNKNOWN)
 			{
-				have_d_type = 1;
 				isdir = (entry->d_type == DT_DIR);
 			}
-#endif
-			if(!have_d_type) {
+			else
+			{
 				/* do stat to obtain if it's a directory or not */
 				stat(buffer, &info);
 				isdir = S_ISDIR(info.st_mode);
 			}
+#else
+			/* do stat to obtain if it's a directory or not */
+			stat(buffer, &info);
+			isdir = S_ISDIR(info.st_mode);
+#endif
 			free(entry);
 			/* call the callback */
 			callback(buffer, entry->d_name, isdir, user);
