@@ -42,7 +42,7 @@ ModifyPriority = bam_modify_priority
 
 --[[@UNITTESTS
 	catch="0000000000001505" : Hash("")
-	catch="bc517990f19c4304" : Hash("Hello World!")
+	catch="a1e982361190bbc4" : Hash("hello world!")
 @END]]--
 Hash = bam_hash
 
@@ -556,23 +556,9 @@ end
 
 function NewFlagTable()
 	local t = NewTable()
-
 	t.ToString = function(self)
-		if self.string_version == self.version then
-			return self.string
-		end
-		
-		local s = TableToString(self, nil, " ")
-		
-		self.string = s
-		self.string_version = self.version
-		
-		return s
+		return TableToString(self, nil, " ")
 	end
-
-	t.string_version = 0
-	t.string = ""
-
 	return t
 end
 
