@@ -43,6 +43,8 @@ pause
 exit
 
 :compile
+set curpath=%CD%
+cd "%~dp0"
 @echo === building bam ===
 @cl /D_CRT_SECURE_NO_DEPRECATE /O2 /nologo src/tools/txt2c.c /Fesrc/tools/txt2c.exe
 @src\tools\txt2c src/base.lua src/tools.lua src/driver_gcc.lua src/driver_clang.lua src/driver_cl.lua src/driver_solstudio.lua src/driver_xlc.lua > src\internal_base.h
@@ -57,8 +59,8 @@ exit
 @REM /LTCG = link time code generation
 @cl /D_CRT_SECURE_NO_DEPRECATE /DLUA_BUILD_AS_DLL /W3 /O2 /TC /Zi /GS- /GL /nologo /I src/lua src/*.c src/lua/*.c /Febam.exe /link Advapi32.lib /LTCG
 
-@IF %errorlevel% NEQ 0 exit /B 1
-
 @REM clean up
 @del bam.exp
 @del *.obj
+cd %curpath%
+@IF %errorlevel% NEQ 0 exit /B 1
