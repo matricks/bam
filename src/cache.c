@@ -292,7 +292,10 @@ int depcache_save(const char *filename, struct GRAPH *graph)
 
 	info.fp = io_open_write(tmpfilename);
 	if(!io_valid(info.fp))
+	{
+		printf( "%s: warning: error writing cache file '%s'\n", session.name, tmpfilename );
 		return -1;
+	}
 	
 	cache_setup_header("DEP");
 	
@@ -309,7 +312,16 @@ int depcache_save(const char *filename, struct GRAPH *graph)
 	io_close(info.fp);
 
 	/* place the file where it should be now that everything was written correctly */
-	rename(tmpfilename, filename);
+#ifdef BAM_FAMILY_WINDOWS
+	remove(filename);
+#endif
+	if(rename(tmpfilename, filename) != 0) 
+	{
+		/* error occured */
+		printf( "%s: warning: error writing cache file '%s'\n", session.name, filename );
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -499,12 +511,18 @@ int outputcache_save(const char *filename, struct OUTPUTCACHE *oldcache, struct 
 	
 	fp = io_open_write(tmpfilename);
 	if(!io_valid(fp))
+	{
+		printf( "%s: warning: error writing cache file '%s'\n", session.name, tmpfilename );
 		return -1;
+	}
 
 	cache_setup_header("OUT");
 
 	if(io_write(fp, bamheader, sizeof(bamheader)) != sizeof(bamheader))
+	{
+		printf( "%s: warning: error writing cache file '%s'\n", session.name, tmpfilename );
 		return -1;
+	}
 
 	/* count outputs */
 	num_outputs = 0;
@@ -564,7 +582,15 @@ int outputcache_save(const char *filename, struct OUTPUTCACHE *oldcache, struct 
 	io_close(fp);
 
 	/* put the new file into place */
-	rename(tmpfilename, filename);
+#ifdef BAM_FAMILY_WINDOWS
+	remove( filename );
+#endif
+	if(rename(tmpfilename, filename) != 0) 
+	{
+		/* error occured */
+		printf( "%s: warning: error writing cache file '%s'\n", session.name, filename );
+		return -1;
+	}
 	return 0;
 }
 
