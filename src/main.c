@@ -1064,12 +1064,12 @@ int main(int argc, char **argv)
 	if(getenv("BAM_OPTIONS"))
 	{
 		if(parse_parameters_str(getenv("BAM_OPTIONS")))
-			return -1;
+			return 1;
 	}
 	
 	/* parse commandline parameters */
 	if(parse_parameters(argc-1, argv+1))
-		return -1;
+		return 1;
 
 	/* set eventlog */
 	if(option_win_msvcmode)
@@ -1162,7 +1162,7 @@ int main(int argc, char **argv)
 		if(register_lua_globals(lua, "script_dir", option_lua_execute) != 0)
 		{
 			printf("%s: error: registering of lua functions failed\n", session.name);
-			return -1;
+			return 1;
 		}
 
 		lua_getglobal(lua, "errorfunc");
@@ -1171,23 +1171,23 @@ int main(int argc, char **argv)
 			case 0: break;
 			case LUA_ERRSYNTAX:
 					lf_errorfunc(lua);
-					return -1;
+					return 1;
 			case LUA_ERRMEM: 
 					printf("%s: memory allocation error\n", session.name);
-					return -1;
+					return 1;
 			case LUA_ERRFILE:
 					printf("%s: error opening '%s'\n", session.name, option_lua_execute);
-					return -1;
+					return 1;
 			default:
 					printf("%s: unknown error\n", session.name);
-					return -1;
+					return 1;
 		}
 
 		/* call the code chunk */	
 		if(lua_pcall(lua, 0, LUA_MULTRET, -2) != 0)
 		{
 			printf("%s: script error (-t for more detail)\n", session.name);
-			return -1;
+			return 1;
 		}
 
 		lua_close(lua);
