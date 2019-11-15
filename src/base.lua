@@ -71,6 +71,13 @@ end
 @END]]--
 function Execute(command)
 	local res,str,code = os.execute(command)
+	if family == 'windows' then
+		if not res and code == 0 then
+		-- if the program returns -1, system() returns -1, but that is what it returns when it set errno, so lua os.execute returns errno, but that is 0. Such a mess, but we really don't wan't to return 0 for failed calls
+		-- there was some talk about it on the lua mainling list (http://lua-users.org/lists/lua-l/2018-05/msg00045.html), but the latest 5.4 beta has no fixes.
+			return -1 
+		end
+	end
 	return code
 end
 
