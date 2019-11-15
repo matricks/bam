@@ -1,4 +1,5 @@
 _checked_default_drivers = false
+SetDriversDefault = false
 
 function SetDefaultDrivers(settings)
 	-- check for compilers first time
