@@ -333,6 +333,7 @@ AddTool(function (settings)
 	InitCommonCCompiler(settings)
 	settings.compile.mappings["c"] = CompileC
 	settings.compile.mappings["m"] = CompileC
+	settings.compile.mappings["mm"] = CompileC
 	settings.compile.mappings["S"] = CompileC
 	settings.compile.mappings["s"] = CompileC
 end)
