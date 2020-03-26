@@ -623,6 +623,58 @@ void node_walk_revisit(struct NODEWALK *walk, struct NODE *node)
 	walk->firstrevisit = revisit;
 }
 
+/* compares the filenames for a stable sorting of nodes during output */
+static int node_compare(const void * a, const void * b)
+{
+	return strcmp((*(const struct NODE **)a)->filename, (*(const struct NODE **)b)->filename);
+}
+
+/* counts the number of nodes in the linked list */
+static int count_nodelist(struct NODELINK *cur)
+{
+	int count = 0;
+	while(cur)
+	{
+		count++;
+		cur = cur->next;
+	}
+	return count;
+}
+
+/* constructs a list of nodes that is sorted by filename and NULL terminated */
+static struct NODE ** sorted_nodelinklist(struct NODELINK *cur)
+{
+	int num_nodes = count_nodelist(cur);
+	struct NODE **nodelist = malloc(sizeof(struct NODE*) * ( num_nodes + 1 ));
+	int i = 0;
+	for(;cur;cur = cur->next)
+	{
+		nodelist[i] = cur->node;
+		i++;
+	}
+	qsort(nodelist, num_nodes, sizeof(struct NODE *), node_compare);
+	nodelist[num_nodes] = NULL;
+	return nodelist;
+}
+
+/* constructs a list of all the nodes in the graph nodes that is sorted by filename and NULL terminated */
+static struct NODE ** sorted_nodelist(struct GRAPH *graph)
+{
+	int i;
+	struct NODE **nodelist = malloc(sizeof(struct NODE*) * ( graph->num_nodes + 1));
+	struct NODE *node = graph->first;
+	i = 0;
+	for(;node;node = node->next)
+	{
+		nodelist[i] = node;
+		i++;
+	}
+
+	qsort(nodelist, graph->num_nodes, sizeof(struct NODE *), node_compare);
+	nodelist[graph->num_nodes] = NULL;
+	return nodelist;
+}
+
 static const char *dirtyflags_str(unsigned dirty)
 {
 	static char field[NODEDIRTY_NUMFLAGS+1];
@@ -666,27 +718,40 @@ static const char *decorate_header(unsigned id, const char *name, const char *li
 }
 
 /* dumps all nodes to the stdout */
-static void print_node(struct NODE *node, const char *label, int html)
+static void print_node(struct NODE *basenode, const char *label, int html)
 {
-	struct NODELINK *link;
-	printf("%08x %s %s %s\n", (unsigned)node->timestamp, dirtyflags_str(node->dirty), label, decorate_header(node->id, node->filename, "n", html));
-	for(link = node->firstdep; link; link = link->next)
-		printf("%08x %s    DEPEND %s\n", (unsigned)link->node->timestamp, dirtyflags_str(link->node->dirty), decorate_link(link->node->id, link->node->filename, "n", html));
-	for(link = node->firstparent; link; link = link->next)
-		printf("%08x %s    PARENT %s\n", (unsigned)link->node->timestamp, dirtyflags_str(link->node->dirty), decorate_link(link->node->id, link->node->filename, "n", html));
-	for(link = node->constraint_shared; link; link = link->next)
-		printf("%08x %s    SHARED %s\n", (unsigned)link->node->timestamp, dirtyflags_str(link->node->dirty), decorate_link(link->node->id, link->node->filename, "n", html));
-	for(link = node->constraint_exclusive; link; link = link->next)
-		printf("%08x %s    EXCLUS %s\n", (unsigned)link->node->timestamp, dirtyflags_str(link->node->dirty), decorate_link(link->node->id, link->node->filename, "n", html));
+	struct NODE **nodelist;
+	struct NODE **node;
+	printf("%08x %s %s %s\n", (unsigned)basenode->timestamp, dirtyflags_str(basenode->dirty), label, decorate_header(basenode->id, basenode->filename, "n", html));
+
+	nodelist = sorted_nodelinklist(basenode->firstdep);
+	for(node = nodelist; *node; node++)
+		printf("%08x %s    DEPEND %s\n", (unsigned)(*node)->timestamp, dirtyflags_str((*node)->dirty), decorate_link((*node)->id, (*node)->filename, "n", html));
+	free(nodelist);
+
+	nodelist = sorted_nodelinklist(basenode->firstparent);
+	for(node = nodelist; *node; node++)
+		printf("%08x %s    PARENT %s\n", (unsigned)(*node)->timestamp, dirtyflags_str((*node)->dirty), decorate_link((*node)->id, (*node)->filename, "n", html));
+	free(nodelist);
+
+	nodelist = sorted_nodelinklist(basenode->constraint_shared);
+	for(node = nodelist; *node; node++)
+		printf("%08x %s    SHARED %s\n", (unsigned)(*node)->timestamp, dirtyflags_str((*node)->dirty), decorate_link((*node)->id, (*node)->filename, "n", html));
+	free(nodelist);
+
+	nodelist = sorted_nodelinklist(basenode->constraint_exclusive);
+	for(node = nodelist; *node; node++)
+		printf("%08x %s    EXCLUS %s\n", (unsigned)(*node)->timestamp, dirtyflags_str((*node)->dirty), decorate_link((*node)->id, (*node)->filename, "n", html));
+	free(nodelist);
 }
 
 void node_debug_dump(struct GRAPH *graph, int html)
 {
 	struct JOB *job = graph->firstjob;
-	struct NODE *node = graph->first;
-	struct NODELINK *link;
 	struct STRINGLINK *strlink;
-
+	struct NODE ** nodelist;
+	struct NODE **node;
+	
 	if(html)
 	{
 		printf("<html><body><pre>\n");
@@ -699,11 +764,15 @@ void node_debug_dump(struct GRAPH *graph, int html)
 		printf("JOB %s\n", decorate_header(job->id, job->label, "j", html));
 		printf("CMD %s\n", job->cmdline);
 		
-		for(link = job->firstoutput; link; link = link->next)
-			print_node(link->node, "OUTPUT", html);
+		nodelist = sorted_nodelinklist(job->firstoutput);
+		for(node = nodelist; *node; node++)
+			print_node(*node, "OUTPUT", html);
+		free(nodelist);
 
-		for(link = job->firstjobdep; link; link = link->next)
-			printf("%08x %s JOBDEP %-30s\n", (unsigned)link->node->timestamp, dirtyflags_str(link->node->dirty), decorate_link(link->node->id, link->node->filename, "n", html));
+		nodelist = sorted_nodelinklist(job->firstjobdep);
+		for(node = nodelist; *node; node++)
+			printf("%08x %s JOBDEP %-30s\n", (unsigned)(*node)->timestamp, dirtyflags_str((*node)->dirty), decorate_link((*node)->id, (*node)->filename, "n", html));
+		free(nodelist);
 
 		for(strlink = job->firstclean; strlink; strlink = strlink->next)
 			printf("%8s %s CLEAN  %-30s\n", "", dirtyflags_str_empty, strlink->str);
@@ -714,16 +783,18 @@ void node_debug_dump(struct GRAPH *graph, int html)
 		printf("\n");
 	}
 
-
-	for(;node;node = node->next)
+	
+	nodelist = sorted_nodelist(graph);
+	for(node = nodelist; *node; node++)
 	{
 		/* if we have a command line, we have already been printed out */
-		if(node->job->cmdline)
+		if((*node)->job->cmdline)
 			continue;
 
-		print_node(node, "NODE", html);
+		print_node((*node), "NODE", html);
 		printf("\n");
 	}
+	free(nodelist);
 
 	if(html)
 		printf("</pre></body></html>\n");
