@@ -120,7 +120,6 @@ static int scan_source_file(struct CONTEXT * context, struct NODE *node)
 	/* check the cache first */
 	node->firstcheaderref = scancache_find(context->scancache, node);
 	if ( node->firstcheaderref ) {
-		printf("cache hit!\n");
 		return 0;
 	}
 
