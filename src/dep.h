@@ -1,6 +1,7 @@
 
 /* c++ dependency checker */
 int dep_cpp(struct CONTEXT *context, struct DEFERRED *info);
+int dep_cpp2(struct CONTEXT *context, struct DEFERRED *info);
 
 /* generic file search checker, used for libs */
 struct DEPPLAIN

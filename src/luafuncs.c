@@ -1232,11 +1232,13 @@ int lf_path_filename(lua_State *L)
 
 /* dependency functions */
 static struct STRINGLIST *current_includepaths = NULL;
+static hash_t current_includepaths_hash = 0;
 
 /* */
 int lf_add_dependency_cpp_set_paths(lua_State *L)
 {
 	struct CONTEXT *context;
+	struct STRINGLIST * cur;
 	int n = lua_gettop(L);
 	
 	if(n != 1)
@@ -1246,16 +1248,24 @@ int lf_add_dependency_cpp_set_paths(lua_State *L)
 	context = context_get_pointer(L);
 	current_includepaths = NULL;
 	build_stringlist(L, context->deferredheap, &current_includepaths, 1);
+
+	current_includepaths_hash = 0;
+	for(cur = current_includepaths; cur; cur = cur->next)
+		current_includepaths_hash = string_hash_add(current_includepaths_hash, cur->str);
+
 	return 0;
 }
 
 /* */
+extern int option_cdep2;
 int lf_add_dependency_cpp(lua_State *L)
 {
 	struct CONTEXT *context;
 	struct DEFERRED *deferred;
 	struct NODE * node;
+	struct DEFERRED_CSCAN *scan;
 	int n = lua_gettop(L);
+	int hashindex;
 	
 	if(n != 1)
 		luaL_error(L, "add_dependency_cpp: incorrect number of arguments");
@@ -1267,12 +1277,39 @@ int lf_add_dependency_cpp(lua_State *L)
 	if(!node)
 		luaL_error(L, "add_dependency_cpp: couldn't find node with name '%s'", lua_tostring(L,1));
 
+
 	deferred = (struct DEFERRED *)mem_allocate(context->deferredheap, sizeof(struct DEFERRED));
 	deferred->node = node;
 	deferred->user = current_includepaths;
-	deferred->run = dep_cpp;
-	deferred->next = context->firstdeferred_cpp;
-	context->firstdeferred_cpp = deferred;
+	deferred->depcontext = current_includepaths_hash;
+
+	if(option_cdep2)
+	{
+		deferred->run = dep_cpp2;
+		hashindex = deferred->depcontext&(CSCAN_HASHSIZE-1);
+
+		for(scan = context->firstcscans[hashindex]; scan; scan = scan->next) {
+			if(scan->includepaths_hash == current_includepaths_hash) {
+				break;
+			}
+		}
+
+		if(!scan)
+		{
+			scan = (struct DEFERRED_CSCAN *)mem_allocate(context->deferredheap, sizeof(struct DEFERRED_CSCAN));
+			scan->includepaths_hash = current_includepaths_hash;
+			if(!context->firstcscans[hashindex])
+				context->firstcscans[hashindex] = scan;
+		}
+
+		deferred->next = scan->first;
+		scan->first = deferred;
+	} else {
+		deferred->run = dep_cpp;
+		deferred->next = context->firstdeferred_cpp;
+		context->firstdeferred_cpp = deferred;
+	}
+
 	return 0;
 }
 

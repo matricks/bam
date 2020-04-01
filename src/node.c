@@ -15,14 +15,6 @@
 #  define snprintf _snprintf
 #endif
 
-static char *duplicate_string(struct GRAPH *graph, const char *src, size_t len)
-{
-	char *str = (char *)mem_allocate(graph->heap, len+1);
-	memcpy(str, src, len);
-	str[len] = 0;
-	return str;
-}
-
 /* */
 struct GRAPH *node_graph_create(struct HEAP *heap)
 {
@@ -117,8 +109,8 @@ struct JOB *node_job_create(struct GRAPH *graph, const char *label, const char *
 
 	/* set label and command */
 	job->id = graph->num_jobs;
-	job->label = duplicate_string(graph, label, strlen(label));
-	job->cmdline = duplicate_string(graph, cmdline, strlen(cmdline));
+	job->label = string_duplicate(graph->heap, label, strlen(label));
+	job->cmdline = string_duplicate(graph->heap, cmdline, strlen(cmdline));
 	job->cmdhash = string_hash(cmdline);
 	job->cachehash = job->cmdhash;
 
@@ -166,8 +158,8 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 		node->id = graph->num_nodes++;
 		
 		/* set filename */
-		node->filename_len = strlen(filename)+1;
-		node->filename = duplicate_string(graph, filename, node->filename_len);
+		node->filename_len = strlen(filename) + 1;
+		node->filename = string_duplicate(graph->heap, filename, node->filename_len);
 		node->hashid = hashid;
 		
 		/* add to hashed tree */
@@ -393,7 +385,7 @@ int node_add_clean(struct NODE *node, const char * filename)
 
 	/* create and add clean link */
 	link = (struct STRINGLINK *)mem_allocate(node->graph->heap, sizeof(struct STRINGLINK));
-	link->str = duplicate_string(node->graph, filename, strlen(filename));
+	link->str = string_duplicate(node->graph->heap, filename, strlen(filename));
 	link->next = node->job->firstclean;
 	node->job->firstclean = link;
 	return 0;
@@ -407,7 +399,7 @@ int node_add_sideeffect(struct NODE *node, const char * filename)
 
 	/* create and add sideffect link */
 	link = (struct STRINGLINK *)mem_allocate(node->graph->heap, sizeof(struct STRINGLINK));
-	link->str = duplicate_string(node->graph, filename, strlen(filename));
+	link->str = string_duplicate(node->graph->heap, filename, strlen(filename));
 	link->next = node->job->firstsideeffect;
 	node->job->firstsideeffect = link;
 	return 0;

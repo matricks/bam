@@ -72,6 +72,15 @@ struct JOB
 	volatile unsigned status; /* build status of the job, JOBSTATUS_* flags */
 };
 
+
+struct CHEADERREF {
+	struct CHEADERREF * next;
+	hash_t filename_hash;
+	const char * filename;
+	int filename_len;
+	int sys;
+};
+
 /*
 	a node in the dependency graph
 	NOTE: when adding variables to this structure, they will all be set
@@ -97,7 +106,12 @@ struct NODE
 	const char *filename; /* this contains the filename with the FULLPATH */
 
 	hash_t hashid; /* hash of the filename/nodename */
-	
+
+	/* dependency info */
+	struct CHEADERREF * firstcheaderref;
+	unsigned headerrun;
+	hash_t depcontext;
+
 	/* time stamps, 0 == does not exist. */
 	time_t timestamp; /* timestamp. this will be propagated from the deps of the node */
 	time_t timestamp_raw; /* raw timestamp. contains the timestamp on the disc */
@@ -112,7 +126,7 @@ struct NODE
 	unsigned targeted:1; /* set if this node is targeted for a build */
 	unsigned cached:1; /* set if the node should be considered as cached */
 	unsigned skipverifyoutput:1; /* set if we don't want to skip the output verification for this output  */
-
+	unsigned headerscanned:1; /* set if a dependency checker have processed the file */
 };
 
 /* cache node */

@@ -1,6 +1,7 @@
 #include <string.h> /* memset */
 #include <stdlib.h> /* malloc */
 #include <stdio.h> /* printf */
+#include <errno.h>
 
 #include "cache.h"
 #include "context.h"
@@ -133,6 +134,317 @@ static int io_read_cachefile(const char *filename, const char *type, void **buff
 	}
 
 	return 1;
+}
+
+
+struct SCANCACHEINFO
+{
+	RB_ENTRY(SCANCACHEINFO) rbentry;
+	hash_t hashid;
+	time_t timestamp;
+	
+	const char * filename;
+	struct CHEADERREF * refs;
+
+	unsigned filename_len;
+	unsigned num_refs;
+};
+
+static int scancacheinfo_cmp(struct SCANCACHEINFO *a, struct SCANCACHEINFO *b)
+{
+	if(a->hashid > b->hashid) return 1;
+	if(a->hashid < b->hashid) return -1;
+	return 0;
+}
+
+
+RB_HEAD(SCANCACHEINFO_RB, SCANCACHEINFO);
+RB_GENERATE_INTERNAL(SCANCACHEINFO_RB, SCANCACHEINFO, rbentry, scancacheinfo_cmp, static)
+
+struct SCANCACHE
+{
+	char header[sizeof(bamheader)];
+	struct SCANCACHEINFO_RB infotree;
+	unsigned num_infos;
+	unsigned num_refs;
+	
+	struct SCANCACHEINFO * infos;
+	struct CHEADERREF * refs;
+	char * strings;
+};
+
+void SCANCACHEINFO_FUNCTIONREMOVER() /* this is just to get it not to complain about unused static functions */
+{
+	(void)SCANCACHEINFO_RB_RB_REMOVE; (void)SCANCACHEINFO_RB_RB_NFIND; (void)SCANCACHEINFO_RB_RB_MINMAX;
+	(void)SCANCACHEINFO_RB_RB_NEXT; (void)SCANCACHEINFO_RB_RB_PREV;
+}
+
+/* buffer sizes */
+#define WRITE_BUFFERSIZE (32*1024)
+#define WRITE_BUFFERINFOS (WRITE_BUFFERSIZE/sizeof(struct SCANCACHEINFO))
+#define WRITE_BUFFERREFS (WRITE_BUFFERSIZE/sizeof(struct CHEADERREF))
+
+struct SCANCACHE_WRITEINFO
+{
+	IO_HANDLE fp;
+	struct GRAPH *graph;
+	
+	union
+	{
+		struct SCANCACHEINFO nodes[WRITE_BUFFERINFOS];
+		struct CHEADERREF refs[WRITE_BUFFERREFS];
+		char strings[WRITE_BUFFERSIZE];
+	} buffers;
+	
+	/* index into nodes or deps */	
+	unsigned index;
+};
+
+static int scancache_write_header(struct SCANCACHE_WRITEINFO *info)
+{
+	struct NODE *node;
+	struct CHEADERREF *ref;
+
+	/* setup the cache */
+	struct SCANCACHE scancache;
+	memset(&scancache, 0, sizeof(scancache));
+	memcpy(scancache.header, bamheader, sizeof(scancache.header));
+	scancache.num_infos = info->graph->num_nodes;
+	scancache.num_refs = 0;
+
+	for(node = info->graph->first; node; node = node->next)
+		for(ref = node->firstcheaderref; ref; ref = ref->next)
+			scancache.num_refs++;
+
+	if(io_write(info->fp, &scancache, sizeof(scancache)) != sizeof(scancache))
+		return -1;
+	return 0;
+}
+
+static int scancache_write_flush(struct SCANCACHE_WRITEINFO *info, int elementsize)
+{
+	if(info->index == 0)
+		return 0;
+	int size = elementsize * info->index;
+	if(io_write(info->fp, info->buffers.nodes, size) != size)
+		return -1;
+	info->index = 0;
+	return 0;
+}
+
+static int scancache_write_string(struct SCANCACHE_WRITEINFO *info, const char *str, unsigned str_len)
+{
+	if(info->index + str_len > sizeof(info->buffers.strings))
+	{
+		if(scancache_write_flush(info, sizeof(char)))
+			return -1;
+	}
+	memcpy(info->buffers.strings + info->index, str, str_len);
+	info->index += str_len;	
+	return 0;
+}
+
+static int scancache_write_nodes(struct SCANCACHE_WRITEINFO *info)
+{
+	unsigned ref_index;
+	unsigned string_index;
+	
+	struct NODE *node;
+	struct GRAPH *graph = info->graph;
+		
+	/* write the cache nodes */	
+	ref_index = 0;
+	string_index = 0;
+	for(node = graph->first; node; node = node->next)
+	{
+		/* fetch cache node */
+		struct SCANCACHEINFO *cacheinfo = &info->buffers.nodes[info->index++];
+
+		struct CHEADERREF *ref;
+		
+		memset(cacheinfo, 0, sizeof(struct SCANCACHEINFO));
+		
+		cacheinfo->hashid = node->hashid;
+		cacheinfo->timestamp = node->timestamp_raw;
+		cacheinfo->num_refs = 0;
+		cacheinfo->filename = (char*)((long)string_index);
+		cacheinfo->filename_len = node->filename_len;
+		string_index += node->filename_len;
+
+		/* count refs */
+		for(ref = node->firstcheaderref; ref; ref = ref->next)
+			cacheinfo->num_refs++;
+		
+		ref_index += cacheinfo->num_refs;
+		
+		if(info->index == WRITE_BUFFERINFOS && scancache_write_flush(info, sizeof(struct SCANCACHEINFO)))
+			return -1;
+	}
+
+	/* flush the remainder */
+	if(scancache_write_flush(info, sizeof(struct SCANCACHEINFO)))
+		return -1;
+
+	/* write the cache nodes deps */
+	for(node = graph->first; node; node = node->next)
+	{
+		struct CHEADERREF *ref;
+		for(ref = node->firstcheaderref; ref; ref = ref->next)
+		{
+			struct CHEADERREF *refinfo = &info->buffers.refs[info->index++];
+
+			memset(refinfo, 0, sizeof(struct CHEADERREF));
+			refinfo->sys = ref->sys;
+			refinfo->filename = (char*)((long)string_index);
+			refinfo->filename_hash = ref->filename_hash;
+			refinfo->filename_len = ref->filename_len;
+			string_index += ref->filename_len;
+			if(info->index == WRITE_BUFFERREFS && scancache_write_flush(info, sizeof(struct CHEADERREF)))
+				return -1;
+		}
+	}
+
+	/* flush the remainder */
+	if(scancache_write_flush(info, sizeof(struct CHEADERREF)))
+		return -1;
+
+	/* write the strings */
+	for(node = graph->first; node; node = node->next)
+	{
+		if(scancache_write_string(info, node->filename, node->filename_len))
+			return -1;
+	}
+
+	for(node = graph->first; node; node = node->next)
+	{
+		struct CHEADERREF *ref;
+		for(ref = node->firstcheaderref; ref; ref = ref->next)
+		{
+			if(scancache_write_string(info, ref->filename, ref->filename_len))
+				return -1;
+		}
+	}
+
+	/* flush the remainder */
+	if(scancache_write_flush(info, sizeof(char)))
+		return -1;
+	return 0;
+}
+
+int scancache_save(const char *filename, struct GRAPH *graph)
+{
+	struct SCANCACHE_WRITEINFO info;
+	char tmpfilename[1024];
+	info.index = 0;
+	info.graph = graph;
+
+	snprintf(tmpfilename, sizeof(tmpfilename), "%s_tmp", filename);
+
+	info.fp = io_open_write(tmpfilename);
+	if(!io_valid(info.fp))
+	{
+		printf( "%s: warning: error writing cache file '%s'\n", session.name, tmpfilename );
+		return -1;
+	}
+	
+	cache_setup_header("SCN");
+	
+	if(scancache_write_header(&info) || scancache_write_nodes(&info))
+	{
+		/* error occured */
+		printf("%s: warning: error saving scan cache file '%s'\n", session.name, filename);
+		io_close(info.fp);
+		io_close(io_open_write(filename));
+		return -1;
+	}
+
+	/* close up and return */
+	io_close(info.fp);
+
+	/* place the file where it should be now that everything was written correctly */
+#ifdef BAM_FAMILY_WINDOWS
+	remove(filename);
+#endif
+	if(rename(tmpfilename, filename) != 0) 
+	{
+		/* error occured */
+		printf( "%s: warning: error writing scan cache file '%s': %s\n", session.name, filename, strerror(errno) );
+		return -1;
+	}
+
+	return 0;
+}
+
+struct SCANCACHE *scancache_load(const char *filename)
+{
+	unsigned long filesize;
+	void *buffer;
+	struct SCANCACHE *scancache;
+	unsigned i;
+
+	if(!io_read_cachefile(filename, "SCN", &buffer, &filesize))
+		return NULL;
+	
+	/* verify read and headers */
+	scancache = (struct SCANCACHE *)buffer;
+	
+	if(	filesize < sizeof(struct SCANCACHE) ||
+		filesize < sizeof(struct SCANCACHE)+scancache->num_infos*sizeof(struct SCANCACHEINFO))
+	{
+		free(buffer);
+		return NULL;
+	}
+
+	/* setup pointers */
+	scancache->infos = (struct SCANCACHEINFO *)(scancache + 1);
+	scancache->refs = (struct CHEADERREF *)(scancache->infos + scancache->num_infos);
+	scancache->strings = (char *)(scancache->refs + scancache->num_refs);
+
+	struct CHEADERREF * curref = scancache->refs;
+
+	/* build node tree and patch pointers */
+	for(i = 0; i < scancache->num_infos; i++)
+	{
+		struct SCANCACHEINFO *info = &scancache->infos[i];
+		info->filename = scancache->strings + (long)info->filename;
+		RB_INSERT(SCANCACHEINFO_RB, &scancache->infotree, info);
+
+		if(info->num_refs)
+		{
+			int k;
+			info->refs = curref;
+			curref += info->num_refs;
+
+			for(k = 0; k < info->num_refs; k++)
+			{
+				info->refs[k].filename = scancache->strings + (long)info->refs[k].filename;
+				info->refs[k].next = &info->refs[k+1];
+			}
+			info->refs[info->num_refs-1].next = NULL;
+		}
+	
+	}
+	
+	/* done */
+	return scancache;
+}
+
+void scancache_free(struct SCANCACHE *scancache)
+{
+	free(scancache);
+}
+
+struct CHEADERREF *scancache_find(struct SCANCACHE *scancache, struct NODE * node)
+{
+	struct SCANCACHEINFO tempinfo;
+	struct SCANCACHEINFO *info;
+	if(!scancache)
+		return NULL;
+	tempinfo.hashid = node->hashid;
+	info = RB_FIND(SCANCACHEINFO_RB, &scancache->infotree, &tempinfo);
+	if(!info || info->timestamp != node->timestamp_raw)
+		return NULL;
+	return info->refs;
 }
 
 

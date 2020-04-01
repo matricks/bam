@@ -91,8 +91,14 @@ static const char *option_scriptargs[128] = {0};
 static int option_num_scriptargs = 0;
 static int option_win_msvcmode = 0;
 
+/* exprimental options */
+int option_cdep2 = 0;
+
 /* filename of the dependency cache, will be filled in at start up, ".bam/xxxxxxxxyyyyyyyyy" = 22 top */
 static char depcache_filename[32] = {0};
+
+/* filename of the scancache */
+static char scancache_filename[] = ".bam/scancache";
 
 /* filename of the command cache */
 static char outputcache_filename[] = ".bam/outputcache";
@@ -286,6 +292,10 @@ static struct OPTION options[] = {
 		Disables all the internal scripts that bam loads on startup.
 	@1, END*/
 	{OF_DEBUG, 0, &option_debug_nointernal		, "--debug-no-int", "don't load internal scripts"},
+
+	/*
+	*/
+	{OF_DEBUG, 0, &option_cdep2, "--cdep2", "EXPRIMENTAL: New improved C dependency checker"},
 
 	/* Magic highly exprimental switch for Microsoft Visual Studio. Enabling this will cause bam to execute
 		itself again and wait for the new child process to finish. The child process then removes the permissions
@@ -623,6 +633,20 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 	if(run_deferred_functions(context, context->firstdeferred_cpp) != 0)
 		return -1;
 	event_end(0, "deferred cpp dependencies", NULL);
+
+	/* run deferred functions */
+	event_begin(0, "deferred cpp dependencies 2", NULL);
+	{
+		int i;
+		for ( i = 0; i < CSCAN_HASHSIZE; i++ ) {
+			struct DEFERRED_CSCAN * cur = context->firstcscans[i];
+			for ( ; cur; cur = cur->next ) {
+				if(run_deferred_functions(context, cur->first) != 0)
+					return -1;
+			}
+		}
+	}
+	event_end(0, "deferred cpp dependencies", NULL);
 		
 	event_begin(0, "deferred search dependencies", NULL);
 	if(run_deferred_functions(context, context->firstdeferred_search) != 0)
@@ -773,6 +797,10 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 		context.depcache = depcache_load(depcache_filename);
 		event_end(0, "depcache load", NULL);
 
+		event_begin(0, "scancache load", scancache_filename);
+		context.scancache = scancache_load(scancache_filename);
+		event_end(0, "scancache load", NULL);
+
 		event_begin(0, "outputcache load", outputcache_filename);
 		context.outputcache = outputcache_load(outputcache_filename, &outputcache_timestamp);
 		event_end(0, "outputcache load", NULL);
@@ -846,6 +874,10 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 					event_begin(0, "depcache save", depcache_filename);
 					depcache_save(depcache_filename, context.graph);
 					event_end(0, "depcache save", NULL);
+
+					event_begin(0, "scancache save", scancache_filename);
+					scancache_save(scancache_filename, context.graph);
+					event_end(0, "scancache save", NULL);
 
 					event_begin(0, "outputcache save", outputcache_filename);
 					outputcache_save(outputcache_filename, context.outputcache, context.graph, outputcache_timestamp);

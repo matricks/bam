@@ -1,4 +1,5 @@
 #include <time.h>
+#include "support.h"
 
 struct CONTEXT;
 
@@ -8,7 +9,17 @@ struct DEFERRED
 	struct NODE *node;
 	int (*run)(struct CONTEXT *context, struct DEFERRED *info);
 	void *user;
+	hash_t depcontext;
 };
+
+struct DEFERRED_CSCAN
+{
+	struct DEFERRED_CSCAN *next;
+	struct DEFERRED *first;
+	hash_t includepaths_hash;
+};
+
+#define CSCAN_HASHSIZE 256 /* must be power of 2 */
 
 struct CONTEXT
 {
@@ -23,6 +34,7 @@ struct CONTEXT
 	struct GRAPH *graph;
 	struct DEPCACHE *depcache;
 	struct OUTPUTCACHE *outputcache;
+	struct SCANCACHE *scancache;
 
 	/* targets */
 	struct NODE *defaulttarget;	/* default target if no targets are specified */
@@ -39,6 +51,7 @@ struct CONTEXT
 	struct HEAP *deferredheap;
 	struct DEFERRED *firstdeferred_cpp;
 	struct DEFERRED *firstdeferred_search;
+	struct DEFERRED_CSCAN *firstcscans[CSCAN_HASHSIZE];
 	
 	time_t globaltimestamp;		/* timestamp of the script files */
 	time_t buildtime;			/* timestamp when the build started */

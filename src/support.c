@@ -9,6 +9,7 @@
 #include "context.h"
 #include "session.h"
 #include "support.h"
+#include "mem.h"
 
 #ifdef BAM_FAMILY_BEOS
     #include <sched.h>
@@ -754,6 +755,15 @@ int file_createpath(const char *output_name)
 	
 	/* return success */
 	return 0;
+}
+
+/* */
+char *string_duplicate(struct HEAP *heap, const char *src, size_t len)
+{
+	char *str = (char *)mem_allocate(heap, len+1);
+	memcpy(str, src, len);
+	str[len] = 0;
+	return str;
 }
 
 /* */

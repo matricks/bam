@@ -30,6 +30,7 @@
 #endif
 
 struct lua_State;
+struct HEAP;
 
 /* common list if strings structure */
 struct STRINGLIST
@@ -69,6 +70,9 @@ int file_createdir(const char *path);
 int file_createpath(const char *output_name);
 void file_touch(const char *filename);
 void file_listdirectory(const char *path, void (*callback)(const char *fullpath, const char *filename, int dir, void *user), void *user);
+
+/* string helper functions */
+char *string_duplicate(struct HEAP *heap, const char *src, size_t len);
 
 /* string hashing function */
 hash_t string_hash(const char *str_in);
