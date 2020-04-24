@@ -758,16 +758,19 @@ static const char *decorate_header(unsigned id, const char *name, const char *li
 }
 
 /* dumps all nodes to the stdout */
-static void print_node(struct NODE *basenode, const char *label, int html)
+static void print_node(struct NODE *basenode, const char *label, int html, int printdeps)
 {
 	struct NODE **nodelist;
 	struct NODE **node;
 	printf("%08x %s %s %s\n", (unsigned)basenode->timestamp, dirtyflags_str(basenode->dirty), label, decorate_header(basenode->id, basenode->filename, "n", html));
 
-	nodelist = sorted_nodelinklist(basenode->firstdep);
-	for(node = nodelist; *node; node++)
-		printf("%08x %s    DEPEND %s\n", (unsigned)(*node)->timestamp, dirtyflags_str((*node)->dirty), decorate_link((*node)->id, (*node)->filename, "n", html));
-	free(nodelist);
+	if(printdeps)
+	{
+		nodelist = sorted_nodelinklist(basenode->firstdep);
+		for(node = nodelist; *node; node++)
+			printf("%08x %s    DEPEND %s\n", (unsigned)(*node)->timestamp, dirtyflags_str((*node)->dirty), decorate_link((*node)->id, (*node)->filename, "n", html));
+		free(nodelist);
+	}
 
 	nodelist = sorted_nodelinklist(basenode->firstparent);
 	for(node = nodelist; *node; node++)
@@ -809,9 +812,14 @@ void node_debug_dump(struct GRAPH *graph, int html)
 		printf("CMD %s\n", job->cmdline);
 		printf("PRIORIY %d\n", job->priority);
 		
+		nodelist = sorted_nodelinklist( job->firstoutput->node->firstdep );
+		for(node = nodelist; *node; node++)
+			printf("%08x %s    DEPEND %s\n", (unsigned)(*node)->timestamp, dirtyflags_str((*node)->dirty), decorate_link((*node)->id, (*node)->filename, "n", html));
+		free( nodelist );
+
 		nodelist = sorted_nodelinklist(job->firstoutput);
 		for(node = nodelist; *node; node++)
-			print_node(*node, "OUTPUT", html);
+			print_node(*node, "OUTPUT", html, 0);
 		free(nodelist);
 
 		nodelist = sorted_nodelinklist(job->firstjobdep);
@@ -836,7 +844,7 @@ void node_debug_dump(struct GRAPH *graph, int html)
 		if((*node)->job->cmdline)
 			continue;
 
-		print_node((*node), "NODE", html);
+		print_node((*node), "NODE", html, 1);
 		printf("\n");
 	}
 	free(nodelist);
