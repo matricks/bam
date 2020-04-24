@@ -621,6 +621,54 @@ static int node_compare(const void * a, const void * b)
 	return strcmp((*(const struct NODE **)a)->filename, (*(const struct NODE **)b)->filename);
 }
 
+/* compares the filenames for a stable sorting of nodes during output */
+static struct NODE* node_find_sorted_first( struct NODELINK *nodelink )
+{
+	struct NODELINK* nodeiter = nodelink;
+	struct NODE* nodefirst = nodelink->node;
+
+	if(!nodefirst)
+	{
+		return NULL;
+	}
+
+	for(nodeiter = nodeiter->next; nodeiter;nodeiter = nodeiter->next) 
+	{
+		if(node_compare(&nodefirst, &(nodeiter->node)) > 0) 
+		{
+			nodefirst = nodeiter->node;
+		}
+	}
+	return nodefirst;
+}
+
+/* compares the filenames for a stable sorting of jobs during output */
+static int job_compare(const void * a, const void * b)
+{
+	struct NODE* outputa = node_find_sorted_first((*(const struct JOB**)a)->firstoutput);
+	struct NODE* outputb = node_find_sorted_first((*(const struct JOB**)b)->firstoutput);
+	
+	return strcmp(outputa->filename, outputb->filename);
+}
+
+/* constructs a list of all the jobs in the graph nodes that is sorted by filename and NULL terminated */
+static struct JOB ** sorted_joblist(struct GRAPH *graph)
+{
+	int i;
+	struct JOB **joblist = malloc(sizeof(struct JOB*) * (graph->num_jobs + 1));
+	struct JOB *job = graph->firstjob;
+	i = 0;
+	for(;job;job = job->next)
+	{
+		joblist[i] = job;
+		i++;
+	}
+
+	qsort(joblist, i, sizeof(struct JOB *), job_compare);
+	joblist[i] = NULL;
+	return joblist;
+}
+
 /* counts the number of nodes in the linked list */
 static int count_nodelist(struct NODELINK *cur)
 {
@@ -739,9 +787,11 @@ static void print_node(struct NODE *basenode, const char *label, int html)
 
 void node_debug_dump(struct GRAPH *graph, int html)
 {
-	struct JOB *job = graph->firstjob;
+	struct JOB *job;
+	struct JOB **jobiter;
+	struct JOB **joblist;
 	struct STRINGLINK *strlink;
-	struct NODE ** nodelist;
+	struct NODE **nodelist;
 	struct NODE **node;
 	
 	if(html)
@@ -751,8 +801,10 @@ void node_debug_dump(struct GRAPH *graph, int html)
 		printf("\n");
 	}
 
-	for(;job;job = job->next)
+	joblist = sorted_joblist(graph);
+	for(jobiter = joblist; *jobiter; jobiter++)
 	{
+		job = *jobiter;
 		printf("JOB %s\n", decorate_header(job->id, job->label, "j", html));
 		printf("CMD %s\n", job->cmdline);
 		
