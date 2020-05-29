@@ -728,7 +728,7 @@ int file_createpath(const char *output_name)
 		return 0;
 	
 	/* create dir by doing a deep walk */
-	i = 0;
+	i = 1; /* we need at least one character, or we'll try to create "" if the path is unix absolute (/path/to)*/
 	while(1)
 	{
 		if(path_is_separator(buffer[i]) || (buffer[i] == 0))
