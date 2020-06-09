@@ -815,6 +815,9 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	/* close the lua state */
 	lua_close(context.lua);
 	
+	/* time after script has run to completion etc */
+	context.postsetuptime = timestamp();
+
 	/* do actions if we don't have any errors */
 	if(!setup_error)
 	{

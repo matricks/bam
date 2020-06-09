@@ -553,8 +553,9 @@ static int build_prepare_callback(struct NODEWALK *walkinfo)
 	int olddirty = node->dirty;
 	struct NODELINK *oldjobdep = node->job->firstjobdep;
 
-	/* time sanity check */
-	if(node->timestamp > context->buildtime)
+	/* 	time sanity check 
+		files may have been written by the script, so compare to the global time after setup */
+	if(node->timestamp > context->postsetuptime )
 		printf("%s: warning:'%s' comes from the future\n", session.name, node->filename);
 	
 	if(node->job->cmdline)
