@@ -55,6 +55,7 @@ struct CONTEXT
 	
 	time_t globaltimestamp;		/* timestamp of the script files */
 	time_t buildtime;			/* timestamp when the build started */
+	time_t postsetuptime;		/* timestamp after the setup when script has run to completion etc */
 
 	/* debugging */
 	struct VERIFY_STATE *verifystate;
