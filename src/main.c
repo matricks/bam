@@ -403,6 +403,7 @@ int register_lua_globals(struct lua_State *lua, const char* script_directory, co
 	lua_register(lua, L_FUNCTION_PREFIX"fileexist", lf_fileexist);
 	lua_register(lua, L_FUNCTION_PREFIX"nodeexist", lf_nodeexist);
 	lua_register(lua, L_FUNCTION_PREFIX"hash", lf_hash);
+	lua_register(lua, L_FUNCTION_PREFIX"sleep", lf_sleep);
 
 	lua_register(lua, L_FUNCTION_PREFIX"isfile", lf_isfile);
 	lua_register(lua, L_FUNCTION_PREFIX"isdir", lf_isdir);

@@ -3,6 +3,7 @@ ScriptArgs = _bam_scriptargs
 IsString = bam_isstring
 IsTable = bam_istable
 IsOutput = bam_isoutput
+Sleep = bam_sleep
 
 --[[@UNITTESTS
 	err=0 : if bam_isdir("valid_file") then error("") end

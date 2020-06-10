@@ -1355,3 +1355,16 @@ int lf_add_dependency_search(lua_State *L)
 	
 	return 0;
 }
+
+/* sleep for x seconds. Missing from lua standard api. */
+int lf_sleep( lua_State* L ) {
+	lua_Number luatime = 0.0;
+
+	if ( lua_gettop( L ) != 1 )
+		luaL_error( L, "sleep: expected 1 arguments" );
+
+	luatime = luaL_checknumber( L, 1 );
+	threads_sleep( (int)( luatime * 1e3 ) );
+
+	return 0;
+}
