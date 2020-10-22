@@ -305,18 +305,22 @@
 	#include <dlfcn.h>
 	#include <unistd.h>
 	#include <sys/types.h>
-	#include <sys/signal.h>
 	#include <sys/stat.h>
 	#include <sys/wait.h> 
 	#include <utime.h>
 	#include <pthread.h>
-	#include <signal.h>
 
 	#include <sys/time.h>
 
 #ifdef BAM_PLATFORM_MACOSX
 	#include <sys/param.h>
 	#include <sys/sysctl.h>
+#endif
+
+#ifdef BAM_FAMILY_BEOS
+	#include <signal.h>
+#else
+	#include <sys/signal.h>
 #endif
 
 /* disable D_TYPE_HACK if we don't have support for it */
