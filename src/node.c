@@ -618,6 +618,9 @@ void node_walk_revisit(struct NODEWALK *walk, struct NODE *node)
 /* compares the filenames for a stable sorting of nodes during output */
 static int node_compare(const void * a, const void * b)
 {
+	int ci_diff = string_compare_case_insensitive( (*(const struct NODE **)a)->filename, (*(const struct NODE **)b)->filename);
+	if(ci_diff != 0)
+		return ci_diff;
 	return strcmp((*(const struct NODE **)a)->filename, (*(const struct NODE **)b)->filename);
 }
 
@@ -648,6 +651,9 @@ static int job_compare(const void * a, const void * b)
 	struct NODE* outputa = node_find_sorted_first((*(const struct JOB**)a)->firstoutput);
 	struct NODE* outputb = node_find_sorted_first((*(const struct JOB**)b)->firstoutput);
 	
+	int ci_diff = string_compare_case_insensitive(outputa->filename, outputb->filename);
+	if(ci_diff != 0)
+		return ci_diff;
 	return strcmp(outputa->filename, outputb->filename);
 }
 
