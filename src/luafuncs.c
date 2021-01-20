@@ -1298,8 +1298,8 @@ int lf_add_dependency_cpp(lua_State *L)
 		{
 			scan = (struct DEFERRED_CSCAN *)mem_allocate(context->deferredheap, sizeof(struct DEFERRED_CSCAN));
 			scan->includepaths_hash = current_includepaths_hash;
-			if(!context->firstcscans[hashindex])
-				context->firstcscans[hashindex] = scan;
+			scan->next = context->firstcscans[hashindex];
+			context->firstcscans[hashindex] = scan;
 		}
 
 		deferred->next = scan->first;
