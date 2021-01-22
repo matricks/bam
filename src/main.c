@@ -97,8 +97,8 @@ int option_cdep2 = 0;
 /* filename of the dependency cache, will be filled in at start up, ".bam/xxxxxxxxyyyyyyyyy" = 22 top */
 static char depcache_filename[32] = {0};
 
-/* filename of the scancache */
-static char scancache_filename[] = ".bam/scancache";
+/* filename of the scancache will be filled in at start up, ".bam/scancache_xxxxxxxxyyyyyyyyy" = 32 top */
+static char scancache_filename[48] = {0};
 
 /* filename of the command cache */
 static char outputcache_filename[] = ".bam/outputcache";
@@ -793,6 +793,7 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 
 		string_hash_tostr(cache_hash, hashstr);
 		sprintf(depcache_filename, ".bam/%s", hashstr);
+		sprintf(scancache_filename, ".bam/scancache_%s", hashstr);
 
 		event_begin(0, "depcache load", depcache_filename);
 		context.depcache = depcache_load(depcache_filename);
