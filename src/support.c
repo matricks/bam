@@ -526,6 +526,32 @@ int file_isdir(const char *filename)
 	return 0;
 }
 
+int file_stat(const char *filename, time_t* stamp, unsigned int* isregular, unsigned int* isdir)
+{
+	struct stat s;
+	if (stat(filename, &s) != 0)
+	{
+		*stamp = 0;
+		*isregular = 0;
+		*isdir = 0;
+		return 1;
+	}
+#ifdef BAM_FAMILY_WINDOWS
+	*stamp = s.st_mtime;
+	*isregular = (s.st_mode&_S_IFREG) != 0;
+	*isdir = (s.st_mode&_S_IFDIR) != 0;
+#elif BAM_PLATFORM_MACOSX
+	*stamp = s.st_mtimespec.tv_sec;
+	*isregular = S_ISREG(s.st_mode);
+	*isdir = S_ISDIR(s.st_mode);
+#else
+	*stamp = s.st_mtime;
+	*isregular = S_ISREG(s.st_mode);
+	*isdir = S_ISDIR(s.st_mode);
+#endif
+	return 0;
+}
+
 int file_createdir(const char *path)
 {
 	int r;

@@ -15,6 +15,7 @@ struct STATCACHE_ENTRY
 	hash_t hashid;
 	time_t timestamp;
 	unsigned int isregular:1;
+	unsigned int isdir:1;
 	struct STATCACHE_ENTRY* next;
 };
 
@@ -56,9 +57,12 @@ struct STATCACHE_ENTRY* statcache_getstat_int(struct STATCACHE* statcache, const
 	if ( !entry ) {
 		entry = ( struct STATCACHE_ENTRY* )mem_allocate( statcache->heap, sizeof( struct STATCACHE_ENTRY ) );
 		entry->hashid = namehash;
-		entry->timestamp = file_timestamp( filename );
-		if ( entry->timestamp != 0 ) {
-			entry->isregular = file_isregular( filename );
+		unsigned int isregular = 0;
+		unsigned int isdir = 0;
+		if(file_stat(filename, &entry->timestamp, &isregular, &isdir) == 0)
+		{
+			entry->isregular = isregular;
+			entry->isdir = isdir;
 		}
 		entry->next = statcache->entries[ hashindex ];
 		statcache->entries[ hashindex ] = entry;
