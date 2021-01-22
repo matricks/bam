@@ -36,6 +36,8 @@ struct CONTEXT
 	struct OUTPUTCACHE *outputcache;
 	struct SCANCACHE *scancache;
 
+	struct STATCACHE *statcache;
+
 	/* targets */
 	struct NODE *defaulttarget;	/* default target if no targets are specified */
 	struct NODE *target;		/* target to build */

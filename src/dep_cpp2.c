@@ -5,6 +5,7 @@
 #include "path.h"
 #include "node.h"
 #include "cache.h"
+#include "statcache.h"
 #include "context.h"
 #include "mem.h"
 #include "support.h"
@@ -217,12 +218,16 @@ struct CPPDEPINFO
 	hash_t depcontext;
 };
 
-static int node_findfile(struct GRAPH *graph, const char *filename, struct NODE **node, time_t *timestamp)
+static int node_findfile(struct GRAPH *graph, struct STATCACHE* statcache, const char *filename, struct NODE **node, time_t *timestamp)
 {
 	/* first check the graph */
 	*node = node_find(graph, filename);
 	if(*node)
 		return 1;
+
+	int isregular = 0;
+	if(statcache_getstat( statcache, filename, timestamp, &isregular)==0)
+		return *timestamp != 0 && isregular == 1;
 
 	/* then check the file system */
 	*timestamp = file_timestamp(filename);
@@ -255,7 +260,7 @@ static int dependency_cpp_callback(struct NODE *node, void *user, const char *fi
 		}
 		path_join(node->filename, flen, filename, -1, buf, sizeof(buf));
 		
-		if(node_findfile(node->graph, buf, &depnode, &timestamp))
+		if(node_findfile(node->graph, depinfo->context->statcache, buf, &depnode, &timestamp))
 			found = 1;
 		else
 		{
@@ -269,7 +274,7 @@ static int dependency_cpp_callback(struct NODE *node, void *user, const char *fi
 		/* <system.header> */
 		if(path_isabs(filename))
 		{
-			if(node_findfile(node->graph, filename, &depnode, &timestamp))
+			if(node_findfile(node->graph, depinfo->context->statcache, filename, &depnode, &timestamp))
 			{
 				strcpy(buf, filename);
 				found = 1;
@@ -283,7 +288,7 @@ static int dependency_cpp_callback(struct NODE *node, void *user, const char *fi
 			for(cur = depinfo->paths; cur; cur = cur->next)
 			{
 				path_join(cur->str, cur->len, filename, flen, buf, sizeof(buf));
-				if(node_findfile(node->graph, buf, &depnode, &timestamp))
+				if(node_findfile(node->graph, depinfo->context->statcache, buf, &depnode, &timestamp))
 				{
 					found = 1;
 					break;
