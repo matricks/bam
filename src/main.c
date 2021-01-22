@@ -646,7 +646,7 @@ static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char
 			}
 		}
 	}
-	event_end(0, "deferred cpp dependencies", NULL);
+	event_end(0, "deferred cpp dependencies 2", NULL);
 		
 	event_begin(0, "deferred search dependencies", NULL);
 	if(run_deferred_functions(context, context->firstdeferred_search) != 0)

@@ -118,8 +118,9 @@ static int scan_source_file(struct CONTEXT * context, struct NODE *node)
 	node->headerscanned = 1;
 
 	/* check the cache first */
-	node->firstcheaderref = scancache_find(context->scancache, node);
-	if ( node->firstcheaderref ) {
+	if(scancache_find(context->scancache, node, &node->firstcheaderref) == 0)
+	{
+		node->headerscannedsuccess = 1;
 		return 0;
 	}
 
@@ -184,6 +185,7 @@ static int scan_source_file(struct CONTEXT * context, struct NODE *node)
 
 	/* clean up and return */
 	free(filebuf);
+	node->headerscannedsuccess = 1;
 	return 0;
 }
 

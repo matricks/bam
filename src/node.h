@@ -127,6 +127,7 @@ struct NODE
 	unsigned cached:1; /* set if the node should be considered as cached */
 	unsigned skipverifyoutput:1; /* set if we don't want to skip the output verification for this output  */
 	unsigned headerscanned:1; /* set if a dependency checker have processed the file */
+	unsigned headerscannedsuccess:1; /* set if a dependency checker have processed the file, and it could be scanned*/
 };
 
 /* cache node */

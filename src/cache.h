@@ -3,6 +3,7 @@
 struct GRAPH;
 struct DEPCACHE;
 struct SCANCACHE;
+struct CHEADERREF;
 struct OUTPUTCACHE; /* bad name */
 struct CONTEXT;
 struct NODE;
@@ -28,7 +29,7 @@ int depcache_do_dependency(
 */
 int scancache_save(const char *filename, struct GRAPH *graph);
 struct SCANCACHE *scancache_load(const char *filename);
-struct CHEADERREF *scancache_find(struct SCANCACHE *scancache, struct NODE * node);
+int scancache_find(struct SCANCACHE *scancache, struct NODE * node, struct CHEADERREF** result);
 void scancache_free(struct SCANCACHE *scancache);
 
 /*

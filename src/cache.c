@@ -18,7 +18,7 @@
 #define WRITE_BUFFERDEPS (WRITE_BUFFERSIZE/sizeof(unsigned))
 
 /* increase this by one if changes to the cache format have been done */
-#define CACHE_VERSION	1
+#define CACHE_VERSION	2
 
 /* header info */
 static char bamheader[24] = {
@@ -146,7 +146,8 @@ struct SCANCACHEINFO
 	const char * filename;
 	struct CHEADERREF * refs;
 
-	unsigned filename_len;
+	unsigned filename_len:24;
+	unsigned headerscanned:1;
 	unsigned num_refs;
 };
 
@@ -270,6 +271,9 @@ static int scancache_write_nodes(struct SCANCACHE_WRITEINFO *info)
 		cacheinfo->filename = (char*)((long)string_index);
 		cacheinfo->filename_len = node->filename_len;
 		string_index += node->filename_len;
+
+		if(node->headerscanned && node->headerscannedsuccess)
+			cacheinfo->headerscanned = 1;
 
 		/* count refs */
 		for(ref = node->firstcheaderref; ref; ref = ref->next)
@@ -434,17 +438,19 @@ void scancache_free(struct SCANCACHE *scancache)
 	free(scancache);
 }
 
-struct CHEADERREF *scancache_find(struct SCANCACHE *scancache, struct NODE * node)
+int scancache_find(struct SCANCACHE *scancache, struct NODE * node, struct CHEADERREF **result)
 {
 	struct SCANCACHEINFO tempinfo;
 	struct SCANCACHEINFO *info;
+	*result = NULL;
 	if(!scancache)
-		return NULL;
+		return 1;
 	tempinfo.hashid = node->hashid;
 	info = RB_FIND(SCANCACHEINFO_RB, &scancache->infotree, &tempinfo);
-	if(!info || info->timestamp != node->timestamp_raw)
-		return NULL;
-	return info->refs;
+	if(!info || !info->headerscanned || info->timestamp != node->timestamp_raw)
+		return 1;
+	*result = info->refs;
+	return 0;
 }
 
 
