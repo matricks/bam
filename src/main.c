@@ -20,6 +20,7 @@
 #include "support.h"
 #include "context.h"
 #include "cache.h"
+#include "statcache.h"
 #include "luafuncs.h"
 #include "platform.h"
 #include "session.h"
@@ -769,6 +770,7 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	context.graphheap = mem_create();
 	context.deferredheap = mem_create();
 	context.graph = node_graph_create(context.graphheap);
+	context.statcache = statcache_create();
 	context.exit_on_error = option_abort_on_error;
 	context.buildtime = timestamp();
 
@@ -896,6 +898,7 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	mem_destroy(context.graphheap);
 	free(context.joblist);
 	depcache_free(context.depcache);
+	statcache_free(context.statcache);
 
 	if(context.verifystate)
 	{
