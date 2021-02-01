@@ -508,17 +508,25 @@ int lf_errorfunc(lua_State *L)
 	int depth = 0;
 	int frameskip = 1;
 	lua_Debug frame;
+	const char* error_str = NULL;
+
+	/* Due to how luaB_error works we only get the source file/line number if a string is passed to error() in lua. 
+	 If not, we get null from lua_tostring(L,-1);, wich crashes some libc in printf (like glibc, at least in some cases).*/
+	error_str = lua_tostring(L,-1);
+	if(!error_str)
+		error_str = "error";
 
 	if(session.report_color)
-		printf("\033[01;31m%s\033[00m\n", lua_tostring(L,-1));
+		printf("\033[01;31m%s\033[00m\n", error_str);
 	else
-		printf("%s\n", lua_tostring(L,-1));
+		printf("%s\n", error_str);
 	
 	if(session.lua_backtrace)
 	{
 		printf("backtrace:\n");
 		while(lua_getstack(L, depth, &frame) == 1)
 		{
+			const char* frame_name = NULL;
 			depth++;
 			
 			lua_getinfo(L, "nlSf", &frame);
@@ -527,9 +535,14 @@ int lf_errorfunc(lua_State *L)
 			if(frameskip && strcmp(frame.short_src, "[C]") == 0 && frame.currentline == -1)
 				continue;
 			frameskip = 0;
-			
+
+			/* according to the documentation frame.name may be NULL */
+			frame_name = frame.name;
+			if(!frame_name)
+				frame_name = "";
+
 			/* print stack frame */
-			printf("  %s(%d): %s %s\n", frame.short_src, frame.currentline, frame.name, frame.namewhat);
+			printf("  %s(%d): %s %s\n", frame.short_src, frame.currentline, frame_name, frame.namewhat);
 			
 			/* print all local variables for the frame */
 			if(session.lua_locals)
