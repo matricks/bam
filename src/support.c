@@ -540,7 +540,7 @@ int file_stat(const char *filename, time_t* stamp, unsigned int* isregular, unsi
 	*stamp = s.st_mtime;
 	*isregular = (s.st_mode&_S_IFREG) != 0;
 	*isdir = (s.st_mode&_S_IFDIR) != 0;
-#elif BAM_PLATFORM_MACOSX
+#elif defined(BAM_PLATFORM_MACOSX)
 	*stamp = s.st_mtimespec.tv_sec;
 	*isregular = S_ISREG(s.st_mode);
 	*isdir = S_ISDIR(s.st_mode);

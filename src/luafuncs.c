@@ -1229,7 +1229,8 @@ int lf_path_dir(lua_State *L)
 	}
 	
 	/* we must normalize the path as well */
-	strncpy(buffer, path, sizeof(buffer));
+	strncpy(buffer, path, sizeof(buffer) - 1);
+	buffer[sizeof(buffer) - 1] = 0;
 	path_normalize(buffer);
 	lua_pushlstring(L, buffer, path_dir_length(buffer));
 	return 1;

@@ -96,10 +96,10 @@ static int option_win_msvcmode = 0;
 int option_cdep2 = 0;
 
 /* filename of the dependency cache, will be filled in at start up, ".bam/xxxxxxxxyyyyyyyyy" = 22 top */
-static char depcache_filename[32] = {0};
+static char depcache_filename[128] = {0};
 
 /* filename of the scancache will be filled in at start up, ".bam/scancache_xxxxxxxxyyyyyyyyy" = 32 top */
-static char scancache_filename[48] = {0};
+static char scancache_filename[128] = {0};
 
 /* filename of the command cache */
 static char outputcache_filename[] = ".bam/outputcache";
