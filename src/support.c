@@ -797,7 +797,6 @@ char *string_duplicate(struct HEAP *heap, const char *src, size_t len)
 }
 
 /* */
-#ifdef BAM_FAMILY_WINDOWS
 /* on windows, we need to handle that filenames with mixed casing are the same.
 	to solve this we have this table that converts all uppercase letters.
 	in addition to this, we also convert all '\' to '/' to remove that
@@ -821,6 +820,7 @@ static const unsigned char tolower_table[256] = {
 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239,
 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255};
 
+#ifdef BAM_FAMILY_WINDOWS
 hash_t string_hash_add(hash_t h, const char *str_in)
 {
 	const unsigned char *str = (const unsigned char *)str_in;
@@ -848,6 +848,17 @@ void string_hash_tostr(hash_t value, char *output)
 	sprintf(output, "%08x%08x", (unsigned)(value>>32), (unsigned)(value&0xffffffff));
 }
 
+int string_compare_case_insensitive( const char* str_a, const char* str_b )
+{
+	int d;
+	for(; *str_a && *str_b; str_a++, str_b++ )
+	{
+		d = (int)tolower_table[(int)*(str_a)] - (int)tolower_table[(int)*(str_b)];
+		if(d != 0)
+			return d;
+	};
+	return (int)*str_a - (int)*str_b; // we are just comparing 0/ so no decasing necessary
+}
 
 static int64 starttime = 0;
 
