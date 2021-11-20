@@ -85,4 +85,6 @@ void string_hash_tostr(hash_t value, char *output);
 void event_begin(int thread, const char *name, const char *data);
 void event_end(int thread, const char *name, const char *data);
 
+int raise(int signal);
+
 #endif
