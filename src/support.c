@@ -613,7 +613,7 @@ static void passthru(FILE *fp)
 }
 #endif
 
-#if defined(BAM_FAMILY_WINDOWS) || defined(BAM_PLATFORM_CYGWIN)
+#if !defined(__MINGW32__) && !defined(__MINGW64__) && (defined(BAM_FAMILY_WINDOWS) || defined(BAM_PLATFORM_CYGWIN))
 /* forward declaration */
 FILE *_popen(const char *, const char *);
 int _pclose(FILE *);
