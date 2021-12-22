@@ -76,7 +76,7 @@
 			WaitForSingleObject(process, INFINITE);
 			if(GetExitCodeProcess(process, &errcode) != 0) {
 				if(errcode != STILL_ACTIVE) {
-					printf("observed process %d died, aborting!\n", observe_pid);
+					printf("observed process %ld died, aborting!\n", observe_pid);
 					session.abort = 1;
 					break;
 				}
@@ -181,7 +181,7 @@
 				STARTUPINFO si;
 
 				/* setup ourself to be watched */
-				sprintf(buffer, "%d", GetCurrentProcessId());
+				sprintf(buffer, "%ld", GetCurrentProcessId());
 				SetEnvironmentVariable("BAM_OBSERVE_PID", buffer);
 
 				/* signal that we want to be singleton */
