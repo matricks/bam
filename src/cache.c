@@ -2,6 +2,7 @@
 #include <stdlib.h> /* malloc */
 #include <stdio.h> /* printf */
 #include <errno.h>
+#include <stddef.h>
 
 #include "cache.h"
 #include "context.h"
@@ -268,7 +269,7 @@ static int scancache_write_nodes(struct SCANCACHE_WRITEINFO *info)
 		cacheinfo->hashid = node->hashid;
 		cacheinfo->timestamp = node->timestamp_raw;
 		cacheinfo->num_refs = 0;
-		cacheinfo->filename = (char*)((long)string_index);
+		cacheinfo->filename = (char*)((ptrdiff_t)string_index);
 		cacheinfo->filename_len = node->filename_len;
 		string_index += node->filename_len;
 
@@ -299,7 +300,7 @@ static int scancache_write_nodes(struct SCANCACHE_WRITEINFO *info)
 
 			memset(refinfo, 0, sizeof(struct CHEADERREF));
 			refinfo->sys = ref->sys;
-			refinfo->filename = (char*)((long)string_index);
+			refinfo->filename = (char*)((ptrdiff_t)string_index);
 			refinfo->filename_hash = ref->filename_hash;
 			refinfo->filename_len = ref->filename_len;
 			string_index += ref->filename_len;
@@ -410,7 +411,7 @@ struct SCANCACHE *scancache_load(const char *filename)
 	for(i = 0; i < scancache->num_infos; i++)
 	{
 		struct SCANCACHEINFO *info = &scancache->infos[i];
-		info->filename = scancache->strings + (long)info->filename;
+		info->filename = scancache->strings + (ptrdiff_t)info->filename;
 		RB_INSERT(SCANCACHEINFO_RB, &scancache->infotree, info);
 
 		if(info->num_refs)
@@ -421,7 +422,7 @@ struct SCANCACHE *scancache_load(const char *filename)
 
 			for(k = 0; k < info->num_refs; k++)
 			{
-				info->refs[k].filename = scancache->strings + (long)info->refs[k].filename;
+				info->refs[k].filename = scancache->strings + (ptrdiff_t)info->refs[k].filename;
 				info->refs[k].next = &info->refs[k+1];
 			}
 			info->refs[info->num_refs-1].next = NULL;
@@ -550,8 +551,8 @@ static int write_nodes(struct WRITEINFO *info)
 		cacheinfo->hashid = node->hashid;
 		cacheinfo->cached = node->cached;
 		cacheinfo->timestamp_raw = node->timestamp_raw;
-		cacheinfo->deps = (unsigned*)((long)dep_index);
-		cacheinfo->filename = (char*)((long)string_index);
+		cacheinfo->deps = (unsigned*)((ptrdiff_t)dep_index);
+		cacheinfo->filename = (char*)((ptrdiff_t)string_index);
 		
 		string_index += node->filename_len;
 		dep_index += cacheinfo->deps_num;
@@ -671,8 +672,8 @@ struct DEPCACHE *depcache_load(const char *filename)
 	/* build node tree and patch pointers */
 	for(i = 0; i < depcache->num_nodes; i++)
 	{
-		depcache->nodes[i].filename = depcache->strings + (long)depcache->nodes[i].filename;
-		depcache->nodes[i].deps = depcache->deps + (long)depcache->nodes[i].deps;
+		depcache->nodes[i].filename = depcache->strings + (ptrdiff_t)depcache->nodes[i].filename;
+		depcache->nodes[i].deps = depcache->deps + (ptrdiff_t)depcache->nodes[i].deps;
 		RB_INSERT(CACHEINFO_DEPS_RB, &depcache->nodetree, &depcache->nodes[i]);
 	}
 	
