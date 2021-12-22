@@ -26,7 +26,7 @@
 	#include <signal.h>
 	#include <direct.h> /* _mkdir */
 
-	#include <Aclapi.h> /* for protect_process */
+	#include <aclapi.h> /* for protect_process */
 	
 	void file_listdirectory(const char *path, void (*callback)(const char *fullpath, const char *filename, int dir, void *user), void *user)
 	{
