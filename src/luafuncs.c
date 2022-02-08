@@ -799,24 +799,37 @@ int lf_table_deepcopy(struct lua_State *L)
 	return table_deepcopy_r(L);
 }
 
-static int flatten_index;
-
 /* flattens a table into a simple table with strings */
-static int lf_table_flatten_r(struct lua_State *L, int table_index)
-{	
-	/* +1: iterator */
-	lua_pushnil(L);
-	while(lua_next(L, table_index))
+static int lf_table_flatten_r(struct lua_State *L, int table_index, int flatten_index)
+{
+	size_t len;
+	size_t cnt;
+
+	/* Get the size of the table. */
+	len = lua_rawlen(L, table_index);
+
+	/* Loop over all numeric keys from 1 to the size of the table.
+	 * Ignore all key-value pairs and numeric entries above the size of
+	 * the table.
+	 */
+	cnt = 1;
+	while( cnt<=len )
 	{
-		/* +2: value */
-		if(lua_istable(L, -1))
-			lf_table_flatten_r(L, lua_gettop(L));
-		else if(lua_type(L, -1) == LUA_TSTRING)
+		/* Push the next key on the stack. */
+		lua_pushinteger(L, cnt);
+		/* Get the table entry. */
+		lua_gettable(L, table_index);
+		/* Recurse if the entry is a table. */
+		if( lua_istable(L, -1) )
+		{
+			flatten_index = lf_table_flatten_r(L, lua_gettop(L), flatten_index);
+		}
+		else if( lua_type(L, -1)==LUA_TSTRING )
 		{
 			lua_pushnumber(L, flatten_index); /* +3: key */
 			lua_pushvalue(L, -2); /* +4: value */
 			lua_settable(L, 2); /* pops +3 and +4 */
-			
+
 			flatten_index++;
 		}
 		else
@@ -824,12 +837,14 @@ static int lf_table_flatten_r(struct lua_State *L, int table_index)
 			/* other value */
 			luaL_argerror(L, 1, lua_pushfstring(L, "unexpected %s in tables", luaL_typename(L, -1)));
 		}
-		
+
 		/* pops +2 */
 		lua_pop(L, 1);
+
+		++cnt;
 	}
-	
-	return 1;
+
+	return flatten_index;
 }
 
 int lf_table_flatten(struct lua_State *L)
@@ -837,12 +852,11 @@ int lf_table_flatten(struct lua_State *L)
 	size_t s;
 	luaL_checknumarg_eq(L, 1);
 	luaL_checktype(L, 1, LUA_TTABLE);
-		
+
 	/* 1: table to copy, 2: new table */
 	s = lua_rawlen(L, -1);
-	flatten_index = 1;
 	lua_createtable(L, 0, s);
-	lf_table_flatten_r(L, 1);
+	lf_table_flatten_r(L, 1, 1);
 	return 1;
 }
 
