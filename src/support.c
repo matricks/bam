@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <errno.h>
+#include <signal.h>
 
 #include "platform.h"
 #include "path.h"
