@@ -445,7 +445,7 @@ end
 function Import(filename)
 	local paths = {"", PathDir(ModuleFilename())}
 
-	s = os.getenv("BAM_PACKAGES")
+	local s = os.getenv("BAM_PACKAGES")
 	if s then
 		for w in string.gmatch(s, "[^:]*") do
 			if string.len(w) > 0 then
