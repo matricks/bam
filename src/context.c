@@ -162,7 +162,7 @@ static int runjob_create_outputpaths(struct JOB *job)
 	Makes sure that the job has updated the output timestamps correctly.
 	If not, we touch the output ourself.
 */
-static int verify_outputs(struct CONTEXT *context, struct JOB *job)
+static int verify_outputs(struct CONTEXT *context, struct JOB *job, time_t jobstarttime)
 {
 	struct NODELINK *link;
 	time_t output_stamp;
@@ -186,8 +186,8 @@ static int verify_outputs(struct CONTEXT *context, struct JOB *job)
 		}
 		else if(output_stamp == link->node->timestamp_raw)
 			reason = "job did not update timestamp";
-		else if(output_stamp < context->buildtime)
-			reason = "timestamp was less then the build start timestamp";
+		else if(output_stamp < jobstarttime)
+			reason = "timestamp was less then the job start timestamp";
 		else  if(output_stamp < link->node->timestamp)
 			reason = "timestamp was less then the propagated timestamp";
 
@@ -250,6 +250,7 @@ static int run_job(struct CONTEXT *context, struct JOB *job, int thread_id)
 {
 	struct NODELINK *link;
 	int errorcode;
+	time_t starttime;
 
 	context->current_job_num++;
 
@@ -273,11 +274,12 @@ static int run_job(struct CONTEXT *context, struct JOB *job, int thread_id)
 
 	/* execute the command */
 	criticalsection_leave();
+	starttime = timestamp();
 	errorcode = run_command(job->cmdline, job->filter);
 	if(errorcode == 0)
 	{
 		/* make sure that the tool updated the timestamp and produced all outputs */
-		errorcode = verify_outputs(context, job);
+		errorcode = verify_outputs(context, job, starttime);
 	}
 	criticalsection_enter();
 
