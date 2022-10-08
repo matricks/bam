@@ -11,6 +11,7 @@ Release Next
 	- Removed --debug-dot and --debug-jobs-dot as they are virtually useless due to size ( matricks )
 	- Removed --debug-jobs
 	- Vastly improved the --debug-nodes to be more versatile and clearer
+	- Separated hashing functions into Hash (pure djb2) and PathHash that does some magic ( matricks )
 
 Release 0.5.1
 	- Fixed issues with CC environment variables ( matricks )

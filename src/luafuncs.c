@@ -655,10 +655,19 @@ int lf_isstring(lua_State *L)
 int lf_hash(struct lua_State *L)
 {
 	char hashstr[64];
-	string_hash_tostr(string_hash(luaL_checklstring(L,1,NULL)), hashstr);
+	string_hash_tostr(string_hash_djb2(luaL_checklstring(L,1,NULL)), hashstr);
 	lua_pushstring(L, hashstr);
 	return 1;
 }
+
+int lf_path_hash(struct lua_State *L)
+{
+	char hashstr[64];
+	string_hash_tostr(string_hash_path(luaL_checklstring(L,1,NULL)), hashstr);
+	lua_pushstring(L, hashstr);
+	return 1;
+}
+
 
 /* TODO: remove this limit */
 #define WALK_MAXDEPTH 32
@@ -1279,7 +1288,7 @@ int lf_add_dependency_cpp_set_paths(lua_State *L)
 
 	current_includepaths_hash = 0;
 	for(cur = current_includepaths; cur; cur = cur->next)
-		current_includepaths_hash = string_hash_add(current_includepaths_hash, cur->str);
+		current_includepaths_hash = string_hash_path_add(current_includepaths_hash, cur->str);
 
 	return 0;
 }

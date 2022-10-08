@@ -36,7 +36,7 @@ static void list_callback(const char *fullpath, const char *filename, int dir, v
 {
 	/* gather information */
 	struct VERIFY_STATE *state = user;
-	hash_t hashid = string_hash(fullpath);
+	hash_t hashid = string_hash_path(fullpath);
 	int path_len = strlen(fullpath);
 	time_t timestamp = file_timestamp(fullpath);
 

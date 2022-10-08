@@ -47,6 +47,8 @@ int lf_path_dir(struct lua_State *L);
 int lf_path_base(struct lua_State *L);
 int lf_path_filename(struct lua_State *L);
 
+int lf_path_hash(struct lua_State *L);
+
 /* support, files and dirs */
 int lf_mkdir(struct lua_State *L);
 int lf_mkdirs(struct lua_State *L);

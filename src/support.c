@@ -797,6 +797,18 @@ char *string_duplicate(struct HEAP *heap, const char *src, size_t len)
 	return str;
 }
 
+hash_t string_hash_djb2_add(hash_t h, const char *str)
+{
+	for (; *str; str++)
+		h = (33*h) ^ *str;
+	return h;
+}
+
+hash_t string_hash_djb2(const char *str)
+{
+	return string_hash_djb2_add(5381, str);
+}
+
 /* */
 /* on windows, we need to handle that filenames with mixed casing are the same.
 	to solve this we have this table that converts all uppercase letters.
@@ -822,7 +834,7 @@ static const unsigned char tolower_table[256] = {
 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255};
 
 #ifdef BAM_FAMILY_WINDOWS
-hash_t string_hash_add(hash_t h, const char *str_in)
+hash_t string_hash_path_add(hash_t h, const char *str_in)
 {
 	const unsigned char *str = (const unsigned char *)str_in;
 	for (; *str; str++)
@@ -831,17 +843,14 @@ hash_t string_hash_add(hash_t h, const char *str_in)
 }
 #else
 /* normal unix version */
-hash_t string_hash_add(hash_t h, const char *str)
+hash_t string_hash_path_add(hash_t h, const char *str)
 {
-	for (; *str; str++)
-		h = (33*h) ^ *str;
-	return h;
+	return string_hash_djb2_add(h, str);
 }
 #endif
 
-hash_t string_hash(const char *str_in)
-{
-	return string_hash_add(5381, str_in);
+hash_t string_hash_path(const char *str) {
+	return string_hash_path_add(5381, str);
 }
 
 void string_hash_tostr(hash_t value, char *output)

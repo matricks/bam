@@ -41,11 +41,23 @@ ModifyPriority = bam_modify_priority
 	err=0 : PseudoTarget("fakenode"); bam_add_dependency_cpp("fakenode")
 @END]]--
 
+--[[@FUNCTION Hash
+	Performs a 64-bit DJB2 hash on the string and returns the result has in a string
+@END]]--
 --[[@UNITTESTS
 	catch="0000000000001505" : Hash("")
 	catch="a1e982361190bbc4" : Hash("hello world!")
 @END]]--
 Hash = bam_hash
+
+--[[@FUNCTION PathHash
+	Performs a 64-bit DJB2 hash on the string, but does certain character conversions (all lower case on windows) on various systems. 
+@END]]--
+--[[@UNITTESTS
+	catch="0000000000001505" : PathHash("")
+	catch="a1e982361190bbc4" : PathHash("hello world!")
+@END]]--
+PathHash = bam_path_hash
 
 --[[@GROUP Common @END]]--
 

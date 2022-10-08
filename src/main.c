@@ -389,6 +389,8 @@ int register_lua_globals(struct lua_State *lua, const char* script_directory, co
 	lua_register(lua, L_FUNCTION_PREFIX"path_base", lf_path_base);
 	lua_register(lua, L_FUNCTION_PREFIX"path_filename", lf_path_filename);
 
+	lua_register(lua, L_FUNCTION_PREFIX"path_hash", lf_path_hash);
+
 	/* various support functions */
 	lua_register(lua, L_FUNCTION_PREFIX"collect", lf_collect);
 	lua_register(lua, L_FUNCTION_PREFIX"collectrecursive", lf_collectrecursive);
@@ -791,7 +793,7 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 		char hashstr[64];
 		int i;
 		for(i = 0; i < option_num_scriptargs; i++)
-			cache_hash = string_hash_add(cache_hash, option_scriptargs[i]);
+			cache_hash = string_hash_djb2_add(cache_hash, option_scriptargs[i]);
 
 		string_hash_tostr(cache_hash, hashstr);
 		sprintf(depcache_filename, ".bam/%s", hashstr);

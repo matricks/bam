@@ -77,8 +77,12 @@ char *string_duplicate(struct HEAP *heap, const char *src, size_t len);
 int string_compare_case_insensitive( const char* str_a, const char* str_b );
 
 /* string hashing function */
-hash_t string_hash(const char *str_in);
-hash_t string_hash_add(hash_t base, const char *str_in);
+hash_t string_hash_path(const char *str_in);
+hash_t string_hash_path_add(hash_t base, const char *str_in);
+
+hash_t string_hash_djb2(const char *str_in);
+hash_t string_hash_djb2_add(hash_t base, const char *str_in);
+
 void string_hash_tostr(hash_t value, char *output);
 
 /* logging */

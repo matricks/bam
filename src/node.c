@@ -111,7 +111,7 @@ struct JOB *node_job_create(struct GRAPH *graph, const char *label, const char *
 	job->id = graph->num_jobs;
 	job->label = string_duplicate(graph->heap, label, strlen(label));
 	job->cmdline = string_duplicate(graph->heap, cmdline, strlen(cmdline));
-	job->cmdhash = string_hash(cmdline);
+	job->cmdhash = string_hash_path(cmdline);
 	job->cachehash = job->cmdhash;
 
 	/* add it to the list */
@@ -127,7 +127,7 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 	struct NODE *node;
 	struct NODELINK *link;
 	struct NODETREELINK *treelink;
-	hash_t hashid = string_hash(filename);
+	hash_t hashid = string_hash_path(filename);
 
 	/* check arguments */
 	if(!path_isnice(filename))
@@ -235,7 +235,7 @@ struct NODE *node_find_byhash(struct GRAPH *graph, hash_t hashid)
 
 struct NODE *node_find(struct GRAPH *graph, const char *filename)
 {
-	return node_find_byhash(graph, string_hash(filename));
+	return node_find_byhash(graph, string_hash_path(filename));
 }
 
 /* this will return the existing node or create a new one */

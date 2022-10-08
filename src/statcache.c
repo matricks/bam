@@ -44,7 +44,7 @@ void statcache_free(struct STATCACHE* statcache)
 
 struct STATCACHE_ENTRY* statcache_getstat_int(struct STATCACHE* statcache, const char* filename)
 {
-	hash_t namehash = string_hash( filename );
+	hash_t namehash = string_hash_path( filename );
 	int hashindex = namehash & ( STATCACHE_HASH_SIZE - 1 );
 
 	struct STATCACHE_ENTRY* entry = NULL;
