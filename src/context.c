@@ -703,7 +703,15 @@ static int job_prio_compare(const void *a, const void *b)
 {
 	const struct JOB * const job_a = *(const struct JOB * const *)a;
 	const struct JOB * const job_b = *(const struct JOB * const *)b;
-	return job_b->priority - job_a->priority;
+	int64 prio_a = job_a->priority;
+	int64 prio_b = job_b->priority;
+	
+	if(prio_b > prio_a)
+		return 1;
+	else if(prio_a > prio_b)
+		return -1;
+	else
+		return 0;
 }
 
 static int build_prioritize_target_count_callback(struct NODEWALK *walkinfo)
