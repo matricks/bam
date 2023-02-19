@@ -188,7 +188,7 @@ static int verify_outputs(struct CONTEXT *context, struct JOB *job, time_t jobst
 			reason = "job did not update timestamp";
 		else if(output_stamp < jobstarttime)
 			reason = "timestamp was less then the job start timestamp";
-		else  if(output_stamp < link->node->timestamp)
+		else if(output_stamp < link->node->timestamp)
 			reason = "timestamp was less then the propagated timestamp";
 
 		if(reason)
@@ -706,7 +706,67 @@ static int job_prio_compare(const void *a, const void *b)
 	return job_b->priority - job_a->priority;
 }
 
-int context_build_prioritize(struct CONTEXT *context)
+static int build_prioritize_target_count_callback(struct NODEWALK *walkinfo)
+{
+	unsigned *counts = walkinfo->user;
+	struct NODELINK *link;
+	for(link = walkinfo->node->job->firstjobdep; link; link = link->next) {
+		counts[link->node->id]++;
+	}
+	return 0;
+}
+
+static void prioritize_r(struct CONTEXT *context, struct NODE *node, unsigned *counts)
+{
+	struct JOB *job = node->job;
+	struct NODELINK *link;
+
+	/* propagate priority down the tree */
+	job->priority++;
+	for(link = job->firstjobdep; link; link = link->next)
+	{
+		link->node->job->priority += job->priority;
+
+		/* remove a count and if the count is zero, all nodes above this one is done and
+			we can prioritize this one now */
+		counts[link->node->id]--;
+		if(counts[link->node->id] == 0)
+		{
+			prioritize_r(context, link->node, counts);
+		}
+	}
+}
+
+int context_build_prioritize2(struct CONTEXT *context)
+{
+	unsigned *counts = malloc(context->graph->num_nodes * sizeof(unsigned));
+	int error_code;
+	memset(counts, 0, context->graph->num_nodes * sizeof(unsigned));
+
+	/* store a count for every node for how many ways we will decend down onto it */
+	error_code = node_walk(context->target,
+		NODEWALK_TOPDOWN|NODEWALK_FORCE|NODEWALK_QUICK|NODEWALK_JOBS,
+		build_prioritize_target_count_callback, counts);
+
+	if(error_code)
+	{
+		free(counts);
+		return error_code;
+	}
+
+	/* push the prio down the tree */
+	prioritize_r(context, context->target, counts);
+
+	/* sort the list */
+	qsort(context->joblist, context->num_jobs, sizeof(struct JOB*), job_prio_compare);
+
+	/* clean up */
+	free(counts);
+
+	return 0;
+}
+
+int context_build_prioritize1(struct CONTEXT *context)
 {
 	int error_code;
 
@@ -721,6 +781,14 @@ int context_build_prioritize(struct CONTEXT *context)
 	qsort(context->joblist, context->num_jobs, sizeof(struct JOB*), job_prio_compare);
 
 	return error_code;
+}
+
+extern int option_prio2;
+int context_build_prioritize(struct CONTEXT *context)
+{
+	if(option_prio2)
+		return context_build_prioritize2(context);
+	return context_build_prioritize1(context);
 }
 
 void context_dump_joblist(struct CONTEXT *context)

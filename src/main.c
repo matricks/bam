@@ -94,6 +94,7 @@ static int option_win_msvcmode = 0;
 
 /* exprimental options */
 int option_cdep2 = 0;
+int option_prio2 = 0;
 
 /* filename of the dependency cache, will be filled in at start up, ".bam/xxxxxxxxyyyyyyyyy" = 22 top */
 static char depcache_filename[128] = {0};
@@ -297,6 +298,10 @@ static struct OPTION options[] = {
 	/*
 	*/
 	{OF_DEBUG, 0, &option_cdep2, "--cdep2", "EXPRIMENTAL: New improved C dependency checker"},
+
+	/*
+	*/
+	{OF_DEBUG, 0, &option_prio2, "--prio2", "EXPRIMENTAL: New improved prioritization code"},
 
 	/* Magic highly exprimental switch for Microsoft Visual Studio. Enabling this will cause bam to execute
 		itself again and wait for the new child process to finish. The child process then removes the permissions
