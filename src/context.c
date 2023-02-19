@@ -802,7 +802,7 @@ void context_dump_joblist(struct CONTEXT *context)
 	{
 		job = context->joblist[i];
 		link = job->firstoutput;
-		printf("%8d %s\n", job->priority, link->node->filename);
+		printf("%16lld %s\n", job->priority, link->node->filename);
 		link = link->next;
 		for(; link; link = link->next)
 			printf("         %s\n", link->node->filename);

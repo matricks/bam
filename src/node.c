@@ -371,7 +371,7 @@ struct NODE *node_job_add_dependency (struct NODE *node, struct NODE *depnode)
 	dep->node = depnode;
 	dep->next = node->job->firstjobdep;
 	node->job->firstjobdep = dep;
-	
+
 	nodelinktree_insert(&node->job->jobdeproot, treelink, depnode);	
 	
 	return depnode;
@@ -816,7 +816,7 @@ void node_debug_dump(struct GRAPH *graph, int html)
 		job = *jobiter;
 		printf("JOB %s\n", decorate_header(job->id, job->label, "j", html));
 		printf("CMD %s\n", job->cmdline);
-		printf("PRIORIY %d\n", job->priority);
+		printf("PRIORIY %lld\n", job->priority);
 		
 		nodelist = sorted_nodelinklist( job->firstoutput->node->firstdep );
 		for(node = nodelist; *node; node++)

@@ -64,7 +64,7 @@ struct JOB
 	hash_t cmdhash; /* hash of the command line for detecting changes */
 	hash_t cachehash; /* hash that should be written to the cache */
 
-	unsigned priority; /* the priority is the priority of all jobs dependent on this job */
+	int64 priority; /* the priority is the priority of all jobs dependent on this job */
 	unsigned targeted_count;
 
 	unsigned counted:1; /* set if we have counted this job towards the number of targets to build */
