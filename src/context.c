@@ -716,7 +716,7 @@ static int job_prio_compare(const void *a, const void *b)
 
 static int build_prioritize_target_count_callback(struct NODEWALK *walkinfo)
 {
-	unsigned *counts = walkinfo->user;
+	int *counts = walkinfo->user;
 	struct NODELINK *link;
 	for(link = walkinfo->node->job->firstjobdep; link; link = link->next) {
 		counts[link->node->id]++;
@@ -724,32 +724,45 @@ static int build_prioritize_target_count_callback(struct NODEWALK *walkinfo)
 	return 0;
 }
 
-static void prioritize_r(struct CONTEXT *context, struct NODE *node, unsigned *counts)
+static void prioritize_r(struct CONTEXT *context, struct NODE *node, int *counts, int64 *nodeprios, int depth)
 {
 	struct JOB *job = node->job;
 	struct NODELINK *link;
 
 	/* propagate priority down the tree */
-	job->priority++;
+	nodeprios[node->id] += job->priority; /* some jobs have a higher base prio from script, so add that in */
+	int64 nodePrio = nodeprios[node->id];
+
 	for(link = job->firstjobdep; link; link = link->next)
 	{
-		link->node->job->priority += job->priority;
+		nodeprios[link->node->id] += nodePrio;
 
 		/* remove a count and if the count is zero, all nodes above this one is done and
 			we can prioritize this one now */
 		counts[link->node->id]--;
 		if(counts[link->node->id] == 0)
 		{
-			prioritize_r(context, link->node, counts);
+			prioritize_r(context, link->node, counts, nodeprios, depth + 1);
 		}
 	}
 }
 
+static int build_prioritize_target_apply_callback(struct NODEWALK * walkinfo)
+{
+	int64 * nodeprios = walkinfo->user;
+	walkinfo->node->job->priority += nodeprios[walkinfo->node->id];
+	return 0;
+}
+
 int context_build_prioritize2(struct CONTEXT *context)
 {
-	unsigned *counts = malloc(context->graph->num_nodes * sizeof(unsigned));
+	struct JOB * job;
+	int *counts = malloc(context->graph->num_nodes * sizeof(int));
 	int error_code;
-	memset(counts, 0, context->graph->num_nodes * sizeof(unsigned));
+	memset(counts, 0, context->graph->num_nodes * sizeof(int));
+
+	int64 * nodeprios = malloc(context->graph->num_nodes * sizeof(int64));
+	memset(nodeprios, 0, context->graph->num_nodes * sizeof(int64));
 
 	/* store a count for every node for how many ways we will decend down onto it */
 	error_code = node_walk(context->target,
@@ -759,11 +772,32 @@ int context_build_prioritize2(struct CONTEXT *context)
 	if(error_code)
 	{
 		free(counts);
+		free(nodeprios);
 		return error_code;
 	}
 
+	/* give all jobs their base prio */
+	for(job = context->graph->firstjob; job; job = job->next)
+		job->priority++;
+
 	/* push the prio down the tree */
-	prioritize_r(context, context->target, counts);
+	prioritize_r(context, context->target, counts, nodeprios, 0);
+
+	/* strip prio from jobs (starting prio baked in into node-prios) */
+	for(job = context->graph->firstjob; job; job = job->next)
+		job->priority = 0;
+
+	/* collect node-prio into job-prio */
+	error_code = node_walk(context->target,
+		NODEWALK_TOPDOWN|NODEWALK_FORCE|NODEWALK_QUICK|NODEWALK_JOBS,
+		build_prioritize_target_apply_callback, nodeprios);
+
+	if(error_code)
+	{
+		free(counts);
+		free(nodeprios);
+		return error_code;
+	}
 
 	/* sort the list */
 	qsort(context->joblist, context->num_jobs, sizeof(struct JOB*), job_prio_compare);
