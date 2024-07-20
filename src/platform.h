@@ -133,6 +133,11 @@
 	#define BAM_ARCH_STRING "armv7l"
 #endif
 
+#if defined(__aarch64__) || defined(_M_ARM64) || defined(__arm64)
+	#define BAM_ARCH_ARM64
+	#define BAM_ARCH_STRING "arm64"
+#endif
+
 #if defined(__riscv) && __riscv_xlen == 32
 	#define BAM_ARCH_RISCV32
 	#define BAM_ARCH_STRING "riscv32"
