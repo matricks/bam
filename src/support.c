@@ -378,9 +378,9 @@
 			stat(buffer, &info);
 			isdir = S_ISDIR(info.st_mode);
 #endif
-			free(entry);
 			/* call the callback */
 			callback(buffer, entry->d_name, isdir, user);
+			free(entry);
 		}
 		
 		free(namelist);
