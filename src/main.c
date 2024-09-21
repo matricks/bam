@@ -113,6 +113,9 @@ struct SESSION session = {
 	0 /* rest */
 };
 
+/* storage for parameters */
+static char parameters_buffer[1024] = {0};
+
 static struct OPTION options[] = {
 	/*@OPTION Targets ( name )
 		Specify a target to be built. A target can be any output
@@ -1037,10 +1040,9 @@ static int parse_parameters_str(const char *str)
 {
 	char *ptrs[64];
 	int num_ptrs = 0;
-	char buffer[1024];
-	char *start = buffer;
+	char *start = parameters_buffer;
 	char *current = start;
-	char *end = buffer+sizeof(buffer);
+	char *end = parameters_buffer+sizeof(parameters_buffer);
 	int string_parse = 0;
 	
 	ptrs[0] = start;
