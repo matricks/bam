@@ -592,6 +592,16 @@ int lf_mkdir(struct lua_State *L)
 	return 1;
 }
 
+int lf_rmdir(struct lua_State *L)
+{
+	luaL_checknumarg_eq(L, 1);
+	if(file_removedir(luaL_checklstring(L,1,NULL)) == 0)
+		lua_pushboolean(L, 1);
+	else
+		lua_pushnil(L);
+	return 1;
+}
+
 int lf_mkdirs(struct lua_State *L)
 {
 	luaL_checknumarg_eq(L, 1);
@@ -633,6 +643,29 @@ int lf_isdir(struct lua_State *L)
 	return 1;
 }
 
+int lf_filetimestamp(struct lua_State * L) {
+	luaL_checknumarg_eq(L, 1);
+
+	time_t timestamp = file_timestamp(luaL_checklstring(L, 1, NULL));
+	if (timestamp != 0)
+		lua_pushnumber(L, (LUA_NUMBER)timestamp);
+	else
+		lua_pushnil(L);
+	return 1;
+}
+
+int lf_filesize(struct lua_State * L) {
+	luaL_checknumarg_eq(L, 1);
+	time_t timestamp = 0;
+	unsigned int isregular = 0;
+	unsigned int isdir = 0;
+	uint64 size = 0;
+	if(file_stat( luaL_checklstring(L, 1, NULL), &timestamp, &isregular, &isdir, &size) == 0 )
+		lua_pushnumber(L, (LUA_NUMBER)size);
+	else
+		lua_pushnil(L);
+	return 1;
+}
 
 int lf_istable(lua_State *L)
 {

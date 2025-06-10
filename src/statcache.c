@@ -59,7 +59,8 @@ struct STATCACHE_ENTRY* statcache_getstat_int(struct STATCACHE* statcache, const
 		entry->hashid = namehash;
 		unsigned int isregular = 0;
 		unsigned int isdir = 0;
-		if(file_stat(filename, &entry->timestamp, &isregular, &isdir) == 0)
+		uint64 size = 0;
+		if(file_stat(filename, &entry->timestamp, &isregular, &isdir, &size) == 0)
 		{
 			entry->isregular = isregular;
 			entry->isdir = isdir;

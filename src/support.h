@@ -8,9 +8,11 @@
 	/* if compiled with -pedantic-errors it will complain about long long not being a C90 thing. */
 	__extension__ typedef unsigned long long hash_t;
 	__extension__ typedef long long int64;
+	__extension__ typedef unsigned long long uint64;
 #else
 	typedef unsigned long long hash_t;
 	typedef long long int64;
+	typedef unsigned long long uint64;
 #endif
 
 #if defined(__GNUC__)
@@ -66,8 +68,9 @@ time_t timestamp();
 time_t file_timestamp(const char *filename);
 int file_isregular(const char *path);
 int file_isdir(const char *path);
-int file_stat(const char *filename, time_t* stamp, unsigned int* isregular, unsigned int* isdir); 
+int file_stat(const char *filename, time_t* stamp, unsigned int* isregular, unsigned int* isdir, uint64* size); 
 int file_createdir(const char *path);
+int file_removedir(const char *path);
 int file_createpath(const char *output_name);
 void file_touch(const char *filename);
 void file_listdirectory(const char *path, void (*callback)(const char *fullpath, const char *filename, int dir, void *user), void *user);

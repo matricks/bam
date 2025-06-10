@@ -158,6 +158,9 @@ def unittests():
 	os.chdir(output_path+"/unit")
 	os.mkdir("valid_dir")
 	open("valid_file","w").close()
+	filewithsize = open("file_18b","w")
+	filewithsize.write( "0123456789abcdef01" )
+	filewithsize.close()
 
 	for test in tests:
 		f = open("bam.lua", "w")
@@ -222,7 +225,7 @@ copytree("tests", output_path)
 os.mkdir(os.path.join(output_path, "unit"))
 
 # run smaller unit tests
-if len(tests) == 0:
+if len(tests) == 0 or "unittests" in tests:
 	unittests()
 
 # run bigger test cases

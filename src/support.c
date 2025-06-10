@@ -474,7 +474,7 @@
 
 time_t timestamp() { return time(NULL); }
 
-int file_stat(const char *filename, time_t* stamp, unsigned int* isregular, unsigned int* isdir)
+int file_stat(const char *filename, time_t* stamp, unsigned int* isregular, unsigned int* isdir, uint64* size)
 {
 #ifdef BAM_FAMILY_WINDOWS
 	struct _stati64 s;
@@ -483,11 +483,13 @@ int file_stat(const char *filename, time_t* stamp, unsigned int* isregular, unsi
 		*stamp = 0;
 		*isregular = 0;
 		*isdir = 0;
+		*size = 0;
 		return 1;
 	}
 	*stamp = s.st_mtime;
 	*isregular = (s.st_mode&_S_IFREG) != 0;
 	*isdir = (s.st_mode&_S_IFDIR) != 0;
+	*size = s.st_size;
 #else
 	struct stat s;
 	if (stat(filename, &s) != 0)
@@ -495,16 +497,19 @@ int file_stat(const char *filename, time_t* stamp, unsigned int* isregular, unsi
 		*stamp = 0;
 		*isregular = 0;
 		*isdir = 0;
+		*size = 0;
 		return 1;
 	}
 #if defined(BAM_PLATFORM_MACOSX)
 	*stamp = s.st_mtimespec.tv_sec;
 	*isregular = S_ISREG(s.st_mode);
 	*isdir = S_ISDIR(s.st_mode);
+	*size = s.st_size;
 #else
 	*stamp = s.st_mtime;
 	*isregular = S_ISREG(s.st_mode);
 	*isdir = S_ISDIR(s.st_mode);
+	*size = s.st_size;
 #endif
 #endif
 	return 0;
@@ -514,8 +519,20 @@ time_t file_timestamp(const char * filename) {
 	unsigned int isregular = 0;
 	unsigned int isdir = 0;
 	time_t timestamp;
-	if (file_stat(filename, &timestamp, &isregular, &isdir) == 0)
+	uint64 size = 0;
+	if (file_stat(filename, &timestamp, &isregular, &isdir, &size) == 0)
 		return timestamp;
+	else
+		return 0;
+}
+
+time_t file_size(const char * filename) {
+	unsigned int isregular = 0;
+	unsigned int isdir = 0;
+	time_t timestamp;
+	uint64 size = 0;
+	if (file_stat(filename, &timestamp, &isregular, &isdir, &size) == 0)
+		return size;
 	else
 		return 0;
 }
@@ -524,7 +541,8 @@ int file_isregular(const char * filename) {
 	unsigned int isregular = 0;
 	unsigned int isdir = 0;
 	time_t timestamp;
-	if (file_stat(filename, &timestamp, &isregular, &isdir) == 0)
+	uint64 size = 0;
+	if (file_stat(filename, &timestamp, &isregular, &isdir, &size) == 0)
 		return isregular;
 	else
 		return 0;
@@ -534,7 +552,8 @@ int file_isdir(const char * filename) {
 	unsigned int isregular = 0;
 	unsigned int isdir = 0;
 	time_t timestamp;
-	if (file_stat(filename, &timestamp, &isregular, &isdir) == 0)
+	uint64 size = 0;
+	if (file_stat(filename, &timestamp, &isregular, &isdir, &size) == 0)
 		return isdir;
 	else
 		return 0;
@@ -551,6 +570,19 @@ int file_createdir(const char *path)
 	if(r == 0 || errno == EEXIST)
 		return 0;
 	return -1;
+}
+
+int file_removedir(const char *path)
+{
+	int r;
+#ifdef BAM_FAMILY_WINDOWS
+	r = _rmdir(path);
+#else
+	r = rmdir(path);
+#endif
+	if(r == 0 || errno == EEXIST)
+		return 0;
+	return -1;	
 }
 
 void file_touch(const char *filename)
