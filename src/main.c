@@ -887,7 +887,7 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 				{
 					event_begin(0, "clean", NULL);
 					build_error = context_build_clean(&context);
-					event_end(0, "end", NULL);
+					event_end(0, "clean", NULL);
 				}
 				else
 				{
