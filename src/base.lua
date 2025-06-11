@@ -533,6 +533,11 @@ AddDependencySearch = bam_add_dependency_search
 @END]]--
 SkipOutputVerification = bam_skip_output_verification
 
+--[[@FUNCTION SetPostBuildHook(output)
+	Register a function to run after build is done. Only called if successful
+@END]]--
+SetPostBuildHook = bam_set_postbuild_hook
+
 function Default_Intermediate_Output(settings, input)
 	return PathBase(input) .. settings.config_ext
 end

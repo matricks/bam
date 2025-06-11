@@ -25,6 +25,7 @@ struct CONTEXT
 {
 	/* lua state */
 	struct lua_State *lua;
+	int postbuild_callback_ref;
 	
 	/* general script information */
 	const char *filename;

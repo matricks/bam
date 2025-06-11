@@ -249,6 +249,8 @@ test("import")
 test("multipleoutput")
 test("multipleoutput_deps")
 test("missingoutput", "", 1)
+test("postbuild_hook", "posthook_test_fail=1", 1)
+test("postbuild_hook", "posthook_test_fail=0", 0)
 
 if len(failed_tests):
 	print("FAILED TESTS:")

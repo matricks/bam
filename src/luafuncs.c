@@ -433,6 +433,20 @@ int lf_skip_output_verification(struct lua_State *L)
 	return 1;
 }
 
+/* lf_set_postbuild_hook(function hook_function) */
+int lf_set_postbuild_hook(struct lua_State * L)
+{
+	struct CONTEXT *context = context_get_pointer(L);
+	luaL_checknumarg_eq(L, 1);
+	luaL_checktype(L, 1, LUA_TFUNCTION);
+
+	if (context->postbuild_callback_ref != 0)
+		luaL_unref(L, LUA_REGISTRYINDEX, context->postbuild_callback_ref);
+
+	context->postbuild_callback_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+
+	return 0;
+}
 
 /* default_target(string filename) */
 int lf_default_target(lua_State *L)
