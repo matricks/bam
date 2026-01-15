@@ -3,6 +3,9 @@ function MyPostBuildHook()
 	print("MyPostBuildHook:")
 	assert(Exist( "output1"))
 	assert(IsOutput("output1"))
+	assert(IsOutput("output3") )
+	assert(IsTargeted("output1") )
+	assert(not IsTargeted("output3") )
 	assert(ScriptArgs["posthook_test_fail"] == "0")
 end
 
@@ -17,6 +20,7 @@ else
 end
 
 AddJob({"output1", "output2"}, "testing 1", "echo hello > output1 && echo world >output2")
+AddJob({"output3"}, "testing 3", "echo hello > output3")
 
 DefaultTarget("output1")
 

@@ -424,6 +424,7 @@ int register_lua_globals(struct lua_State *lua, const char* script_directory, co
 	lua_register(lua, L_FUNCTION_PREFIX"isstring", lf_isstring);
 	lua_register(lua, L_FUNCTION_PREFIX"istable", lf_istable);
 	lua_register(lua, L_FUNCTION_PREFIX"isoutput", lf_isoutput);
+	lua_register(lua, L_FUNCTION_PREFIX"istargeted", lf_istargeted);
 
 	lua_register(lua, L_FUNCTION_PREFIX"table_walk", lf_table_walk);
 	lua_register(lua, L_FUNCTION_PREFIX"table_deepcopy", lf_table_deepcopy);
@@ -552,7 +553,9 @@ static int call_postbuild_callback(struct CONTEXT * context)
 	lua_getglobal(context->lua, "errorfunc");
 	/* get post build callback from registry */
 	lua_rawgeti(context->lua, LUA_REGISTRYINDEX, context->postbuild_callback_ref);
+	context->is_in_postbuild = 1;
 	int call_res = lua_pcall(context->lua, 0, 0, -2);
+	context->is_in_postbuild = 0;
 	if(call_res)
 		return 1;
 	else

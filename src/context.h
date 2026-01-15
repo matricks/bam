@@ -64,6 +64,7 @@ struct CONTEXT
 	struct VERIFY_STATE *verifystate;
 
 	/* exit related */
+	int is_in_postbuild;
 	int forced;
 	int exit_on_error;
 	int errorcode;

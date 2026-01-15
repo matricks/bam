@@ -3,6 +3,7 @@ ScriptArgs = _bam_scriptargs
 IsString = bam_isstring
 IsTable = bam_istable
 IsOutput = bam_isoutput
+IsTargeted = bam_istargeted
 Sleep = bam_sleep
 
 --[[@UNITTESTS

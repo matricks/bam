@@ -404,6 +404,27 @@ int lf_isoutput(struct lua_State *L)
 	return 1;
 }
 
+/* istargeted(string nodename) */
+int lf_istargeted(struct lua_State *L)
+{
+	struct CONTEXT *context = context_get_pointer(L);
+	if(!context->is_in_postbuild)
+		luaL_error(L, "%s: is only available in postbuild callbacks", curfuncname(L));
+
+	struct NODE *node;
+	luaL_checknumarg_eq(L, 1);
+	node = node_find(context->graph, luaL_checklstring(L,1,NULL));
+	if(!node)
+		lua_pushboolean(L, 0);
+	else
+	{
+		if(node->targeted)
+			lua_pushboolean(L, 1);
+		else
+			lua_pushboolean(L, 0);
+	}
+	return 1;
+}
 
 /* lf_set_priority(string nodename, prio) */
 int lf_set_priority(struct lua_State *L)

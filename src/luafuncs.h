@@ -20,6 +20,7 @@ int lf_update_globalstamp(struct lua_State *L);
 int lf_nodeexist(struct lua_State *L);
 
 int lf_isoutput(struct lua_State *L);
+int lf_istargeted(struct lua_State *L);
 
 int lf_set_priority(struct lua_State *L);
 int lf_modify_priority(struct lua_State *L);
