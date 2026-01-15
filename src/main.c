@@ -381,6 +381,8 @@ int register_lua_globals(struct lua_State *lua, const char* script_directory, co
 	lua_register(lua, L_FUNCTION_PREFIX"modify_priority", lf_modify_priority);
 	lua_register(lua, L_FUNCTION_PREFIX"skip_output_verification", lf_skip_output_verification);
 
+	/* hooks */
+	lua_register(lua, L_FUNCTION_PREFIX"set_postbuild_hook", lf_set_postbuild_hook);
 
 	/* advanced dependency checkers */
 	lua_register(lua, L_FUNCTION_PREFIX"add_dependency_cpp_set_paths", lf_add_dependency_cpp_set_paths);
@@ -422,6 +424,7 @@ int register_lua_globals(struct lua_State *lua, const char* script_directory, co
 	lua_register(lua, L_FUNCTION_PREFIX"isstring", lf_isstring);
 	lua_register(lua, L_FUNCTION_PREFIX"istable", lf_istable);
 	lua_register(lua, L_FUNCTION_PREFIX"isoutput", lf_isoutput);
+	lua_register(lua, L_FUNCTION_PREFIX"istargeted", lf_istargeted);
 
 	lua_register(lua, L_FUNCTION_PREFIX"table_walk", lf_table_walk);
 	lua_register(lua, L_FUNCTION_PREFIX"table_deepcopy", lf_table_deepcopy);
@@ -543,6 +546,20 @@ static int run_deferred_functions(struct CONTEXT *context, struct DEFERRED *cur)
 	}
 
 	return 0;
+}
+
+static int call_postbuild_callback(struct CONTEXT * context)
+{
+	lua_getglobal(context->lua, "errorfunc");
+	/* get post build callback from registry */
+	lua_rawgeti(context->lua, LUA_REGISTRYINDEX, context->postbuild_callback_ref);
+	context->is_in_postbuild = 1;
+	int call_res = lua_pcall(context->lua, 0, 0, -2);
+	context->is_in_postbuild = 0;
+	if(call_res)
+		return 1;
+	else
+		return 0;
 }
 
 static int bam_setup(struct CONTEXT *context, const char *scriptfile, const char **targets, int num_targets)
@@ -769,6 +786,7 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	struct CONTEXT context;
 	int build_error = 0;
 	int setup_error = 0;
+	int postbuild_error = 0;
 	int report_done = 0;
 	time_t outputcache_timestamp = 0;
 
@@ -825,9 +843,6 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 
 	/* done with the loopup heap */
 	mem_destroy(context.deferredheap);
-
-	/* close the lua state */
-	lua_close(context.lua);
 	
 	/* time after script has run to completion etc */
 	context.postsetuptime = timestamp();
@@ -875,13 +890,21 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 				{
 					event_begin(0, "clean", NULL);
 					build_error = context_build_clean(&context);
-					event_end(0, "end", NULL);
+					event_end(0, "clean", NULL);
 				}
 				else
 				{
 					event_begin(0, "build", NULL);
 					build_error = context_build_make(&context);
 					event_end(0, "build", NULL);
+
+					if(context.postbuild_callback_ref != 0)
+					{
+						event_begin(0, "postbuild callback", NULL);
+						postbuild_error = call_postbuild_callback(&context);
+						event_end(0, "postbuild callback", NULL);
+					}
+
 					report_done = 1;
 				}
 
@@ -902,6 +925,9 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 				}
 			}
 		}
+
+		/* close the lua state */
+		lua_close(context.lua);
 	}		
 
 	/* clean up */
@@ -923,6 +949,8 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 	}
 	else if(build_error)
 		printf("%s: error: a build step failed\n", session.name);
+	else if(postbuild_error)
+		printf("%s: error: post build step failed\n", session.name);
 	else if(report_done)
 	{
 		if(context.num_jobs == 0)
@@ -937,7 +965,11 @@ static int bam(const char *scriptfile, const char **targets, int num_targets)
 		}
 	}
 
-	return build_error;
+	if(build_error)
+		return build_error;
+	else
+		return postbuild_error;
+
 }
 
 

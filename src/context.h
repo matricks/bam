@@ -25,6 +25,7 @@ struct CONTEXT
 {
 	/* lua state */
 	struct lua_State *lua;
+	int postbuild_callback_ref;
 	
 	/* general script information */
 	const char *filename;
@@ -63,6 +64,7 @@ struct CONTEXT
 	struct VERIFY_STATE *verifystate;
 
 	/* exit related */
+	int is_in_postbuild;
 	int forced;
 	int exit_on_error;
 	int errorcode;

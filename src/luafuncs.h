@@ -20,10 +20,14 @@ int lf_update_globalstamp(struct lua_State *L);
 int lf_nodeexist(struct lua_State *L);
 
 int lf_isoutput(struct lua_State *L);
+int lf_istargeted(struct lua_State *L);
 
 int lf_set_priority(struct lua_State *L);
 int lf_modify_priority(struct lua_State *L);
 int lf_skip_output_verification(struct lua_State *L);
+
+/* hooks */
+int lf_set_postbuild_hook( struct lua_State * L );
 
 /* dependency */
 int lf_add_dependency_cpp_set_paths(lua_State *L); /* dep_cpp.c */
