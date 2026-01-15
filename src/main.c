@@ -410,8 +410,11 @@ int register_lua_globals(struct lua_State *lua, const char* script_directory, co
 	lua_register(lua, L_FUNCTION_PREFIX"loadfile", lf_loadfile);
 	
 	lua_register(lua, L_FUNCTION_PREFIX"mkdir", lf_mkdir);
+	lua_register(lua, L_FUNCTION_PREFIX"rmdir", lf_rmdir);
 	lua_register(lua, L_FUNCTION_PREFIX"mkdirs", lf_mkdirs);
 	lua_register(lua, L_FUNCTION_PREFIX"fileexist", lf_fileexist);
+	lua_register(lua, L_FUNCTION_PREFIX"filetimestamp", lf_filetimestamp);
+	lua_register(lua, L_FUNCTION_PREFIX"filesize", lf_filesize);
 	lua_register(lua, L_FUNCTION_PREFIX"nodeexist", lf_nodeexist);
 	lua_register(lua, L_FUNCTION_PREFIX"hash", lf_hash);
 	lua_register(lua, L_FUNCTION_PREFIX"sleep", lf_sleep);

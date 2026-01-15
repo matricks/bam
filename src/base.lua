@@ -22,6 +22,20 @@ IsFile = bam_isfile
 	err=0 : if bam_fileexist("invalid_file") then error("") end
 @END]]--
 Exist = bam_fileexist
+
+--[[@UNITTESTS
+	err=0 : if bam_filesize("file_18b") ~= 18 then error("") end
+	err=0 : if bam_filesize("invalid_file") ~= nil then error("") end
+@END]]--
+GetFileSize = bam_filesize
+
+-- unit test here is just later than time of writing, but before twice that (2080 something) 
+--[[@UNITTESTS
+	err=0 : if bam_filetimestamp("valid_file") < 1749565586.0 then error("") end
+	err=0 : if bam_filetimestamp("valid_file") > (1749565586.0 * 2) then error("") end
+@END]]--
+GetFileTimeStamp = bam_filetimestamp
+
 NodeExist = bam_nodeexist
 SetFilter = bam_set_filter
 AddOutput = bam_add_output
@@ -402,10 +416,22 @@ CollectDirs = bam_collectdirs
 @END]]--
 CollectDirsRecursive = bam_collectdirsrecursive
 
+-- bam_isdir is already tested above, so we can use it to verify mkdir/rmdir
+--[[@UNITTESTS
+	err=0 : if not bam_mkdir("mkdir_unittest_dir") then error("") end
+	err=0 : if not bam_isdir("mkdir_unittest_dir") then error("") end
+	err=0 : if not bam_rmdir("mkdir_unittest_dir") then error("") end
+	err=0 : if bam_isdir("mkdir_unittest_dir") then error("") end
+@END]]--
 --[[@FUNCTION MakeDirectory(path)
 	Creates the requested directory.
 @END]]--
 MakeDirectory = bam_mkdir
+
+--[[@FUNCTION RemoveDirectory(path)
+	Removes the directory (if empty)
+@END]]--
+RemoveDirectory = bam_rmdir
 
 --[[@FUNCTION MakeDirectories(filename)
 	Creates the path upto the filename.

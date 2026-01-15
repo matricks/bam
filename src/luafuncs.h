@@ -51,10 +51,13 @@ int lf_path_hash(struct lua_State *L);
 
 /* support, files and dirs */
 int lf_mkdir(struct lua_State *L);
+int lf_rmdir(struct lua_State *L);
 int lf_mkdirs(struct lua_State *L);
 int lf_fileexist(struct lua_State *L);
 int lf_isdir(struct lua_State *L);
 int lf_isfile(struct lua_State *L);
+int lf_filetimestamp(struct lua_State * L);
+int lf_filesize(struct lua_State * L);
 
 /* table functions*/
 int lf_table_walk(struct lua_State *L);
