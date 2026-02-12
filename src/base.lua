@@ -455,7 +455,7 @@ end
 	[ModuleFilename] function.
 @END]]--
 function Import(filename)
-	local paths = {"", PathDir(ModuleFilename())}
+	local paths = {PathDir(ModuleFilename()), ""}
 
 	local s = os.getenv("BAM_PACKAGES")
 	if s then

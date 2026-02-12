@@ -53,7 +53,7 @@ end
 function DriverGCC_Lib(output, inputs, settings)
 	-- output archive must be removed because ar will update existing archives, possibly leaving stray objects
 	local e = "rm -f " .. output .. " 2> /dev/null; "
-	local e = e .. settings.lib.exe .. " rcu " .. output
+	local e = e .. settings.lib.exe .. " rc " .. output
 	local e = e .. " " .. TableToString(inputs, '', ' ') .. settings.lib.flags:ToString()
 	return e
 end
