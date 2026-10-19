@@ -25,6 +25,10 @@ struct GRAPH *node_graph_create(struct HEAP *heap)
 
 	/* init */
 	graph->heap = heap;
+#if BAM_STAT_THREAD_MODE == BAM_STAT_THREAD_ATOMIC
+	atomic_node_init(&graph->firststatnode);
+	atomic_flag_init(&graph->statcomplete);
+#endif
 	return graph; 
 }
 
@@ -39,56 +43,107 @@ static void node_stat(struct NODE *node)
 		node->dirty |= NODEDIRTY_MISSING;
 }
 
+struct STAT_STATE
+{
+	struct GRAPH * graph;
+	struct NODE * node;
+};
+
+static int stat_thread_has_work(void * user)
+{
+	struct STAT_STATE * state = (struct STAT_STATE *)user;
+	struct GRAPH * const graph = state->graph;
+	struct NODE * const node = state->node;
+	struct NODE * next = NULL;
+#if BAM_STAT_THREAD_MODE == BAM_STAT_THREAD_ATOMIC
+	next = atomic_node_load(node ? &node->nextstat : &graph->firststatnode);
+#else
+	if(node)
+		next = node->nextstat;
+	else
+		next = graph->firststatnode;
+#endif
+
+	if(next)
+	{
+		state->node = next;
+		return 1;
+	}
+
+#if BAM_STAT_THREAD_MODE == BAM_STAT_THREAD_ATOMIC
+	if(atomic_flag_load(&graph->statcomplete))
+	{
+		/* Completion follows the final release append. Recheck after acquiring it. */
+		state->node = atomic_node_load(node ? &node->nextstat : &graph->firststatnode);
+		return 1;
+	}
+#else
+	if(node == graph->finalstatnode)
+	{
+		state->node = NULL;
+		return 1;
+	}
+#endif
+
+	return 0;
+}
+
 static void stat_thread(void *user)
 {
-	struct GRAPH *graph = (struct GRAPH *)user;
-	struct NODE *node = NULL;
-	unsigned count = 0;
-	unsigned loops = 0;
+	struct STAT_STATE state;
 
-	while(1)
+	state.graph = (struct GRAPH *)user;
+	state.node = NULL;
+
+	do
 	{
 		/* find the next stat node */
-		struct NODE *next = NULL;
-		if(node)
-			next = node->nextstat;
-		else
-			next = graph->firststatnode;
-
-		loops++;
-
-		if(next)
-		{
-			count++;
-			node = next;
-
-			/* stat the node */
-			node_stat(node);
-			sync_barrier();
-		}
-		else
-		{
-			/* check if we should finish */
-			if(node == graph->finalstatnode)
-				break;
-
-			/* be a little nice for now */
+#if BAM_STAT_THREAD_MODE == BAM_STAT_THREAD_LOCKING
+		threads_signal_wait(stat_thread_has_work, &state);
+#else
+		while(!stat_thread_has_work(&state))
 			threads_yield();
+#endif
+
+		if(state.node)
+		{
+			/* stat the node */
+			node_stat(state.node);
+#if BAM_STAT_THREAD_MODE != BAM_STAT_THREAD_ATOMIC
+			sync_barrier();
+#endif
 		}
 	}
+	while(state.node);
 }
 
 void node_graph_start_statthread(struct GRAPH *graph)
 {
+#if BAM_STAT_THREAD_MODE != BAM_STAT_THREAD_ATOMIC
 	graph->finalstatnode = (struct NODE *)0x1;
 	sync_barrier();
+#endif
 	graph->statthread = threads_create(stat_thread, graph);
 }
 
+#if BAM_STAT_THREAD_MODE == BAM_STAT_THREAD_LOCKING
+static void finish_graph(void *user)
+{
+	struct GRAPH *graph = (struct GRAPH *)user;
+	graph->finalstatnode = graph->laststatnode;
+}
+#endif
+
 void node_graph_end_statthread(struct GRAPH *graph)
 {
+#if BAM_STAT_THREAD_MODE == BAM_STAT_THREAD_LOCKING
+	threads_signal_work(finish_graph, graph);
+#elif BAM_STAT_THREAD_MODE == BAM_STAT_THREAD_LEGACY
 	graph->finalstatnode = graph->laststatnode;
 	sync_barrier();
+#else
+	atomic_flag_set(&graph->statcomplete);
+#endif
 	threads_join(graph->statthread);
 	graph->statthread = NULL;
 }
@@ -119,6 +174,47 @@ struct JOB *node_job_create(struct GRAPH *graph, const char *label, const char *
 	graph->firstjob = job;
 	
 	return job;
+}
+
+#if BAM_STAT_THREAD_MODE == BAM_STAT_THREAD_LOCKING
+struct ATTACH_NODE
+{
+	struct GRAPH * graph;
+	struct NODE * node;
+};
+
+static void attach_node(void *user)
+{
+	struct ATTACH_NODE *state = (struct ATTACH_NODE *)user;
+	struct GRAPH *graph = state->graph;
+	struct NODE *node = state->node;
+	if(graph->laststatnode)
+		graph->laststatnode->nextstat = node;
+	else
+		graph->firststatnode = node;
+	graph->laststatnode = node;
+}
+#endif
+
+static void queue_stat_node(struct GRAPH *graph, struct NODE *node)
+{
+#if BAM_STAT_THREAD_MODE == BAM_STAT_THREAD_LOCKING
+	struct ATTACH_NODE state;
+	state.graph = graph;
+	state.node = node;
+	threads_signal_work(attach_node, &state);
+#elif BAM_STAT_THREAD_MODE == BAM_STAT_THREAD_LEGACY
+	/* Historical comparison only: volatile/barriers are not portable atomic publication. */
+	sync_barrier();
+	if(graph->laststatnode)
+		graph->laststatnode->nextstat = node;
+	else
+		graph->firststatnode = node;
+	graph->laststatnode = node;
+#else
+	atomic_node_store(graph->laststatnode ? &graph->laststatnode->nextstat : &graph->firststatnode, node);
+	graph->laststatnode = node;
+#endif
 }
 
 /* creates a node */
@@ -153,6 +249,9 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 	{
 		/* allocate and set pointers */
 		node = (struct NODE *)mem_allocate(graph->heap, sizeof(struct NODE));
+#if BAM_STAT_THREAD_MODE == BAM_STAT_THREAD_ATOMIC
+		atomic_node_init(&node->nextstat);
+#endif
 		
 		node->graph = graph;
 		node->id = graph->num_nodes++;
@@ -180,13 +279,7 @@ int node_create(struct NODE **nodeptr, struct GRAPH *graph, const char *filename
 		{
 			if(graph->statthread)
 			{
-				/* make sure that the node is written down before we queue it for a stat */
-				sync_barrier();
-				if(graph->laststatnode)
-					graph->laststatnode->nextstat = node;
-				else
-					graph->firststatnode = node;
-				graph->laststatnode = node;	
+				queue_stat_node(graph, node);
 			}
 			else
 			{
@@ -417,12 +510,12 @@ static struct NODE *node_add_constraint (struct NODELINK **first, struct NODE *n
 
 struct NODE *node_add_constraint_shared (struct NODE *node, struct NODE *contraint)
 {
-	return node_add_constraint (&node->constraint_shared, node, contraint);
+	return node_add_constraint (&node->job->constraint_shared, node, contraint);
 }
 
 struct NODE *node_add_constraint_exclusive (struct NODE *node, struct NODE *contraint)
 {
-	return node_add_constraint (&node->constraint_exclusive, node, contraint);
+	return node_add_constraint (&node->job->constraint_exclusive, node, contraint);
 }
 
 void node_cached(struct NODE *node)
@@ -783,12 +876,12 @@ static void print_node(struct NODE *basenode, const char *label, int html, int p
 		printf("%08x %s    PARENT %s\n", (unsigned)(*node)->timestamp, dirtyflags_str((*node)->dirty), decorate_link((*node)->id, (*node)->filename, "n", html));
 	free(nodelist);
 
-	nodelist = sorted_nodelinklist(basenode->constraint_shared);
+	nodelist = sorted_nodelinklist(basenode->job->constraint_shared);
 	for(node = nodelist; *node; node++)
 		printf("%08x %s    SHARED %s\n", (unsigned)(*node)->timestamp, dirtyflags_str((*node)->dirty), decorate_link((*node)->id, (*node)->filename, "n", html));
 	free(nodelist);
 
-	nodelist = sorted_nodelinklist(basenode->constraint_exclusive);
+	nodelist = sorted_nodelinklist(basenode->job->constraint_exclusive);
 	for(node = nodelist; *node; node++)
 		printf("%08x %s    EXCLUS %s\n", (unsigned)(*node)->timestamp, dirtyflags_str((*node)->dirty), decorate_link((*node)->id, (*node)->filename, "n", html));
 	free(nodelist);

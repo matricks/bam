@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from __future__ import print_function
-import os, sys, shutil, subprocess
+import os, sys, shutil, stat, subprocess
 
 extra_bam_flags = ""
 src_path = "tests"
@@ -215,8 +215,13 @@ def unittests():
 
 	os.chdir(olddir)
 
+def remove_readonly(func, path, _):
+    os.chmod(path, stat.S_IWRITE)
+    func(path)
+
 # clean
-shutil.rmtree(output_path, True)
+if os.path.isdir(output_path):
+    shutil.rmtree(output_path, onerror=remove_readonly)
 # copy tree
 copytree("tests", output_path)
 os.mkdir(os.path.join(output_path, "unit"))
@@ -250,6 +255,16 @@ test("multipleoutput")
 test("multipleoutput_deps")
 test("missingoutput", "", 1)
 
+if len(tests) == 0 or "stat_thread" in tests:
+	import test_stat_thread
+	if not test_stat_thread.run():
+		failed_tests += ["stat_thread"]
+
+if len(tests) == 0 or "lua_errors" in tests:
+	import test_lua_errors
+	if not test_lua_errors.run():
+		failed_tests += ["lua_errors"]
+
 if len(failed_tests):
 	print("FAILED TESTS:")
 	for t in failed_tests:
@@ -258,4 +273,3 @@ if len(failed_tests):
 else:
 	print("ALL TESTS PASSED!")
 	sys.exit(0)
-

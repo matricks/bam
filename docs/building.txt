@@ -38,6 +38,15 @@ environment setup in a console and then run this:
 An optimized version of Bam will be built and the exe can be located in
 the base directory of Bam.
 
+The Windows build batch files return zero on success and a nonzero exit
+code if environment setup, compilation, linking, or Lua header generation
+fails. Build steps stop at the first failure, and cleanup preserves the
+failing command's exit code. When invoking a build from another batch
+file, use CALL and check ERRORLEVEL immediately:
+
+{{{{call make_win64_msvc.bat
+if errorlevel 1 exit /b %errorlevel%}}}}
+
 @GROUP BeOS and Haiku @END
 
 Building Bam works the same way as on Unix-like systems but
@@ -46,7 +55,54 @@ by running:
 
 {{{{sh make_beos.sh}}}}
 
+@GROUP File Stat Thread Modes @END
+
+Bam normally reads file timestamps on a background worker while evaluating
+the build script. Compile exactly one implementation into Bam by defining
+BAM_STAT_THREAD_MODE:
+
+{{{{0 = locking (default): critical section/event on Windows, mutex/condition variable on POSIX
+1 = legacy: historical volatile/barrier queue with polling/yield
+2 = atomic: experimental lockless single-producer/single-consumer queue}}}}
+
+The legacy mode uses volatile pointers and barriers that are not portable
+race-free synchronization; it is used for comparison.
+
+The atomic mode uses release publication and acquire consumption, including
+completion after the last append. Nodes remain alive until the worker joins.
+Only the stat queue is lockless; other parts of Bam still use locks.
+
+Atomic mode requires always-lock-free pointer and long operations with
+GCC/Clang __atomic builtins, or MSVC Interlocked intrinsics on x86, x64 or
+ARM64. Interlocked provides stronger ordering than acquire/release.
+Unsupported atomic targets and invalid mode values fail at compile time;
+there is no lock-backed fallback or additional atomic library dependency.
+Other modes do not require these atomic facilities.
+
+From a VS 2022 x64 developer shell, for example:
+
+{{{{make_win64_msvc.bat /DBAM_STAT_THREAD_MODE=2}}}}
+
+The Visual Studio NMake project exposes the BamStatThreadMode MSBuild
+property (default 0).
+
+The --help footer reports "stat thread mode: locking", "legacy", or "atomic".
+The runtime option --no-statthread bypasses the worker and reads timestamps
+synchronously in every compiled mode. It does not select a different queue
+implementation. The -j option controls build-job parallelism, independently
+of this worker.
+
 @GROUP Running the Test Suite @END
+
+The Windows batch files have isolated exit-code regression tests. Run
+them with Windows PowerShell; no C/C++ toolchain is needed:
+
+{{{{powershell.exe -NoProfile -File scripts\test_build_scripts.ps1}}}}
+
+The make_unix.sh file has isolated exit-code regression tests without
+compiling bam.  Run them using:
+
+{{{{sh scripts/test_make_unix.sh}}}}
 
 Bam comes with a test suite to verify that Bam is working like
 it should. The suite requires <a href="http://www.python.com">Python</a>
@@ -58,3 +114,54 @@ can run the test suite by typing this:
 
 It will either print out that all tests where successfull or
 what tests it didn't pass.
+
+Focused stat-thread tests run with:
+
+{{{{python scripts/test.py stat_thread}}}}
+
+The stat_thread selector includes threaded/synchronous graph comparisons,
+incremental rebuild and error-shutdown checks, and a C harness for exact
+timestamp, dirty-flag, duplicate and explicit-timestamp assertions. It
+compiles the harness with cl in the Windows developer environment or gcc
+on POSIX, selecting the mode reported by the Bam executable. Subprocess
+timeouts detect hangs. Run the full suite for all three modes.
+
+@GROUP Lua Diagnostics @END
+
+Bam retains colon-style source locations in Lua errors by default:
+
+{{{{scripts/settings.lua:7: error: invalid setting}}}}
+
+With --win-msvc-mode, Bam converts source locations to the MSBuild diagnostic
+format:
+
+{{{{scripts/settings.lua(7): error: invalid setting}}}}
+
+Errors without source locations use "error: message". Formatting happens in
+Bam, not in the bundled Lua runtime. Errors caught by Lua pcall, xpcall, or
+coroutine.resume retain their original values and are not automatically
+printed. The -t and -l options still show backtraces and locals. Use output
+without the -r c color option and enable --win-msvc-mode when consuming
+diagnostics with MSBuild. Script-supplied already formatted diagnostics are
+preserved in either mode.
+
+Run the focused output regression tests with the existing Python runtime:
+
+{{{{python scripts/test_lua_errors.py}}}}
+
+They are also included in the main test suite (selector: lua_errors).
+Set BAM_MSBUILD to an installed MSBuild executable to check standard Exec
+diagnostic recognition. Set BAM_LUA_ERROR_HARNESS to the compiled
+tests/lua_errors/harness.c executable to include deterministic memory and
+message-handler failure checks, error-object preservation, and fatal panic
+reporting. These optional checks report skips when their
+environment variables are absent.
+
+To build the C harness on Windows, run this from a Visual Studio developer
+PowerShell (cl.exe must be on PATH):
+
+{{{{powershell.exe -NoProfile -File scripts\build_lua_error_harness.ps1}}}}
+
+The executable is test_output\lua_error_harness\harness.exe. Run the focused
+test script before the main suite, which recreates test_output and removes
+the compiled harness.

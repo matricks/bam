@@ -67,6 +67,7 @@ static void cache_setup_header(const char type[4])
 	#define IO_HANDLE int
 	#define io_open_read(filename) open(filename, O_RDONLY)
 	#define io_open_write(filename) open(filename, O_WRONLY|O_CREAT|O_TRUNC, 0666)
+	#define io_open_write_tmp(pattern) mkstemp(pattern)
 	#define io_valid(f) ((f) != -1)
 	#define io_close(f) close(f)
 	#define io_read(f, data, size) read(f, data, size)
@@ -86,14 +87,29 @@ static void cache_setup_header(const char type[4])
 	
 #else
 	#include <stdio.h> /* FILE, f* */
+	#ifdef BAM_FAMILY_WINDOWS
+		#include <io.h> /* _mktemp */
+		#define io_mktemp(filename) _mktemp(filename)
+	#else
+		#define io_mktemp(filename) mktemp(filename)
+	#endif
 
 	#define IO_HANDLE FILE*
 	#define io_open_read(filename) fopen(filename, "rb")
 	#define io_open_write(filename) fopen(filename, "wb")
+
 	#define io_valid(f) (f)
 	#define io_close(f) fclose(f)
 	#define io_read(f, data, size) fread(data, 1, size, f)
 	#define io_write(f, data, size) fwrite(data, 1, size, f)
+
+	FILE * io_open_write_tmp(char *pattern)
+	{
+		if(io_mktemp(pattern) == NULL)
+			return NULL;
+
+		return io_open_write(pattern);
+	}
 
 	size_t io_size(IO_HANDLE f)
 	{
@@ -104,6 +120,19 @@ static void cache_setup_header(const char type[4])
 		fseek(f, current, SEEK_SET);
 		return end;
 	}
+#endif
+
+#ifdef BAM_FAMILY_WINDOWS
+	/* windows code */
+	#define WIN32_LEAN_AND_MEAN
+	#define VC_EXTRALEAN
+	#include <windows.h> /* MoveFileEx */
+
+	#define io_unlink(filename) remove(filename)
+	#define io_rename(oldname, newname) (MoveFileEx(oldname, newname, MOVEFILE_REPLACE_EXISTING) != 0 ? 0 : 1)
+#else
+	#define io_unlink(filename) unlink(filename)
+	#define io_rename(oldname, newname) rename(oldname, newname)
 #endif
 
 static int io_read_cachefile(const char *filename, const char *type, void **buffer, unsigned long *buffersize)
@@ -339,13 +368,12 @@ static int scancache_write_nodes(struct SCANCACHE_WRITEINFO *info)
 int scancache_save(const char *filename, struct GRAPH *graph)
 {
 	struct SCANCACHE_WRITEINFO info;
-	char tmpfilename[1024];
+	char tmpfilename[] = ".bam/scancacheXXXXXXXX";
+
 	info.index = 0;
 	info.graph = graph;
 
-	snprintf(tmpfilename, sizeof(tmpfilename), "%s_tmp", filename);
-
-	info.fp = io_open_write(tmpfilename);
+	info.fp = io_open_write_tmp(tmpfilename);
 	if(!io_valid(info.fp))
 	{
 		printf( "%s: warning: error writing cache file '%s'\n", session.name, tmpfilename );
@@ -356,10 +384,11 @@ int scancache_save(const char *filename, struct GRAPH *graph)
 	
 	if(scancache_write_header(&info) || scancache_write_nodes(&info))
 	{
-		/* error occured */
-		printf("%s: warning: error saving scan cache file '%s'\n", session.name, filename);
+		/* error occured, delete the cache file so we don't leave a corrupted file */
+		printf("%s: warning: error saving scan cache file '%s', deleting it\n", session.name, filename);
 		io_close(info.fp);
-		io_close(io_open_write(filename));
+		io_unlink(tmpfilename);
+		io_unlink(filename);
 		return -1;
 	}
 
@@ -367,10 +396,7 @@ int scancache_save(const char *filename, struct GRAPH *graph)
 	io_close(info.fp);
 
 	/* place the file where it should be now that everything was written correctly */
-#ifdef BAM_FAMILY_WINDOWS
-	remove(filename);
-#endif
-	if(rename(tmpfilename, filename) != 0) 
+	if(io_rename(tmpfilename, filename) != 0)
 	{
 		/* error occured */
 		printf( "%s: warning: error writing scan cache file '%s': %s\n", session.name, filename, strerror(errno) );
@@ -603,13 +629,12 @@ static int write_nodes(struct WRITEINFO *info)
 int depcache_save(const char *filename, struct GRAPH *graph)
 {
 	struct WRITEINFO info;
-	char tmpfilename[1024];
+	char tmpfilename[] = ".bam/depcacheXXXXXXXX";
+
 	info.index = 0;
 	info.graph = graph;
 
-	snprintf(tmpfilename, sizeof(tmpfilename), "%s_tmp", filename);
-
-	info.fp = io_open_write(tmpfilename);
+	info.fp = io_open_write_tmp(tmpfilename);
 	if(!io_valid(info.fp))
 	{
 		printf( "%s: warning: error writing cache file '%s'\n", session.name, tmpfilename );
@@ -620,10 +645,11 @@ int depcache_save(const char *filename, struct GRAPH *graph)
 	
 	if(write_header(&info) || write_nodes(&info))
 	{
-		/* error occured */
-		printf("%s: warning: error saving cache file '%s'\n", session.name, filename);
+		/* error occured, delete the cache file so we don't leave a corrupted file */
+		printf("%s: warning: error saving cache file '%s', deleting it\n", session.name, filename);
 		io_close(info.fp);
-		io_close(io_open_write(filename));
+		io_unlink(tmpfilename);
+		io_unlink(filename);
 		return -1;
 	}
 
@@ -631,10 +657,7 @@ int depcache_save(const char *filename, struct GRAPH *graph)
 	io_close(info.fp);
 
 	/* place the file where it should be now that everything was written correctly */
-#ifdef BAM_FAMILY_WINDOWS
-	remove(filename);
-#endif
-	if(rename(tmpfilename, filename) != 0) 
+	if(io_rename(tmpfilename, filename) != 0)
 	{
 		/* error occured */
 		printf( "%s: warning: error writing cache file '%s'\n", session.name, filename );
@@ -821,14 +844,10 @@ int outputcache_save(const char *filename, struct OUTPUTCACHE *oldcache, struct 
 
 	struct CACHEINFO_OUTPUT * final;
 	unsigned finalcount;
-	char tmpfilename[1024];
-	snprintf(tmpfilename, sizeof(tmpfilename), "%s_tmp", filename);
+	char tmpfilename[] = ".bam/outputcacheXXXXXXXX";
+	time_t current_stamp;
 
-	time_t current_stamp = file_timestamp(filename);
-	if(cache_timestamp != current_stamp)
-		printf("%s: warning: cache file '%s' has been changed since cache load, will be overwritten (%08x,%08x), is bam called from bam?\n", session.name, filename, (unsigned)cache_timestamp, (unsigned)current_stamp);
-	
-	fp = io_open_write(tmpfilename);
+	fp = io_open_write_tmp(tmpfilename);
 	if(!io_valid(fp))
 	{
 		printf( "%s: warning: error writing cache file '%s'\n", session.name, tmpfilename );
@@ -889,9 +908,11 @@ int outputcache_save(const char *filename, struct OUTPUTCACHE *oldcache, struct 
 	/* write down to disk */
 	if(validate_outputcache(output, num_outputs) || io_write(fp, output, output_size) != output_size)
 	{
-		/* error occured, trunc the cache file so we don't leave a corrupted file */
-		printf("%s: warning: error saving cache file '%s'\n", session.name, filename);
+		/* error occured, delete the cache file so we don't leave a corrupted file */
+		printf("%s: warning: error saving cache file '%s', deleting it\n", session.name, filename);
 		io_close(fp);
+		io_unlink(tmpfilename);
+		io_unlink(filename);
 		free(output);
 		return -1;
 	}
@@ -900,11 +921,16 @@ int outputcache_save(const char *filename, struct OUTPUTCACHE *oldcache, struct 
 	free(output);
 	io_close(fp);
 
+	current_stamp = file_timestamp(filename);
+	if(cache_timestamp != current_stamp)
+	{
+		printf("%s: warning: cache file '%s' has been changed since starting (%08x,%08x); aborting.\n", session.name, filename, (unsigned)cache_timestamp, (unsigned)current_stamp);
+		io_unlink(tmpfilename);
+		return -1;
+	}
+
 	/* put the new file into place */
-#ifdef BAM_FAMILY_WINDOWS
-	remove( filename );
-#endif
-	if(rename(tmpfilename, filename) != 0) 
+	if(io_rename(tmpfilename, filename) != 0)
 	{
 		/* error occured */
 		printf( "%s: warning: error writing cache file '%s'\n", session.name, filename );

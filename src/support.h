@@ -3,6 +3,45 @@
 
 #include <time.h> /* time_t */
 
+#define BAM_STAT_THREAD_LOCKING 0
+#define BAM_STAT_THREAD_LEGACY 1
+#define BAM_STAT_THREAD_ATOMIC 2
+
+#ifndef BAM_STAT_THREAD_MODE
+#define BAM_STAT_THREAD_MODE BAM_STAT_THREAD_LOCKING
+#endif
+
+#if BAM_STAT_THREAD_MODE == BAM_STAT_THREAD_LOCKING
+#define BAM_STAT_THREAD_NAME "locking"
+#elif BAM_STAT_THREAD_MODE == BAM_STAT_THREAD_LEGACY
+#define BAM_STAT_THREAD_NAME "legacy"
+#elif BAM_STAT_THREAD_MODE == BAM_STAT_THREAD_ATOMIC
+#define BAM_STAT_THREAD_NAME "atomic"
+#if defined(__GNUC__) || defined(__clang__)
+#if !defined(__ATOMIC_ACQUIRE) || __GCC_ATOMIC_POINTER_LOCK_FREE != 2 || __GCC_ATOMIC_LONG_LOCK_FREE != 2
+#error atomic stat thread requires always-lock-free pointer and long operations
+#endif
+#elif defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_X64) || defined(_M_ARM64))
+/* Interlocked operations provide stronger ordering than acquire/release. */
+#else
+#error atomic stat thread is unsupported by this compiler or target
+#endif
+#else
+#error invalid BAM_STAT_THREAD_MODE: expected 0 (locking), 1 (legacy), or 2 (atomic)
+#endif
+
+#if BAM_STAT_THREAD_MODE == BAM_STAT_THREAD_ATOMIC
+struct NODE;
+struct ATOMIC_NODE { struct NODE * volatile value; };
+struct ATOMIC_FLAG { volatile long value; };
+void atomic_node_init(struct ATOMIC_NODE *ptr);
+struct NODE *atomic_node_load(struct ATOMIC_NODE *ptr);
+void atomic_node_store(struct ATOMIC_NODE *ptr, struct NODE *value);
+void atomic_flag_init(struct ATOMIC_FLAG *ptr);
+int atomic_flag_load(struct ATOMIC_FLAG *ptr);
+void atomic_flag_set(struct ATOMIC_FLAG *ptr);
+#endif
+
 /* types */ 
 #ifdef __GNUC__
 	/* if compiled with -pedantic-errors it will complain about long long not being a C90 thing. */
@@ -50,8 +89,13 @@ void platform_shutdown();
 /* threading */
 void *threads_create(void (*threadfunc)(void *), void *u);
 void threads_join(void *thread);
-void threads_sleep(int milliseconds);
+#if BAM_STAT_THREAD_MODE == BAM_STAT_THREAD_LOCKING
+void threads_signal_work(void (*change_state)(void *user), void *user);
+void threads_signal_wait(int (*is_ready)(void *user), void *user);
+#else
 void threads_yield();
+#endif
+void threads_sleep(int milliseconds);
 int threads_corecount();
 
 void criticalsection_enter();

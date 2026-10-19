@@ -353,9 +353,13 @@ end)
 @END]]--
 if family == "windows" then
 	function CopyFile(dst, src)
+		local src_esc = "\"" .. str_replace(src, "/", "\\") .. "\""
+		local dst_esc = "\"" .. str_replace(dst, "/", "\\") .. "\""
+		local copy_cmd = "copy /b " .. src_esc .. " " .. dst_esc
+		local del_cmd = "del /f " .. dst_esc
 		AddJob(dst,
 			"copy " .. src .. " -> " .. dst,
-			"copy /b \"" .. str_replace(src, "/", "\\") .. "\" \"" .. str_replace(dst, "/", "\\") .. "\" >nul 2>&1",
+			copy_cmd .. " >nul 2>&1 || ( echo Failed to copy. Trying again. && ( " .. del_cmd .. " && " .. copy_cmd .. " ) >nul )",
 			src)
 		return dst
 	end
@@ -502,7 +506,7 @@ AddTool(function (settings)
 		<tr><td>^Output^</td><td>
 		Function that should transform the input path
 		into the output path. The appending of the extension is done
-		automaticly.
+		automatically.
 		
 		{{{{
 			settings.link.Output = function(settings, input)
@@ -549,14 +553,23 @@ AddTool(function (settings)
 end)
 
 --[[@<FUNCTION
-	TODO
+	Builds a shared library. The configured extension is appended only if
+	it is absent from the transformed output. An explicit output extension
+	is then appended if it differs from the configured extension.
 @END]]--
 function SharedLibrary(settings, output, ...)
 	CheckSettings(settings)
 	
 	local inputs = TableFlatten({...})
 
-	output = settings.dll.Output(settings, PathJoin(PathDir(output), settings.dll.prefix .. PathFilename(output))) .. settings.dll.extension
+	local output_ext = PathFileExt(output)
+	output = settings.dll.Output(settings, PathJoin(PathDir(output), settings.dll.prefix .. PathFilename(output)))
+	if not output:find(settings.dll.extension, 1, true) then
+		output = output .. settings.dll.extension
+	end
+	if output_ext ~= "" and "." .. output_ext ~= settings.dll.extension then
+		output = output .. "." .. output_ext
+	end
 	settings.dll.Driver(settings.labelprefix .. "dll ".. output, output, inputs, settings)
 
 	for index, inname in ipairs(inputs) do

@@ -12,6 +12,53 @@
 #include "support.h"
 #include "mem.h"
 
+static void thread_error(const char *operation, long code)
+{
+	fprintf(stderr, "%s: error: %s failed (%ld)\n", session.name, operation, code);
+	exit(1);
+}
+
+#if BAM_STAT_THREAD_MODE == BAM_STAT_THREAD_ATOMIC
+void atomic_node_init(struct ATOMIC_NODE *ptr) { ptr->value = NULL; }
+void atomic_flag_init(struct ATOMIC_FLAG *ptr) { ptr->value = 0; }
+
+#if defined(__GNUC__) || defined(__clang__)
+struct NODE *atomic_node_load(struct ATOMIC_NODE *ptr)
+{
+	return __atomic_load_n(&ptr->value, __ATOMIC_ACQUIRE);
+}
+void atomic_node_store(struct ATOMIC_NODE *ptr, struct NODE *value)
+{
+	__atomic_store_n(&ptr->value, value, __ATOMIC_RELEASE);
+}
+int atomic_flag_load(struct ATOMIC_FLAG *ptr)
+{
+	return __atomic_load_n(&ptr->value, __ATOMIC_ACQUIRE) != 0;
+}
+void atomic_flag_set(struct ATOMIC_FLAG *ptr)
+{
+	__atomic_store_n(&ptr->value, 1, __ATOMIC_RELEASE);
+}
+#else
+struct NODE *atomic_node_load(struct ATOMIC_NODE *ptr)
+{
+	return (struct NODE *)_InterlockedCompareExchangePointer((void * volatile *)&ptr->value, NULL, NULL);
+}
+void atomic_node_store(struct ATOMIC_NODE *ptr, struct NODE *value)
+{
+	_InterlockedExchangePointer((void * volatile *)&ptr->value, value);
+}
+int atomic_flag_load(struct ATOMIC_FLAG *ptr)
+{
+	return _InterlockedCompareExchange(&ptr->value, 0, 0) != 0;
+}
+void atomic_flag_set(struct ATOMIC_FLAG *ptr)
+{
+	_InterlockedExchange(&ptr->value, 1);
+}
+#endif
+#endif
+
 #ifdef BAM_FAMILY_BEOS
     #include <sched.h>
 #endif
@@ -122,6 +169,10 @@
 	static HANDLE jobhandle;
 #endif
 
+#if BAM_STAT_THREAD_MODE == BAM_STAT_THREAD_LOCKING
+	static CRITICAL_SECTION signal_lock;
+	static HANDLE signal_event;
+#endif
 	void platform_init()
 	{
 		char buffer[512] = {0};
@@ -229,6 +280,13 @@
 		}
 
 		InitializeCriticalSection(&criticalsection);
+#if BAM_STAT_THREAD_MODE == BAM_STAT_THREAD_LOCKING
+		/* Create an unsignaled auto reset event */
+		InitializeCriticalSection(&signal_lock);
+		signal_event = CreateEvent(NULL, FALSE, FALSE, NULL);
+		if(!signal_event)
+			thread_error("CreateEvent", GetLastError());
+#endif
 	}
 	
 	void platform_shutdown()
@@ -240,6 +298,11 @@
 		if(singleton_mutex)
 			ReleaseMutex(singleton_mutex);
 		CloseHandle(singleton_mutex);
+#if BAM_STAT_THREAD_MODE == BAM_STAT_THREAD_LOCKING
+		if(!CloseHandle(signal_event))
+			thread_error("CloseHandle(stat event)", GetLastError());
+		DeleteCriticalSection(&signal_lock);
+#endif
 		DeleteCriticalSection(&criticalsection);
 	}
 
@@ -248,31 +311,207 @@
 
 	void *threads_create(void (*threadfunc)(void *), void *u)
 	{
-		return CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)threadfunc, u, 0, NULL);
+		HANDLE thread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)threadfunc, u, 0, NULL);
+		if(!thread)
+			thread_error("CreateThread", GetLastError());
+		return thread;
 	}
 
 	void threads_join(void *thread)
 	{
-		WaitForSingleObject((HANDLE)thread, INFINITE);
+		if(WaitForSingleObject((HANDLE)thread, INFINITE) != WAIT_OBJECT_0)
+			thread_error("WaitForSingleObject(thread)", GetLastError());
+		if(!CloseHandle((HANDLE)thread))
+			thread_error("CloseHandle(thread)", GetLastError());
 	}
-
-	void threads_yield()
-	{
-		Sleep(1);
-	}
-
 
 	void threads_sleep(int milliseconds)
 	{
 		Sleep(milliseconds);
 	}
+
+#if BAM_STAT_THREAD_MODE == BAM_STAT_THREAD_LOCKING
+	void threads_signal_work(void (*change_state)(void *user), void *user)
+	{
+		EnterCriticalSection(&signal_lock);
+		change_state(user);
+		if(!SetEvent(signal_event))
+			thread_error("SetEvent", GetLastError());
+		LeaveCriticalSection(&signal_lock);
+	}
+
+	void threads_signal_wait(int (*is_ready)(void *user), void *user)
+	{
+		DWORD wait_result;
+		EnterCriticalSection(&signal_lock);
+		while(!is_ready(user))
+		{
+			LeaveCriticalSection(&signal_lock);
+			wait_result = WaitForSingleObject(signal_event, INFINITE);
+			EnterCriticalSection(&signal_lock);
+			if(WAIT_OBJECT_0 != wait_result)
+				thread_error("WaitForSingleObject(stat event)", GetLastError());
+		}
+		LeaveCriticalSection(&signal_lock);
+	}
+#else
+	void threads_yield() { Sleep(1); }
+#endif
+
+	static DWORD count_set_bits(ULONG_PTR bitMask)
+	{
+		DWORD LSHIFT = sizeof(ULONG_PTR) * 8 - 1;
+		DWORD bitSetCount = 0;
+		ULONG_PTR bitTest = (ULONG_PTR)1 << LSHIFT;
+		DWORD i;
+
+		for(i = 0; i <= LSHIFT; i++) {
+			bitSetCount += ((bitMask & bitTest) ? 1 : 0);
+			bitTest /= 2;
+		}
+
+		return bitSetCount;
+	}
+
+	typedef BOOL (WINAPI *LPFN_GLPIE)(LOGICAL_PROCESSOR_RELATIONSHIP, PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX, PDWORD);
+
+	enum
+	{
+		LOCAL_RELATION_PROCESSOR_CORE = 0,
+		LOCAL_RELATION_NUMA_NODE,
+		LOCAL_RELATION_CACHE,
+		LOCAL_RELATION_PROCESSOR_PACKAGE,
+		LOCAL_RELATION_GROUP,
+		LOCAL_RELATION_ALL = 0xffff
+	};
+
+	struct CPU_INFO
+	{
+		int processorPackageCount;
+		int processorCoreCount;
+		int logicalProcessorCount;
+		int numaNodeCount;
+		int groupCount;
+		int logicalProcessorsPerGroup[16];
+		struct
+		{
+			int count;
+			int associativity;
+			int lineSize;
+			int size;
+		} cacheLevel[3];
+	};
+
+	static int get_cpu_info(struct CPU_INFO *cpuInfo)
+	{
+		char *buffer = NULL;
+		PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX ptr = NULL;
+		PCACHE_RELATIONSHIP Cache;
+		LPFN_GLPIE glpi;
+		DWORD returnLength = 0;
+		DWORD byteOffset = 0;
+		WORD groupIdx;
+
+		memset(cpuInfo, 0, sizeof(*cpuInfo));
+
+		glpi = (LPFN_GLPIE)GetProcAddress(GetModuleHandle(TEXT("kernel32")), "GetLogicalProcessorInformationEx");
+		if(!glpi)
+			return 0;
+
+		while(FALSE == glpi(RelationAll, (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)buffer, &returnLength))
+		{
+			if(buffer)
+				free(buffer);
+			if(GetLastError() != ERROR_INSUFFICIENT_BUFFER)
+				return 0;
+			buffer = (char*)malloc(returnLength);
+		}
+
+		ptr = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)buffer;
+
+		/*
+			Continue while ptr points to a whole SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX structure.
+			buffer contains returnLength bytes
+			ptr = buffer + byteOffset
+		*/
+		while(byteOffset + sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX) <= returnLength)
+		{
+			switch(ptr->Relationship)
+			{
+				case (LOGICAL_PROCESSOR_RELATIONSHIP)LOCAL_RELATION_PROCESSOR_CORE:
+					cpuInfo->processorCoreCount++;
+
+					/* A hyperthreaded core supplies more than one logical processor */
+					for(groupIdx = 0; groupIdx != ptr->Processor.GroupCount; ++groupIdx)
+					{
+						const ULONG_PTR mask = ptr->Processor.GroupMask[groupIdx].Mask;
+						const WORD group = ptr->Processor.GroupMask[groupIdx].Group;
+						const int count = count_set_bits(mask);
+						cpuInfo->logicalProcessorCount += count;
+						if(group < (sizeof(cpuInfo->logicalProcessorsPerGroup) / sizeof(cpuInfo->logicalProcessorsPerGroup[0])))
+							cpuInfo->logicalProcessorsPerGroup[group] += count;
+					}
+					break;
+
+				case (LOGICAL_PROCESSOR_RELATIONSHIP)LOCAL_RELATION_NUMA_NODE:
+					/* Non-NUMA systems report a single record of this type */
+					cpuInfo->numaNodeCount++;
+					break;
+
+				case (LOGICAL_PROCESSOR_RELATIONSHIP)LOCAL_RELATION_CACHE:
+					/* Cache data is in ptr->Cache, one CACHE_DESCRIPTOR structure for each cache */
+					Cache = &ptr->Cache;
+					if(Cache->Level >= 1 && Cache->Level <= 3)
+					{
+						int level = Cache->Level - 1;
+						if(cpuInfo->cacheLevel[level].count > 0)
+							cpuInfo->cacheLevel[level].count++;
+						else
+						{
+							cpuInfo->cacheLevel[level].associativity = Cache->Associativity;
+							cpuInfo->cacheLevel[level].lineSize = Cache->LineSize;
+							cpuInfo->cacheLevel[level].size = Cache->CacheSize;
+						}
+					}
+					break;
+
+				case (LOGICAL_PROCESSOR_RELATIONSHIP)LOCAL_RELATION_PROCESSOR_PACKAGE:
+					/* Logical processors share a physical package */
+					cpuInfo->processorPackageCount++;
+					break;
+
+				case (LOGICAL_PROCESSOR_RELATIONSHIP)LOCAL_RELATION_GROUP:
+					cpuInfo->groupCount = min(sizeof(cpuInfo->logicalProcessorsPerGroup) / sizeof(cpuInfo->logicalProcessorsPerGroup[0]), (int)ptr->Group.MaximumGroupCount);
+					break;
+
+				default:
+					break;
+			}
+			byteOffset += ptr->Size;
+			ptr = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)(buffer + byteOffset);
+		}
+
+		free(buffer);
+
+		/* Trim the number of reported groups to those that have reported logical processors */
+		while((cpuInfo->groupCount > 0) && (cpuInfo->logicalProcessorsPerGroup[cpuInfo->groupCount - 1] == 0))
+			--cpuInfo->groupCount;
+
+		return 1;
+	}
 	
 	int threads_corecount()
 	{
 		SYSTEM_INFO sysinfo;
+		struct CPU_INFO cpuInfo;
+
+		if(get_cpu_info(&cpuInfo))
+			return cpuInfo.logicalProcessorCount;
+
 		GetSystemInfo(&sysinfo);
 		if(sysinfo.dwNumberOfProcessors >= 1)
 			return sysinfo.dwNumberOfProcessors;
+
 		return 1;
 	}
 
@@ -299,7 +538,9 @@
 	#define D_TYPE_HACK
 
 #ifdef D_TYPE_HACK
+#ifndef __USE_BSD
 	#define __USE_BSD
+#endif
 #endif
 
 	#include <dirent.h>
@@ -310,6 +551,8 @@
 	#include <sys/wait.h> 
 	#include <utime.h>
 	#include <pthread.h>
+	#include <sched.h>
+	#include <signal.h>
 
 	#include <sys/time.h>
 
@@ -404,24 +647,52 @@
 	void *threads_create(void (*threadfunc)(void *), void *u)
 	{
 		pthread_t id;
-		pthread_create(&id, NULL, (void *(*)(void*))threadfunc, u);
+		int error = pthread_create(&id, NULL, (void *(*)(void*))threadfunc, u);
+		if(error)
+			thread_error("pthread_create", error);
 		return (void*)id;
 	}
 
 	void threads_join(void *thread)
 	{
-		pthread_join((pthread_t)thread, NULL);
-	}
-
-	void threads_yield()
-	{
-		sched_yield();
+		int error = pthread_join((pthread_t)thread, NULL);
+		if(error)
+			thread_error("pthread_join", error);
 	}
 
 	void threads_sleep(int milliseconds)
 	{
 		usleep(milliseconds*1000);
 	}
+
+#if BAM_STAT_THREAD_MODE == BAM_STAT_THREAD_LOCKING
+	static pthread_mutex_t signal_mutex = PTHREAD_MUTEX_INITIALIZER;
+	static pthread_cond_t signal_cond = PTHREAD_COND_INITIALIZER;
+
+	static void signal_check(const char *operation, int error)
+	{
+		if(error)
+			thread_error(operation, error);
+	}
+
+	void threads_signal_work(void (*change_state)(void *user), void *user)
+	{
+		signal_check("pthread_mutex_lock(stat)", pthread_mutex_lock(&signal_mutex));
+		change_state(user);
+		signal_check("pthread_cond_signal", pthread_cond_signal(&signal_cond));
+		signal_check("pthread_mutex_unlock(stat)", pthread_mutex_unlock(&signal_mutex));
+	}
+
+	void threads_signal_wait(int (*is_ready)(void *user), void *user)
+	{
+		signal_check("pthread_mutex_lock(stat)", pthread_mutex_lock(&signal_mutex));
+		while(!is_ready(user))
+			signal_check("pthread_cond_wait", pthread_cond_wait(&signal_cond,&signal_mutex));
+		signal_check("pthread_mutex_unlock(stat)", pthread_mutex_unlock(&signal_mutex));
+	}
+#else
+	void threads_yield() { sched_yield(); }
+#endif
 
 	int threads_corecount()
 	{
@@ -635,7 +906,7 @@ int run_command(const char *cmd, const char *filter)
 	buf[len+2] = 0;
 	
 	/* open the command line */
-	fp = _popen(buf, "r");
+	fp = _popen(buf, "rt");
 
 	if(!fp)
 		return -1;

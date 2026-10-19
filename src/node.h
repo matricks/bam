@@ -97,11 +97,12 @@ struct NODE
 	struct NODELINK *firstdep; /* list of dependencies */
 	struct NODETREELINK *deproot; /* tree of dependencies */
 
-	struct NODE * volatile nextstat; /* next node to stat, written by main-thread, read by stat-thread*/
+#if BAM_STAT_THREAD_MODE == BAM_STAT_THREAD_ATOMIC
+	struct ATOMIC_NODE nextstat; /* release-published by producer, acquire-read by worker */
+#else
+	struct NODE * volatile nextstat; /* protected by signal lock, or historical volatile/barriers */
+#endif
 
-	struct NODELINK *constraint_exclusive; /* list of exclusive constraints */
-	struct NODELINK *constraint_shared; /* list of shared constraints */
-	
 	struct JOB *job; /* job that produces this node */
 	const char *filename; /* this contains the filename with the FULLPATH */
 
@@ -120,8 +121,8 @@ struct NODE
 	
 	unsigned short filename_len; /* length of filename including zero term */
 	
-	/* various flags (4 bytes in the end) */
-	unsigned dirty:8; /* non-zero if the node has to be rebuilt */
+	/* The worker's dirty byte must not share a bitfield memory location with Lua-written flags. */
+	unsigned char dirty;
 	unsigned depchecked:1; /* set if a dependency checker have processed the file */
 	unsigned targeted:1; /* set if this node is targeted for a build */
 	unsigned cached:1; /* set if the node should be considered as cached */
@@ -165,10 +166,15 @@ struct GRAPH
 	/* jobs */
 	struct JOB *firstjob;
 
-	/* file stating */
+	/* Queue nodes remain alive until after join; timestamps/dirty are consumed after join. */
 	void *statthread;
-	struct NODE * volatile firststatnode; /* first node that we should stat, written by main-thread, read by stat-thread */
-	struct NODE * volatile finalstatnode; /* the very last node that we should stat, written by main-thread, read by stat-thread */
+#if BAM_STAT_THREAD_MODE == BAM_STAT_THREAD_ATOMIC
+	struct ATOMIC_NODE firststatnode;
+	struct ATOMIC_FLAG statcomplete; /* published after the final append */
+#else
+	struct NODE * volatile firststatnode; /* signal lock, or historical volatile/barriers */
+	struct NODE * volatile finalstatnode; /* completion sentinel; same synchronization */
+#endif
 	struct NODE *laststatnode; /* last node stats to, only read and written by the main-thread */
 
 	/* memory */

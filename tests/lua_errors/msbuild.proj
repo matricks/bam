@@ -1,0 +1,72 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Check">
+  <UsingTask TaskName="VerifyLuaDiagnostic" TaskFactory="CodeTaskFactory"
+             AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <BamExe ParameterType="System.String" Required="true" />
+      <ScriptDirectory ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Reference Include="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll" />
+      <Code Type="Class" Language="cs"><![CDATA[
+using System;
+using System.Collections;
+using System.IO;
+using Microsoft.Build.Framework;
+using Microsoft.Build.Utilities;
+
+public class VerifyLuaDiagnostic : Task {
+    [Required] public string BamExe { get; set; }
+    [Required] public string ScriptDirectory { get; set; }
+
+    private sealed class RecordingEngine : IBuildEngine {
+        private readonly IBuildEngine parent;
+        public int Errors;
+        public string File;
+        public int Line;
+        public string Message;
+        public RecordingEngine(IBuildEngine parent) { this.parent = parent; }
+        public bool ContinueOnError { get { return parent.ContinueOnError; } }
+        public int LineNumberOfTaskNode { get { return parent.LineNumberOfTaskNode; } }
+        public int ColumnNumberOfTaskNode { get { return parent.ColumnNumberOfTaskNode; } }
+        public string ProjectFileOfTaskNode { get { return parent.ProjectFileOfTaskNode; } }
+        public void LogErrorEvent(BuildErrorEventArgs args) {
+            Errors++;
+            File = args.File;
+            Line = args.LineNumber;
+            Message = args.Message;
+        }
+        public void LogWarningEvent(BuildWarningEventArgs args) { parent.LogWarningEvent(args); }
+        public void LogMessageEvent(BuildMessageEventArgs args) { parent.LogMessageEvent(args); }
+        public void LogCustomEvent(CustomBuildEventArgs args) { parent.LogCustomEvent(args); }
+        public bool BuildProjectFile(string file, string[] targets, IDictionary properties,
+                                     IDictionary outputs) {
+            return parent.BuildProjectFile(file, targets, properties, outputs);
+        }
+    }
+
+    public override bool Execute() {
+        var recorder = new RecordingEngine(BuildEngine);
+        var exec = new Microsoft.Build.Tasks.Exec {
+            BuildEngine = recorder,
+            Command = "\"" + BamExe + "\" --win-msvc-mode -e failure.lua",
+            WorkingDirectory = ScriptDirectory,
+            IgnoreExitCode = true
+        };
+        exec.Execute();
+        if (recorder.Errors != 1 || Path.GetFileName(recorder.File) != "failure.lua" ||
+            recorder.Line != 1 || recorder.Message != "msbuild failure") {
+            Log.LogError("Unexpected diagnostic metadata: errors={0}, file={1}, line={2}, text={3}",
+                         recorder.Errors, recorder.File, recorder.Line, recorder.Message);
+            return false;
+        }
+        Log.LogMessage(MessageImportance.High, "Verified Lua error file=failure.lua line=1");
+        return true;
+    }
+}
+      ]]></Code>
+    </Task>
+  </UsingTask>
+  <Target Name="Check">
+    <VerifyLuaDiagnostic BamExe="$(BamExe)" ScriptDirectory="$(ScriptDirectory)" />
+  </Target>
+</Project>

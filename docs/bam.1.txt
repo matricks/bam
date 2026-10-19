@@ -38,7 +38,16 @@ OPTIONS
 	Script. Specifices the bam file to use.
 	
 -j X::
-	Use X threads when building. (EXPRIMENTAL!)
+	Use X threads when building. Negative values subtract from the detected
+	core count. This does not control the separate file stat
+	worker. (EXPRIMENTAL!)
+
+--no-statthread::
+	Read file timestamps synchronously during script evaluation instead of
+	using a separate stat worker. Works with all compiled stat-thread modes
+	(locking, legacy polling/yield, and experimental atomic queue).
+	The implementation is selected at build time with BAM_STAT_THREAD_MODE;
+	this option disables the worker rather than switching implementations.
 	
 -v::
 	Verbose. Prints all commands that bam executes.

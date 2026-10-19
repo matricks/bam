@@ -1,4 +1,5 @@
 @echo off
+setlocal
 
 @REM Check for Visual Studio
 call set "VSPATH="
@@ -33,30 +34,31 @@ if exist "%VCINSTALLDIR%" (
 
 if not defined VSPATH (
 	echo You need Microsoft Visual Studio 8, 9, 10, 11, 12, 13 or 15 installed
-	pause
-	exit
+	exit /b 1
 )
 
 @REM set up the environment
 if exist "%VSPATH%vsvars32.bat" (
 	call "%VSPATH%vsvars32.bat"
+	if errorlevel 1 exit /b 1
 	goto compile
 )
 if exist "%VSPATH%\VC\Auxiliary\Build\vcvarsall.bat" (
 	call "%%VSPATH%%\VC\Auxiliary\Build\vcvarsall.bat" x86
+	if errorlevel 1 exit /b 1
 	goto compile
 )
 
 echo Unable to set up the environment
-pause
-exit
+exit /b 1
 
 :compile
-set curpath=%CD%
-cd "%~dp0"
+pushd "%~dp0"
+if errorlevel 1 exit /b 1
 @echo === building bam ===
 @cl /D_CRT_SECURE_NO_DEPRECATE /O2 /nologo src/tools/txt2c.c /Fesrc/tools/txt2c.exe
-@src\tools\txt2c src/base.lua src/tools.lua src/driver_gcc.lua src/driver_clang.lua src/driver_cl.lua src/driver_solstudio.lua src/driver_xlc.lua > src\internal_base.h
+if errorlevel 1 goto cleanup
+@src\tools\txt2c src/base.lua src/tools.lua src/driver_gcc.lua src/driver_clang.lua src/driver_cl.lua src/driver_solstudio.lua src/driver_xlc.lua > src\internal_base.h || goto generate_failed
 
 @REM /DLUA_BUILD_AS_DLL = export lua functions
 @REM /W3 = Warning level 3
@@ -66,10 +68,19 @@ cd "%~dp0"
 @REM /GS- = no stack checks
 @REM /GL = Whole program optimization (ltcg)
 @REM /LTCG = link time code generation
-@cl /D_CRT_SECURE_NO_DEPRECATE /DLUA_BUILD_AS_DLL /W3 /O2 /TC /Zi /GS- /GL /nologo /I src/lua src/*.c src/lua/*.c /Febam.exe /link Advapi32.lib /LTCG
+@cl /D_CRT_SECURE_NO_DEPRECATE /DLUA_BUILD_AS_DLL /W3 /O2 /TC /Zi /GS- /GL /nologo /I src/lua src/*.c src/lua/*.c /Febam.exe %* /link Advapi32.lib /LTCG
 
 @REM clean up
+:cleanup
+set "build_result=%errorlevel%"
+:restore
 @del bam.exp
 @del *.obj
-cd %curpath%
-@IF %errorlevel% NEQ 0 exit /B 1
+popd
+exit /b %build_result%
+
+:generate_failed
+set "build_result=%errorlevel%"
+@REM Redirection can fail without setting ERRORLEVEL.
+if "%build_result%"=="0" set "build_result=1"
+goto restore

@@ -4,6 +4,7 @@ extern const char *CONTEXT_LUA_SCRIPTARGS_TABLE;
 extern const char *CONTEXT_LUA_TARGETS_TABLE;
 extern const char *CONTEXT_LUA_PATH;
 extern const char *CONTEXT_LUA_WORKPATH;
+extern const char *CONTEXT_LUA_THREAD_COUNT;
 
 /* jobs and deps */
 int lf_add_job(struct lua_State *L);
@@ -68,6 +69,6 @@ int lf_istable(struct lua_State *L);
 int lf_isstring(struct lua_State *L);
 int lf_loadfile(struct lua_State *L);
 int lf_errorfunc(struct lua_State *L);
+void lua_report_error(struct lua_State *L);
 int lf_panicfunc(struct lua_State *L);
 int lf_sleep(struct lua_State *L);
-

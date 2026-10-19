@@ -23,6 +23,7 @@ const char *CONTEXT_LUA_SCRIPTARGS_TABLE = "_bam_scriptargs";
 const char *CONTEXT_LUA_TARGETS_TABLE = "_bam_targets";
 const char *CONTEXT_LUA_PATH = "_bam_path";
 const char *CONTEXT_LUA_WORKPATH = "_bam_workpath";
+const char *CONTEXT_LUA_THREAD_COUNT = "_bam_thread_count";
 
 /* context helper functions */
 static struct CONTEXT *context_get_pointer(lua_State *L)
@@ -502,24 +503,110 @@ static void debug_print_lua_value(lua_State *L, int i)
 }
 
 
+static void print_lua_error_string(const char *message, size_t length)
+{
+	const char *end = message + length;
+	const char *scan = message;
+	const char *location = NULL;
+	const char *line_end = NULL;
+	const char *text = message;
+	int parenthesized = 0;
+
+	if(length >= 6 && memcmp(message, "error:", 6) == 0)
+	{
+		fwrite(message, 1, length, stdout);
+		return;
+	}
+
+	/* Source labels can contain colons and parentheses inside quoted text. */
+	if(length >= 9 && memcmp(message, "[string \"", 9) == 0)
+	{
+		while(scan + 1 < end && !(scan[0] == '"' && scan[1] == ']'))
+			scan++;
+		if(scan + 1 < end)
+			scan += 2;
+	}
+
+	for(; scan < end && *scan != '\n' && *scan != '\r'; scan++)
+	{
+		const char *digits;
+		const char *after;
+		if(*scan != ':' && *scan != '(')
+			continue;
+		digits = scan + 1;
+		after = digits;
+		while(after < end && *after >= '0' && *after <= '9')
+			after++;
+		if(after == digits || after == end || scan == message)
+			continue;
+		if(*scan == ':' && *after == ':')
+		{
+			location = scan;
+			line_end = after;
+			text = after + 1;
+			break;
+		}
+		if(*scan == '(' && *after == ')' && after + 1 < end && after[1] == ':')
+		{
+			const char *category = after + 2;
+			while(category < end && *category == ' ')
+				category++;
+			if(end - category >= 6 && memcmp(category, "error:", 6) == 0)
+			{
+				location = scan;
+				line_end = after;
+				text = category;
+				parenthesized = 1;
+				break;
+			}
+		}
+	}
+
+	if(location)
+	{
+		fwrite(message, 1, location - message, stdout);
+		printf(session.win_msvcmode || parenthesized ? "(" : ":");
+		fwrite(location + 1, 1, line_end - location - 1, stdout);
+		printf(session.win_msvcmode || parenthesized ? "): " : ": ");
+		while(text < end && *text == ' ')
+			text++;
+	}
+	if(!parenthesized && !(end - text >= 6 && memcmp(text, "error:", 6) == 0))
+		printf("error: ");
+	fwrite(text, 1, end - text, stdout);
+}
+
+void lua_report_error(lua_State *L)
+{
+	int type = lua_type(L, -1);
+	if(session.report_color)
+		printf("\033[01;31m");
+	if(type == LUA_TSTRING)
+	{
+		size_t length;
+		const char *message = lua_tolstring(L, -1, &length);
+		print_lua_error_string(message, length);
+	}
+	else if(type == LUA_TNUMBER && lua_isinteger(L, -1))
+		printf("error: " LUA_INTEGER_FMT, lua_tointeger(L, -1));
+	else if(type == LUA_TNUMBER)
+		printf("error: " LUA_NUMBER_FMT, lua_tonumber(L, -1));
+	else
+		printf("error: Lua raised a %s value", lua_typename(L, type));
+	if(session.report_color)
+		printf("\033[00m");
+	printf("\n");
+}
+
 /* error function */
 int lf_errorfunc(lua_State *L)
 {
+	int error_index = lua_gettop(L);
 	int depth = 0;
 	int frameskip = 1;
 	lua_Debug frame;
-	const char* error_str = NULL;
 
-	/* Due to how luaB_error works we only get the source file/line number if a string is passed to error() in lua. 
-	 If not, we get null from lua_tostring(L,-1);, wich crashes some libc in printf (like glibc, at least in some cases).*/
-	error_str = lua_tostring(L,-1);
-	if(!error_str)
-		error_str = "error";
-
-	if(session.report_color)
-		printf("\033[01;31m%s\033[00m\n", error_str);
-	else
-		printf("%s\n", error_str);
+	lua_report_error(L);
 	
 	if(session.lua_backtrace)
 	{
@@ -533,7 +620,10 @@ int lf_errorfunc(lua_State *L)
 
 			/* check for functions that just report errors. these frames just confuses more then they help */
 			if(frameskip && strcmp(frame.short_src, "[C]") == 0 && frame.currentline == -1)
+			{
+				lua_pop(L, 1);
 				continue;
+			}
 			frameskip = 0;
 
 			/* according to the documentation frame.name may be NULL */
@@ -569,15 +659,18 @@ int lf_errorfunc(lua_State *L)
 					i++;
 				}
 			}
+			lua_pop(L, 1);
 		}
 	}
-	
+	lua_settop(L, error_index);
 	return 1;
 }
 
 int lf_panicfunc(lua_State *L)
 {
+	lua_report_error(L);
 	printf("%s: PANIC! I'm gonna segfault now\n", session.name);
+	fflush(stdout);
 	*(volatile int*)0 = 0;
 	return 0;
 }
@@ -1138,7 +1231,7 @@ int lf_path_join(lua_State *L)
 	err = path_join(base, base_len, extend, extend_len, buffer, 2*1024);
 	if(err != 0)
 	{
-		luaL_error(L, "path_join: error %d, couldn't join\n\t'%s'\n  and\n\t'%s'",
+		luaL_error(L, "path_join: error %d, couldn't join '%s' and '%s'",
 			err,
 			lua_tostring(L, 1),
 			lua_tostring(L, 2));
@@ -1277,11 +1370,11 @@ int lf_add_dependency_cpp_set_paths(lua_State *L)
 	struct CONTEXT *context;
 	struct STRINGLIST * cur;
 	int n = lua_gettop(L);
-	
+
 	if(n != 1)
 		luaL_error(L, "add_dependency_cpp_set_paths: incorrect number of arguments");
 	luaL_checktype(L, 1, LUA_TTABLE);
-	
+
 	context = context_get_pointer(L);
 	current_includepaths = NULL;
 	build_stringlist(L, context->deferredheap, &current_includepaths, 1);
@@ -1301,18 +1394,31 @@ int lf_add_dependency_cpp(lua_State *L)
 	struct DEFERRED *deferred;
 	struct NODE * node;
 	struct DEFERRED_CSCAN *scan;
+	const char *name;
+	time_t timestamp;
 	int n = lua_gettop(L);
 	int hashindex;
-	
+	int i;
+
 	if(n != 1)
 		luaL_error(L, "add_dependency_cpp: incorrect number of arguments");
 	luaL_checkstring(L,1);
-	
+
 	context = context_get_pointer(L);
-	node = node_find(context->graph, lua_tostring(L,1));
+	name = lua_tostring(L, 1);
+	node = node_find(context->graph, name);
 
 	if(!node)
-		luaL_error(L, "add_dependency_cpp: couldn't find node with name '%s'", lua_tostring(L,1));
+	{
+		/* Check if a file already exists (same as node_findfile). */
+		timestamp = file_timestamp(name);
+
+		if(!timestamp || !file_isregular(name))
+			luaL_error(L, "add_dependency_cpp: couldn't find node or file with name '%s'", name);
+
+		i = node_create(&node, context->graph, name, NULL, timestamp);
+		handle_node_errors(L, i, 1);
+	}
 
 
 	deferred = (struct DEFERRED *)mem_allocate(context->deferredheap, sizeof(struct DEFERRED));
@@ -1357,7 +1463,7 @@ int lf_add_dependency_search(lua_State *L)
 	struct CONTEXT *context;
 	struct DEFERRED *deferred;
 	struct DEPPLAIN *plain;
-	
+
 	if(lua_gettop(L) != 3)
 		luaL_error(L, "add_dep_search: expected 3 arguments");
 	luaL_checktype(L, 1, LUA_TSTRING);
@@ -1372,24 +1478,24 @@ int lf_add_dependency_search(lua_State *L)
 		luaL_error(L, "add_dep_search: expected table as second argument");
 	if(lua_type(L,3) != LUA_TTABLE)
 		luaL_error(L, "add_dep_search: expected table as third argument");
-		
+
 	deferred = (struct DEFERRED *)mem_allocate(context->deferredheap, sizeof(struct DEFERRED));
 	plain = (struct DEPPLAIN *)mem_allocate(context->deferredheap, sizeof(struct DEPPLAIN));
-	
+
 	deferred->node = node;
 	deferred->user = plain;
 	deferred->run = dep_plain;
 	deferred->next = context->firstdeferred_search;
 	context->firstdeferred_search = deferred;
-		
+
 	/* allocate the lookup */
 	plain->firstpath = NULL;
 	plain->firstdep = NULL;
-	
+
 	/* build the string lists */
 	build_stringlist(L, context->deferredheap, &plain->firstpath, 2);
 	build_stringlist(L, context->deferredheap, &plain->firstdep, 3);
-	
+
 	return 0;
 }
 

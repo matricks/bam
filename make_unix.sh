@@ -1,6 +1,9 @@
 #!/bin/sh
 
-case "$(uname)" in
+set -e
+
+platform=$(uname)
+case "$platform" in
 	*BSD) ccorder='clang gcc'; ldl=       ;;
 	   *) ccorder='gcc clang'; ldl='-ldl' ;;
 esac

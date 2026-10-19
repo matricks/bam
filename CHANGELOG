@@ -1,4 +1,7 @@
 Release Next
+	- Stat worker uses locking/work signaling by default instead of polling/yield; --no-statthread disables it
+	- Added BAM_STAT_THREAD_MODE: 0 locking (default), 1 historical polling/yield, 2 experimental atomic lockless queue
+	- Isolated stat-worker dirty flags from script-written bitfields to prevent lost concurrent updates
 	- Fixed issues with -a not aborting on error ( matricks )
 	- Various cleanups related to the file_listdirectory ( matricks+bmwiedemann )
 	- Added --debug-verify to help catch jobs that is missing outputs ( matricks )
